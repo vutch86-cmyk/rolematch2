@@ -1,0 +1,6 @@
+{
+  "name": "Trợ Lý Tối Ưu CV & Phân Tích JD",
+  "description": "Trợ lý Senior HR phân tích JD, đối chiếu từ khóa, tối ưu bullet point CV và đánh giá tuyển dụng 10 giây.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

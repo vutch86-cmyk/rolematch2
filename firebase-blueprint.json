@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Stored user profile for CV Optimizer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "username", "passwordHash", "fullName", "role", "createdAt"]
+    },
+    "AnalysisRecord": {
+      "title": "AnalysisRecord",
+      "description": "Records of CV analysis against JD",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "jobTitle": { "type": "string" },
+        "overallScore": { "type": "number" },
+        "matchLevel": { "type": "string" },
+        "cvFileName": { "type": "string" },
+        "jdTitle": { "type": "string" },
+        "topStrengths": { "type": "array" },
+        "missingSkills": { "type": "array" },
+        "recruiterDecision": { "type": "string" },
+        "engineUsed": { "type": "string" },
+        "durationMs": { "type": "number" },
+        "cvTextLength": { "type": "number" },
+        "jdTextLength": { "type": "number" }
+      },
+      "required": ["id", "timestamp", "userEmail", "jobTitle", "overallScore", "matchLevel", "cvFileName", "jdTitle", "recruiterDecision", "engineUsed"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System and admin audit logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userRole": { "type": "string" },
+        "action": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" },
+        "details": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "userAgent": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "userEmail", "action", "status", "details"]
+    },
+    "UploadedDocument": {
+      "title": "UploadedDocument",
+      "description": "Metadata of uploaded CV and JD documents",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uploadedAt": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "fileSizeKB": { "type": "number" },
+        "source": { "type": "string" }
+      },
+      "required": ["id", "uploadedAt", "uploadedBy", "fileName", "fileType", "fileSizeKB", "source"]
+    }
+  },
+  "firestore": {
+    "users/{id}": {
+      "schema": "User",
+      "description": "User credentials and roles"
+    },
+    "analysis_records/{id}": {
+      "schema": "AnalysisRecord",
+      "description": "AI CV Analysis results"
+    },
+    "audit_logs/{id}": {
+      "schema": "AuditLog",
+      "description": "Security and admin actions"
+    },
+    "uploaded_documents/{id}": {
+      "schema": "UploadedDocument",
+      "description": "Metadata of files uploaded"
+    }
+  }
+}

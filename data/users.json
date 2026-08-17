@@ -1,0 +1,38 @@
+[
+  {
+    "role": "admin",
+    "username": "admin",
+    "id": "usr_admin_001",
+    "fullName": "Quản trị viên (Admin)",
+    "passwordHash": "$2b$10$LdUysuXDKPABCILKVp3RMe2DT57RzgZNt4TBW3cNwV7rral2otsua",
+    "createdAt": "2026-08-12T14:13:05.447Z"
+  },
+  {
+    "username": "user1",
+    "role": "normal",
+    "id": "usr_msod5a0nuk5n",
+    "createdAt": "2026-08-11T07:53:05.129Z",
+    "passwordHash": "$2b$10$PfyTSzEIS1GMsXlMkL4j5.hRtrE842Jve.zoMy5MWtwxljkuUG5Wa",
+    "fullName": "User1",
+    "failedLoginAttempts": 1,
+    "isLocked": false
+  },
+  {
+    "role": "normal",
+    "passwordHash": "$2b$10$7B05nRB7/OPBz2VsIGjlYOsVeKiECtjkGH0jLlL6X2aijstYtC0rC",
+    "createdAt": "2026-08-12T09:13:19.160Z",
+    "isLocked": false,
+    "id": "usr_mspvgb7w8z6e",
+    "fullName": "user2",
+    "username": "user2",
+    "failedLoginAttempts": 0
+  },
+  {
+    "role": "normal",
+    "createdAt": "2026-08-13T04:58:13.039Z",
+    "id": "usr_msr1s3m3wbf2",
+    "username": "testadmin",
+    "passwordHash": "$2b$10$lk9rkOy9uyAGBFiccXcHJeUJwuwlAjQVgfD0n1JkWdbrDTbjetCzi",
+    "fullName": "Test Admin"
+  }
+]

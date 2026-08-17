@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default fallback - deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Allow public read/write to the collections used by the server.
+    // In this applet preview environment, the Node backend server connects using the client-side Firebase SDK, 
+    // which operates unauthenticated, so targeted public permissions are required for server synchronization.
+    match /users/{document} {
+      allow read, write: if true;
+    }
+    match /analysis_records/{document} {
+      allow read, write: if true;
+    }
+    match /audit_logs/{document} {
+      allow read, write: if true;
+    }
+    match /uploaded_documents/{document} {
+      allow read, write: if true;
+    }
+  }
+}
