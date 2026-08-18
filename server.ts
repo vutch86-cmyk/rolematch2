@@ -2565,27 +2565,119 @@ Return a rigorous comparison and matching analysis in JSON format conforming EXA
 - keywordScore: Match score for keywords and skills overlap (0 to 100).
 - experienceScore: Match score for experience years, responsibilities, and industry outcomes (0 to 100).
 - skillScore: Match score for core technical & soft skills required by the JD (0 to 100).
-- topStrengths: An array of exactly 3 bullet points showing the candidate's biggest strengths matching this JD (in ${isEn ? 'English' : 'Vietnamese'}).
-- keyGaps: An array of exactly 3 bullet points detailing the key missing skills, tools, or requirements (in ${isEn ? 'English' : 'Vietnamese'}).
+- topStrengths: An array of 3 to 5 detailed bullet points showing the candidate's biggest strengths matching this JD (in ${isEn ? 'English' : 'Vietnamese'}).
+- keyGaps: An array of 3 to 5 detailed bullet points detailing the key missing skills, tools, or requirements (in ${isEn ? 'English' : 'Vietnamese'}).
 - shortRecommendation: A 1-sentence professional hiring recommendation summarizing their fit (in ${isEn ? 'English' : 'Vietnamese'}).
 
 Crucial: Return ONLY valid JSON matching the specified schema. No markdown formatting outside the JSON, no backticks, no comments.
 `;
 }
 
-function extractCandidateName(cvText: string): string {
-  if (!cvText) return '';
-  const lines = cvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  for (const line of lines) {
-    const lower = line.toLowerCase();
-    if (lower.startsWith('#') || lower.includes('applicant cv') || lower === 'cv' || lower === 'resume' || lower === 'curriculum vitae' || lower === 'thông tin cá nhân' || lower === 'personal details') {
-      continue;
+function isPlausiblePersonName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const clean = name.trim().replace(/^[\*\#\-\•\>\s]+/, '').replace(/[\*\#\-\•\:\,\.]+$/, '').trim();
+  if (clean.length < 2 || clean.length > 45) return false;
+
+  // Must not end with sentence punctuation or contain colons or numbers
+  if (/[.:;?!]$/.test(clean)) return false;
+  if (/\d/.test(clean)) return false; // e.g. "1 of 4", "2024", "100%"
+  if (/@|https?:\/\/|www\.|\.com|\.vn|\.org|\.net/i.test(clean)) return false;
+
+  const lower = clean.toLowerCase();
+
+  // Blacklist of phrases/skills/headings/stop words that are NOT personal names
+  const forbiddenPatterns = [
+    'team leadership', 'leadership', 'kpi', 'pdp', 'development', 'management',
+    'engineer', 'developer', 'designer', 'consultant', 'analyst', 'manager', 'lead',
+    'curriculum vitae', 'resume', 'applicant cv', 'personal details', 'contact info',
+    'work experience', 'professional experience', 'skills', 'technical skills',
+    'core competencies', 'education', 'certifications', 'projects', 'summary',
+    'executive summary', 'objective', 'career objective', 'about me', 'profile',
+    'page', 'of', 'responsibilities', 'achievements', 'awards', 'languages',
+    'hồ sơ', 'sơ yếu', 'lý lịch', 'kinh nghiệm', 'kỹ năng', 'học vấn', 'mục tiêu',
+    'thông tin', 'liên hệ', 'dự án', 'chức vụ', 'công việc', 'trách nhiệm',
+    'thành tích', 'chứng chỉ', 'việc của', 'nhân sự', 'kế toán', 'lập trình',
+    'quản lý', 'trưởng phòng', 'giám đốc', 'chuyên viên', 'thực tập', 'trang',
+    'bản quyền', 'mô tả', 'tuyển dụng', 'đánh giá', 'chuyên môn'
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    if (lower.includes(pattern)) return false;
+  }
+
+  // Word count check (names are normally 1 to 5 words)
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length < 1 || words.length > 5) return false;
+
+  // At least one word should start with uppercase or contain Vietnamese diacritics
+  const hasCapitalOrSpecial = words.some(w => /^[A-ZÀ-Ỹ]/.test(w));
+  return hasCapitalOrSpecial;
+}
+
+function extractNameFromFilename(filename: string): string {
+  if (!filename) return '';
+  // Remove extension
+  let base = filename.replace(/\.[^/.]+$/, '');
+  
+  // Remove common prefix / suffix keywords
+  base = base
+    .replace(/^(cv|resume|jd|profile|hosocanhan|hoso|don_ung_tuyen|ungvien)[\s_\-\.]+/i, '')
+    .replace(/[\s_\-\.]+(cv|resume|jd|profile|v\d+|\d{4}|final|updated|new|latest|pdf|docx)$/i, '')
+    .replace(/[\s_\-\.]+(senior|junior|lead|frontend|backend|fullstack|dev|engineer|pm|ba|qa|intern|specialist).*$/i, '');
+
+  // Replace symbols with space
+  base = base.replace(/[\-_.]+/g, ' ');
+
+  // Split camelCase words e.g. "NguyenVanA" -> "Nguyen Van A"
+  base = base.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+
+  // Clean words and capitalize
+  const words = base.split(/\s+/).filter(w => w.length > 1 && !/^\d+$/.test(w));
+  if (words.length > 0 && words.length <= 5) {
+    const formatted = words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    if (isPlausiblePersonName(formatted)) {
+      return formatted;
     }
-    const clean = line.replace(/[\*\#\-\•]/g, '').trim();
-    if (clean.length > 2 && clean.length < 40 && !clean.includes(':')) {
-      return clean;
+    return formatted;
+  }
+  return base.trim();
+}
+
+function extractCandidateName(cvText: string, filename?: string): string {
+  if (cvText) {
+    const lines = cvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    // Scan the first 15 lines for a clean candidate name
+    for (let i = 0; i < Math.min(lines.length, 15); i++) {
+      const line = lines[i];
+      let clean = line.replace(/^[\*\#\-\•\>\s]+/, '').replace(/[\*\#\-\•\:\,\.]+$/, '').trim();
+      
+      // If line is like "Họ và tên: Nguyễn Văn A" or "Name: John Doe"
+      const namePrefixMatch = clean.match(/^(?:họ\s*(?:và|&)?\s*tên|full\s*name|candidate\s*name|name)\s*[:\-]\s*(.+)$/i);
+      if (namePrefixMatch && isPlausiblePersonName(namePrefixMatch[1])) {
+        return namePrefixMatch[1].trim();
+      }
+
+      // If line has a title separator like "NGUYỄN VĂN A - SENIOR FRONTEND ENGINEER"
+      if (clean.includes(' - ') || clean.includes(' | ')) {
+        const parts = clean.split(/\s+[\-\|]\s+/);
+        if (parts[0] && isPlausiblePersonName(parts[0])) {
+          return parts[0].trim();
+        }
+      }
+
+      if (isPlausiblePersonName(clean)) {
+        return clean;
+      }
     }
   }
+
+  // Fallback to filename extraction
+  if (filename) {
+    const fromFilename = extractNameFromFilename(filename);
+    if (fromFilename && isPlausiblePersonName(fromFilename)) return fromFilename;
+    if (fromFilename) return fromFilename;
+  }
+
   return '';
 }
 
@@ -2759,7 +2851,15 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
         }
 
         // --- DATA MAPPING TO CANDIDATE RESULT ---
-        const candidateName = extractCandidateName(candidate.text) || candidate.filename.replace(/\.[^/.]+$/, "");
+        let candidateName = '';
+        if (finalResult.candidateName && isPlausiblePersonName(finalResult.candidateName)) {
+          candidateName = finalResult.candidateName.trim();
+        } else {
+          candidateName = extractCandidateName(candidate.text, candidate.filename);
+        }
+        if (!candidateName || !isPlausiblePersonName(candidateName)) {
+          candidateName = extractNameFromFilename(candidate.filename) || candidate.filename.replace(/\.[^/.]+$/, "");
+        }
         const overallScore = finalResult.feature1?.scores?.overallRoleScore ?? 0;
 
         let matchLevel: 'Very High' | 'High' | 'Medium' | 'Low' = 'Low';
@@ -3576,6 +3676,9 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
 
 === PROCESSING REQUIREMENTS ===
 
+--- CANDIDATE IDENTIFICATION ---
+- Extract the candidate's exact full name (candidateName) from the CV header, contact block, or title (e.g. 'Nguyễn Văn A', 'John Smith'). Do NOT return a job skill, bullet point, phrase, or section header as the candidate name. If not found, leave as empty string or a clean identifier.
+
 --- FEATURE 1: RECRUITER KEYWORD EXTRACTION & CV COMPARISON ---
 1. Extract & categorize key JD terms into 5 groups:
    - "Technical Skills"
@@ -3639,7 +3742,10 @@ ${cvText}
 
 ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN:\n${clarifyingAnswers}\n` : ''}
 
-=== YÊU CẦU XỬ LÝ (BẮT BUỘC THỰC HIỆN ĐỦ 3 TÍNH NĂNG) ===
+=== YÊU CẦU XỬ LÝ (BẮT BUỘC THỰC HIỆN ĐỦ CÁC MỤC) ===
+
+--- NHẬN DIỆN ỨNG VIÊN ---
+- Trích xuất chính xác Họ và Tên đầy đủ của ứng viên (candidateName) từ phần tiêu đề, thông tin liên hệ hoặc phần đầu của CV (ví dụ: 'Nguyễn Văn A', 'Trần Thị B', 'John Smith'). TUYỆT ĐỐI KHÔNG lấy câu mô tả công việc, kỹ năng, đoạn văn hay tiêu đề mục làm tên ứng viên. Nếu không tìm thấy tên cá nhân cụ thể, hãy để chuỗi rỗng.
 
 --- TÍNH NĂNG 1: TRÍCH XUẤT NGÔN NGỮ NHÀ TUYỂN DỤNG & ĐỐI CHIẾU CV ---
 1. Trích xuất & xếp hạng từ khóa JD:
@@ -3698,6 +3804,10 @@ Trả lời trực diện 6 câu hỏi:
 const analysisResponseSchema = {
   type: Type.OBJECT,
   properties: {
+    candidateName: {
+      type: Type.STRING,
+      description: 'Họ và tên đầy đủ của ứng viên trích xuất từ CV',
+    },
     feature1: {
       type: Type.OBJECT,
       properties: {
