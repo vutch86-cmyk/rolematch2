@@ -335,6 +335,9 @@ function loadAllDataFromFiles() {
         recruiterBatches.length = 0;
         for (const b of loaded) {
           if (Array.isArray(b.candidates)) {
+            for (const c of b.candidates) {
+              c.rank = hasValidRank(c.rank) ? c.rank : null;
+            }
             sortBatchCandidates(b.candidates);
           }
           recruiterBatches.push(b);
@@ -503,7 +506,11 @@ async function syncFromFirestore() {
           const batchSummary = batchDoc.data() as RecruiterBatchSummary;
           const candidatesCol = collection(db, 'recruiter_batches', batchSummary.id, 'candidates');
           const candidatesSnapshot = await getDocs(candidatesCol);
-          const candidates: SavedBatchCandidate[] = candidatesSnapshot.docs.map(cDoc => cDoc.data() as SavedBatchCandidate);
+          const candidates: SavedBatchCandidate[] = candidatesSnapshot.docs.map(cDoc => {
+            const c = cDoc.data() as SavedBatchCandidate;
+            c.rank = hasValidRank(c.rank) ? c.rank : null;
+            return c;
+          });
 
           // Order candidates: ranked completed first (1, 2, 3...), then NO_SCORE, then FAILED, then alphabetical
           sortBatchCandidates(candidates);
@@ -954,15 +961,27 @@ function removeUndefinedDeep<T>(value: T): T {
   return result as T;
 }
 
+// Helper to check for a valid finite positive rank number (> 0)
+function hasValidRank(rank: unknown): rank is number {
+  return (
+    typeof rank === 'number' &&
+    Number.isFinite(rank) &&
+    rank > 0
+  );
+}
+
 // Helper to stably sort batch candidates
 function sortBatchCandidates(candidates: SavedBatchCandidate[]): SavedBatchCandidate[] {
   return candidates.sort((a, b) => {
-    // 1. Ranked candidates first (rank ascending: 1, 2, 3...)
-    if (a.rank !== null && b.rank !== null) {
-      return a.rank - b.rank;
+    const aHasRank = hasValidRank(a.rank);
+    const bHasRank = hasValidRank(b.rank);
+
+    // 1. Valid ranked candidates first (rank ascending: 1, 2, 3...)
+    if (aHasRank && bHasRank) {
+      return (a.rank as number) - (b.rank as number);
     }
-    if (a.rank !== null) return -1;
-    if (b.rank !== null) return 1;
+    if (aHasRank) return -1;
+    if (bHasRank) return 1;
 
     // 2. NO_SCORE before FAILED
     if (a.processingStatus !== b.processingStatus) {
@@ -1003,7 +1022,7 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
     batchName: batch.batchName,
     roleTitle: batch.roleTitle,
     jdText: batch.jdText,
-    jdFileName: batch.jdFileName || undefined,
+    jdFileName: batch.jdFileName !== undefined ? batch.jdFileName : undefined,
     createdAt: batch.createdAt,
     updatedAt: batch.updatedAt,
     createdBy: batch.createdBy,
@@ -1026,7 +1045,7 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
         candidateName: candidate.candidateName,
         success: candidate.success,
         processingStatus: candidate.processingStatus,
-        rank: candidate.rank,
+        rank: hasValidRank(candidate.rank) ? candidate.rank : null,
         overallScore: candidate.overallScore,
         matchLevel: candidate.matchLevel,
         keywordScore: candidate.keywordScore,
@@ -1034,10 +1053,10 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
         skillScore: candidate.skillScore,
         topStrengths: candidate.topStrengths || [],
         keyGaps: candidate.keyGaps || [],
-        shortRecommendation: candidate.shortRecommendation || '',
-        errorMessage: candidate.errorMessage || undefined,
-        cvText: candidate.cvText || undefined,
-        fullAnalysis: candidate.fullAnalysis || undefined
+        shortRecommendation: candidate.shortRecommendation !== undefined ? candidate.shortRecommendation : '',
+        errorMessage: candidate.errorMessage !== undefined ? candidate.errorMessage : undefined,
+        cvText: candidate.cvText !== undefined ? candidate.cvText : undefined,
+        fullAnalysis: candidate.fullAnalysis !== undefined ? candidate.fullAnalysis : undefined
       };
       await setDoc(candDocRef, removeUndefinedDeep(cleanCandidate));
     }
@@ -1054,11 +1073,13 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
     batch.updatedAt = readyUpdatedAt;
   } catch (firestoreErr: any) {
     console.error('Error persisting recruiter batch to Firestore:', firestoreErr);
+    const failedUpdatedAt = new Date().toISOString();
     batch.status = 'FAILED';
+    batch.updatedAt = failedUpdatedAt;
     try {
       await updateDoc(batchDocRef, removeUndefinedDeep({
         status: 'FAILED',
-        updatedAt: new Date().toISOString()
+        updatedAt: failedUpdatedAt
       }));
     } catch {
       // ignore secondary update failure
@@ -2346,9 +2367,9 @@ app.post('/api/recruiter/batches', async (req, res) => {
         topStrengths,
         keyGaps,
         shortRecommendation,
-        errorMessage: isFailed ? (raw.errorMessage || 'Phân tích ứng viên thất bại') : undefined,
-        cvText: raw.cvText || undefined,
-        fullAnalysis: raw.fullAnalysis || undefined
+        errorMessage: isFailed ? (raw.errorMessage !== undefined ? raw.errorMessage : 'Phân tích ứng viên thất bại') : undefined,
+        cvText: raw.cvText !== undefined ? raw.cvText : undefined,
+        fullAnalysis: raw.fullAnalysis !== undefined ? raw.fullAnalysis : undefined
       };
     });
 
@@ -2376,6 +2397,7 @@ app.post('/api/recruiter/batches', async (req, res) => {
 
     const nowIso = new Date().toISOString();
     const batchId = `batch_${crypto.randomUUID()}`;
+    const initialStatus: RecruiterBatchStatus = db ? 'SAVING' : 'READY';
 
     const newBatchDetail: RecruiterBatchDetail = {
       id: batchId,
@@ -2386,7 +2408,7 @@ app.post('/api/recruiter/batches', async (req, res) => {
       createdAt: nowIso,
       updatedAt: nowIso,
       createdBy,
-      status: 'READY',
+      status: initialStatus,
       candidateCount,
       rankedCount,
       noScoreCount,
@@ -2394,7 +2416,7 @@ app.post('/api/recruiter/batches', async (req, res) => {
       candidates: normalizedCandidates
     };
 
-    // Pre-insert into in-memory store
+    // Pre-insert into in-memory store (in-memory will reflect SAVING while Firestore persists)
     recruiterBatches.unshift(newBatchDetail);
 
     // Persistence Flow:
@@ -2545,7 +2567,11 @@ app.get('/api/recruiter/batches/:id', async (req, res) => {
           const summary = batchDocSnap.data() as RecruiterBatchSummary;
           const candidatesCol = collection(db, 'recruiter_batches', id, 'candidates');
           const candSnapshot = await getDocs(candidatesCol);
-          const candidates = candSnapshot.docs.map(d => d.data() as SavedBatchCandidate);
+          const candidates = candSnapshot.docs.map(d => {
+            const c = d.data() as SavedBatchCandidate;
+            c.rank = hasValidRank(c.rank) ? c.rank : null;
+            return c;
+          });
 
           sortBatchCandidates(candidates);
 

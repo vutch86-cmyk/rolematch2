@@ -291,7 +291,7 @@ export interface SavedBatchCandidate {
 
   errorMessage?: string;
   cvText?: string;
-  fullAnalysis?: CompleteCVAnalysisResponse;
+  fullAnalysis?: CompleteCVAnalysisResponse | null;
 }
 
 export interface RecruiterBatchDetail
