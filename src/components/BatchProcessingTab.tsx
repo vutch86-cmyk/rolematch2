@@ -30,7 +30,8 @@ import {
   TrendingDown,
   AlertOctagon,
   Pin,
-  Eye
+  Eye,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -53,6 +54,7 @@ interface BatchProcessingTabProps {
   lang: 'vi' | 'en';
   token: string | null;
   onAddHistoryItems?: (items: HistoryItem[]) => void;
+  onOpenFullAnalysis?: (item: HistoryItem) => void;
 }
 
 interface CandidateResult {
@@ -71,7 +73,7 @@ interface CandidateResult {
   fullAnalysis?: any;
 }
 
-export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, token, onAddHistoryItems }) => {
+export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, token, onAddHistoryItems, onOpenFullAnalysis }) => {
   const isEn = lang === 'en';
 
   // --- State Variables ---
@@ -743,52 +745,18 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     if (candidate.shortRecommendation && candidate.shortRecommendation.trim()) {
       return candidate.shortRecommendation.trim();
     }
-    const str = candidate.topStrengths?.[0];
-    const gap = candidate.keyGaps?.[0];
-    if (str && gap) {
-      return isEn 
-        ? `Candidate demonstrates strong competency in ${str}; further verification recommended for ${gap}.`
-        : `Ứng viên đáp ứng tốt ${str}; cần xác minh thêm kinh nghiệm ${gap}.`;
-    } else if (str) {
-      return isEn 
-        ? `Candidate demonstrates strong competency in ${str}.`
-        : `Ứng viên đáp ứng tốt ${str}.`;
+    if (candidate.fullAnalysis?.feature3?.recruiterDecisionReason && candidate.fullAnalysis.feature3.recruiterDecisionReason.trim()) {
+      return candidate.fullAnalysis.feature3.recruiterDecisionReason.trim();
     }
-    return isEn 
-      ? 'Overall profile closely matches role requirements and core technical competencies.'
-      : 'Ứng viên đáp ứng tốt các yêu cầu chính của vị trí tuyển dụng.';
+    return isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích';
   };
 
   const getScoreBreakdownInsight = (candidate: CandidateResult, isEn: boolean) => {
-    const kwLabel = isEn ? 'Keyword alignment' : 'Độ khớp từ khóa (Keyword alignment)';
-    const expLabel = isEn ? 'Experience fit' : 'Kinh nghiệm (Experience fit)';
-    const skillLabel = isEn ? 'Skills fit' : 'Kỹ năng (Skills fit)';
-
-    const items = [
-      { name: expLabel, score: candidate.experienceScore, key: 'exp' },
-      { name: kwLabel, score: candidate.keywordScore, key: 'kw' },
-      { name: skillLabel, score: candidate.skillScore, key: 'skill' },
-    ];
-
-    items.sort((a, b) => b.score - a.score);
-    const top = items[0];
-    const bottom = items[2];
-
-    if (top.score === bottom.score) {
-      return isEn
-        ? `All 3 dimensions demonstrate balanced alignment at ${top.score}%.`
-        : `Cả 3 chỉ số đều thể hiện mức độ phù hợp đồng đều ở mức ${top.score}%.`;
+    const summaryInsight = candidate.fullAnalysis?.feature1?.summary?.biggestStrength || candidate.fullAnalysis?.summary;
+    if (summaryInsight && typeof summaryInsight === 'string' && summaryInsight.trim()) {
+      return summaryInsight.trim();
     }
-
-    if (isEn) {
-      const topName = top.key === 'kw' ? 'Keyword alignment' : top.name;
-      const botName = bottom.key === 'kw' ? 'keyword alignment' : bottom.name;
-      return `${topName} is the strongest dimension (${top.score}%); ${botName} is the area needing review (${bottom.score}%).`;
-    } else {
-      const topName = top.key === 'kw' ? 'Độ khớp từ khóa' : (top.key === 'exp' ? 'Kinh nghiệm' : 'Kỹ năng');
-      const botName = bottom.key === 'kw' ? 'keyword alignment' : (bottom.key === 'exp' ? 'kinh nghiệm' : 'kỹ năng');
-      return `${topName} là điểm mạnh nhất (${top.score}%); ${botName} là phần cần xem lại (${bottom.score}%).`;
-    }
+    return isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích';
   };
 
   const getNormalizedList = (
@@ -797,96 +765,27 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     candidate: CandidateResult,
     isEn: boolean
   ): string[] => {
-    const rawItems = (rawList && Array.isArray(rawList)) ? rawList.filter(b => b && b.trim().length > 0) : [];
-    
-    // Deterministically vary between 4 and 5 items per candidate (achieving 3-5 range)
-    const seed = (candidate.filename || candidate.candidateName || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const targetCount = 4 + (seed % 2); // 4 or 5 items
-
-    const result = [...rawItems];
-
-    if (type === 'strengths') {
-      const extraStrengthsEn = [
-        `High keyword alignment (${candidate.keywordScore}%) covering essential role requirements.`,
-        `Solid experience fit (${candidate.experienceScore}%) with practical domain execution.`,
-        `Strong technical skill score (${candidate.skillScore}%) matching requested stack.`,
-        `Proven track record of project delivery and effective team collaboration.`,
-        `Demonstrated adaptability and continuous technical learning capability.`
-      ];
-      const extraStrengthsVi = [
-        `Tỷ lệ khớp từ khóa cao (${candidate.keywordScore}%) bao phủ các yêu cầu chuyên môn cốt lõi.`,
-        `Kinh nghiệm làm việc thực tế phù hợp (${candidate.experienceScore}%) với quy trình vận hành.`,
-        `Điểm đánh giá kỹ năng tốt (${candidate.skillScore}%) đáp ứng đúng bộ công nghệ yêu cầu.`,
-        `Thành tích thực thi dự án hiệu quả và khả năng làm việc nhóm tốt.`,
-        `Khả năng thích ứng linh hoạt và tinh thần học hỏi công nghệ mới cao.`
-      ];
-      const extras = isEn ? extraStrengthsEn : extraStrengthsVi;
-      for (const item of extras) {
-        if (result.length >= targetCount) break;
-        if (!result.some(existing => existing.toLowerCase().includes(item.slice(0, 15).toLowerCase()))) {
-          result.push(item);
-        }
-      }
-    } else {
-      const extraGapsEn = [
-        `Requires further verification regarding specific advanced project methodologies.`,
-        `Key performance metrics and quantitative achievements need validation in interview.`,
-        `Cross-functional communication and specialized domain certification to be clarified.`,
-        `Need to verify experience level with large-scale high-load system architectures.`,
-        `Requires clarification on recent hands-on exposure to latest automated toolings.`
-      ];
-      const extraGapsVi = [
-        `Cần xác minh thêm về quy trình & phương pháp quản lý dự án chuyên sâu khi phỏng vấn.`,
-        `Các số liệu đo lường hiệu suất và thành tựu định lượng cần được kiểm chứng thêm.`,
-        `Cần trao đổi chi tiết về khả năng phối hợp liên phòng ban và chứng chỉ chuyên môn.`,
-        `Cần đánh giá kỹ năng xử lý hệ thống quy mô lớn và kiến trúc phức tạp.`,
-        `Cần làm rõ mức độ thực hành gần đây với các công cụ tự động hóa mới nhất.`
-      ];
-      const extras = isEn ? extraGapsEn : extraGapsVi;
-      for (const item of extras) {
-        if (result.length >= targetCount) break;
-        if (!result.some(existing => existing.toLowerCase().includes(item.slice(0, 15).toLowerCase()))) {
-          result.push(item);
-        }
-      }
-    }
-
-    return result.slice(0, 5);
+    if (!rawList || !Array.isArray(rawList)) return [];
+    return rawList.filter(b => b && typeof b === 'string' && b.trim().length > 0);
   };
 
   // Helper for Section D: Recruiter Quick Scan
   const getRecruiterQuickScan = (candidate: CandidateResult, isEn: boolean) => {
     const f3 = candidate.fullAnalysis?.feature3;
-    
-    const firstImpression10s = f3?.firstImpression10s || candidate.shortRecommendation || (
-      isEn 
-        ? `Clear structure matching candidate experience level with ${candidate.overallScore}% overall match score.`
-        : `Bố cục rõ ràng, phản ánh đúng cấp độ kinh nghiệm với điểm số tổng thể ${candidate.overallScore}%.`
-    );
+    const noData = isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích';
 
-    const immediateStrength = f3?.immediateStrength || (
-      candidate.topStrengths && candidate.topStrengths.length > 0 ? candidate.topStrengths[0] : (
-        isEn 
-          ? `Strong technical alignment in core competencies (${candidate.keywordScore}% keyword match).`
-          : `Năng lực chuyên môn vững vàng (${candidate.keywordScore}% độ khớp từ khóa).`
-      )
-    );
+    const firstImpression10s = (f3?.firstImpression10s && typeof f3.firstImpression10s === 'string' && f3.firstImpression10s.trim())
+      || (candidate.shortRecommendation && candidate.shortRecommendation.trim())
+      || noData;
 
-    const biggestDoubt = f3?.biggestDoubt || (
-      candidate.keyGaps && candidate.keyGaps.length > 0 ? candidate.keyGaps[0] : (
-        isEn
-          ? `Specific performance metrics and quantitative achievements need further verification.`
-          : `Các chỉ số hiệu suất công việc định lượng cần làm rõ thêm khi phỏng vấn.`
-      )
-    );
+    const immediateStrength = (f3?.immediateStrength && typeof f3.immediateStrength === 'string' && f3.immediateStrength.trim())
+      || (candidate.topStrengths && candidate.topStrengths.length > 0 ? candidate.topStrengths[0] : noData);
 
-    const fastestPointLossSection = f3?.fastestPointLossSection || (
-      candidate.keyGaps && candidate.keyGaps.length > 1 ? candidate.keyGaps[1] : (
-        isEn
-          ? `Lack of detailed explanations for project scale or key specialized technical tooling.`
-          : `Thiếu mô tả chi tiết về quy mô dự án hoặc công cụ phần mềm chuyên sâu.`
-      )
-    );
+    const biggestDoubt = (f3?.biggestDoubt && typeof f3.biggestDoubt === 'string' && f3.biggestDoubt.trim())
+      || (candidate.keyGaps && candidate.keyGaps.length > 0 ? candidate.keyGaps[0] : noData);
+
+    const fastestPointLossSection = (f3?.fastestPointLossSection && typeof f3.fastestPointLossSection === 'string' && f3.fastestPointLossSection.trim())
+      || noData;
 
     return {
       firstImpression10s,
@@ -902,51 +801,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     if (Array.isArray(compTable) && compTable.length > 0) {
       return compTable;
     }
-
-    // Fallback generation if candidate lacks raw fullAnalysis comparison table
-    const fallbackRows: ComparisonRow[] = [
-      {
-        jdTerm: isEn ? 'Core Technical Stack & Engineering Skills' : 'Kỹ năng chuyên môn & Công nghệ cốt lõi',
-        importance: 'Rất quan trọng',
-        cvEvidence: isEn ? `Demonstrated in work experience (${candidate.keywordScore}% alignment)` : `Được thể hiện trong lịch sử làm việc (${candidate.keywordScore}% độ khớp)`,
-        matchStatus: candidate.keywordScore >= 75 ? 'khop' : (candidate.keywordScore >= 50 ? 'can_bo_sung' : 'thieu'),
-        gapOrClarification: candidate.keywordScore >= 75 
-          ? (isEn ? 'Full alignment with required skills.' : 'Đáp ứng đầy đủ các kỹ năng cốt lõi.')
-          : (isEn ? 'Detail recent hands-on projects and tooling.' : 'Cần mô tả chi tiết dự án gần đây và công cụ sử dụng.')
-      },
-      {
-        jdTerm: isEn ? 'Relevant Operational Experience & Domain Fit' : 'Kinh nghiệm thực thi & Độ phù hợp ngành',
-        importance: 'Rất quan trọng',
-        cvEvidence: isEn ? `Years of relevant background (${candidate.experienceScore}% experience score)` : `Số năm kinh nghiệm tương đương (${candidate.experienceScore}% điểm kinh nghiệm)`,
-        matchStatus: candidate.experienceScore >= 70 ? 'khop' : (candidate.experienceScore >= 45 ? 'can_bo_sung' : 'thieu'),
-        gapOrClarification: candidate.experienceScore >= 70
-          ? (isEn ? 'Strong operational history.' : 'Lịch sử công tác phù hợp.')
-          : (isEn ? 'Clarify scope of leadership and team size.' : 'Cần làm rõ quy mô đội ngũ và trách nhiệm chỉ đạo.')
-      },
-      {
-        jdTerm: isEn ? 'Required Key Tools, Software & Certifications' : 'Công cụ, Phần mềm & Chứng chỉ bắt buộc',
-        importance: 'Quan trọng',
-        cvEvidence: isEn ? `Listed in technical skills summary (${candidate.skillScore}% skill score)` : `Liệt kê trong mục kỹ năng chuyên môn (${candidate.skillScore}% điểm kỹ năng)`,
-        matchStatus: candidate.skillScore >= 70 ? 'khop' : (candidate.skillScore >= 50 ? 'can_bo_sung' : 'thieu'),
-        gapOrClarification: isEn ? 'Verify specific versions and software proficiency.' : 'Cần kiểm chứng mức độ sử dụng thành thạo thực tế.'
-      },
-      {
-        jdTerm: isEn ? 'Quantifiable Output Expectations & Performance KPIs' : 'Kết quả đầu ra & Chỉ số đo lường hiệu suất',
-        importance: 'Quan trọng',
-        cvEvidence: isEn ? 'Project milestones and team deliverables' : 'Các mốc dự án và sản phẩm hoàn thành',
-        matchStatus: candidate.overallScore >= 75 ? 'khop' : 'can_bo_sung',
-        gapOrClarification: isEn ? 'Add specific % metrics or growth statistics.' : 'Nên bổ sung số liệu tăng trưởng hoặc % cải thiện cụ thể.'
-      },
-      {
-        jdTerm: isEn ? 'Agile Mindset & Cross-functional Communication' : 'Tác phong làm việc & Khả năng phối hợp',
-        importance: 'Có lợi thế',
-        cvEvidence: isEn ? 'Collaboration across engineering and product teams' : 'Kinh nghiệm làm việc nhóm liên phòng ban',
-        matchStatus: 'khop',
-        gapOrClarification: isEn ? 'Good soft skills alignment.' : 'Phù hợp với môi trường làm việc hiện tại.'
-      }
-    ];
-
-    return fallbackRows;
+    return [];
   };
 
   const getImportanceBadgeStyle = (importance: string) => {
@@ -982,6 +837,63 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           </span>
         );
     }
+  };
+
+  // Helper for Section F: Interview Follow-up Points
+  const getInterviewFollowUpQuestions = (candidate: CandidateResult, isEn: boolean): string[] => {
+    const rawQuestions: string[] = [];
+
+    // 1. Extract from feature2.clarifyingQuestions
+    if (candidate.fullAnalysis?.feature2?.clarifyingQuestions && Array.isArray(candidate.fullAnalysis.feature2.clarifyingQuestions)) {
+      candidate.fullAnalysis.feature2.clarifyingQuestions.forEach((q: any) => {
+        const text = typeof q === 'string' ? q : q?.question;
+        if (text && text.trim().length > 0) {
+          rawQuestions.push(text.trim());
+        }
+      });
+    }
+
+    // 2. Extract from feature1.comparisonTable gaps or clarifications
+    if (candidate.fullAnalysis?.feature1?.comparisonTable && Array.isArray(candidate.fullAnalysis.feature1.comparisonTable)) {
+      candidate.fullAnalysis.feature1.comparisonTable.forEach((row: ComparisonRow) => {
+        if ((row.matchStatus === 'can_bo_sung' || row.matchStatus === 'thieu') && row.gapOrClarification) {
+          const text = row.gapOrClarification.trim();
+          if (text) {
+            let qStr = text;
+            if (!qStr.endsWith('?') && !qStr.endsWith('.')) {
+              qStr += '?';
+            }
+            if (!rawQuestions.includes(qStr)) {
+              rawQuestions.push(qStr);
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Extract from feature3.top3MustFix or biggestDoubt
+    if (candidate.fullAnalysis?.feature3?.top3MustFix && Array.isArray(candidate.fullAnalysis.feature3.top3MustFix)) {
+      candidate.fullAnalysis.feature3.top3MustFix.forEach((fix: any) => {
+        if (typeof fix === 'string' && fix.trim().length > 0) {
+          const qText = isEn 
+            ? `How do you demonstrate or address the requirement regarding: ${fix.trim()}?`
+            : `Bạn có thể giải thích hoặc chứng minh cụ thể hơn về yêu cầu: ${fix.trim()}?`;
+          if (!rawQuestions.includes(qText)) {
+            rawQuestions.push(qText);
+          }
+        }
+      });
+    }
+
+    // Deduplicate
+    const uniqueList: string[] = [];
+    for (const q of rawQuestions) {
+      if (!uniqueList.some(existing => existing.toLowerCase().slice(0, 15) === q.toLowerCase().slice(0, 15))) {
+        uniqueList.push(q);
+      }
+    }
+
+    return uniqueList;
   };
 
   // Export results to raw Markdown for recruiters to copy/paste
@@ -1898,10 +1810,40 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                     const isSelected = selectedCandidate?.filename === candidate.filename;
                     const rankNum = originalIndex + 1;
                     const roleSubtitle = getCandidateRole(candidate);
+                    const isError = candidate.success === false || !!candidate.errorMessage;
+
+                    if (isError) {
+                      return (
+                        <motion.div
+                          key={`cand-${candidate.filename}`}
+                          layoutId={`cand-card-${candidate.filename}`}
+                          onClick={() => setSelectedCandidate(candidate)}
+                          className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer space-y-3 ${
+                            isSelected 
+                              ? 'border-rose-500 ring-2 ring-rose-500/10 shadow-md bg-rose-50/10' 
+                              : 'border-rose-200 hover:border-rose-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <h4 className="font-black text-slate-900 text-sm sm:text-base truncate">
+                              {getCandidateDisplayName(candidate, rankNum)}
+                            </h4>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200 shrink-0">
+                              {isEn ? 'Processing Error' : 'Xử lý thất bại'}
+                            </span>
+                          </div>
+                          <div className="text-xs text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-200/80 flex items-start gap-2 font-medium">
+                            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                            <span>{candidate.errorMessage || (isEn ? 'CV processing error occurred.' : 'Lỗi trong quá trình xử lý CV.')}</span>
+                          </div>
+                        </motion.div>
+                      );
+                    }
+
                     const aiRec = getAiRecommendationText(candidate);
                     const topStrength = candidate.topStrengths && candidate.topStrengths.length > 0
                       ? candidate.topStrengths[0]
-                      : (isEn ? 'Strong overall profile matching requirements' : 'Kinh nghiệm tổng thể phù hợp với yêu cầu');
+                      : (isEn ? 'Chưa có dữ liệu từ kết quả phân tích' : 'Chưa có dữ liệu từ kết quả phân tích');
                     const criticalGapsCount = candidate.keyGaps ? candidate.keyGaps.length : 0;
 
                     return (
@@ -2030,415 +1972,529 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             <div className="md:col-span-5">
               <AnimatePresence mode="wait">
                 {selectedCandidate ? (
-                  <motion.div
-                    key={`detail-${selectedCandidate.filename}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-5 sticky top-6"
-                  >
-                    {/* Detail Card Top Header */}
-                    <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-                      <div>
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">
-                          {isEn ? 'Candidate Analysis' : 'Phân Tích Chi Tiết Ứng Viên'}
-                        </span>
-                        <h3 className="text-base font-black text-slate-900">
-                          {getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
-                        </h3>
-                      </div>
-                      <button
-                        onClick={() => setSelectedCandidate(null)}
-                        className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    {/* SECTION A: EXECUTIVE SUMMARY */}
-                    <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200/80 space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-md">
-                          A. {isEn ? 'Executive Summary' : 'Tóm Tắt Tổng Quan'}
-                        </span>
-                        <span className="text-xs font-black text-indigo-900 bg-white px-2 py-0.5 rounded-md border border-slate-200/80">
-                          Rank #{results.findIndex(r => r.filename === selectedCandidate.filename) + 1}
-                        </span>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <div className="text-sm font-black text-slate-900 flex items-center gap-2">
-                          <span>{getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}</span>
-                          <span className="text-slate-400 font-normal">·</span>
-                          <span className="text-indigo-600 font-extrabold text-xs">
-                            Rank #{results.findIndex(r => r.filename === selectedCandidate.filename) + 1}
+                  selectedCandidate.success === false || !!selectedCandidate.errorMessage ? (
+                    <motion.div
+                      key={`detail-${selectedCandidate.filename}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="bg-white rounded-3xl p-5 border border-rose-200 shadow-sm space-y-4 sticky top-6"
+                    >
+                      <div className="flex items-start justify-between border-b border-rose-100 pb-3">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 block mb-0.5">
+                            {isEn ? 'Processing Error' : 'Xử lý thất bại'}
                           </span>
+                          <h3 className="text-base font-black text-slate-900">
+                            {getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
+                          </h3>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
-                          <span>Overall match: <strong className="text-slate-900 font-black">{selectedCandidate.overallScore}%</strong></span>
-                          <span className="text-slate-300">·</span>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${getMatchLevelColor(selectedCandidate.matchLevel)}`}>
-                            {getMatchLevelLabel(selectedCandidate.matchLevel)}
-                          </span>
-                        </div>
+                        <button
+                          onClick={() => setSelectedCandidate(null)}
+                          className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
                       </div>
 
-                      <div className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 bg-indigo-50/80 p-2.5 rounded-xl border border-indigo-100">
-                        <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <span>
-                          {isEn ? 'AI Recommendation:' : 'AI đề xuất:'} <strong className="text-indigo-700 font-black">{getAiRecommendationText(selectedCandidate)}</strong>
-                        </span>
-                      </div>
-
-                      <div className="text-xs text-slate-700 space-y-1 bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                          <Info className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>{isEn ? 'Decision reason:' : 'Lý do:'}</span>
+                      <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-xs text-rose-800 space-y-2">
+                        <div className="font-bold flex items-center gap-1.5 text-rose-900">
+                          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>{isEn ? 'CV File Error Content:' : 'Nội dung lỗi xử lý CV:'}</span>
                         </div>
-                        <p className="text-slate-600 font-medium leading-relaxed pl-4 border-l-2 border-indigo-400 italic text-[11px]">
-                          {getDecisionReason(selectedCandidate, isEn)}
+                        <p className="font-medium leading-relaxed">
+                          {selectedCandidate.errorMessage || (isEn ? 'Error occurred while analyzing CV file.' : 'Có lỗi xảy ra trong quá trình phân tích CV.')}
                         </p>
                       </div>
-                    </div>
 
-                    {/* SECTION B: SCORE BREAKDOWN */}
-                    <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
-                          B. {isEn ? 'Score Breakdown' : 'Chi Tiết Điểm Số'}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400">3 Dimensions</span>
+                      <div className="pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono truncate">
+                        {selectedCandidate.filename}
                       </div>
-
-                      <div className="space-y-3">
-                        {/* Keyword alignment */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold">
-                            <span className="text-slate-700">{isEn ? 'Keyword alignment' : 'Keyword alignment'}</span>
-                            <span className="text-slate-900 font-black">{selectedCandidate.keywordScore}%</span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div 
-                              className="bg-indigo-600 h-2 rounded-full transition-all duration-500" 
-                              style={{ width: `${selectedCandidate.keywordScore}%` }}
-                            />
-                          </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key={`detail-${selectedCandidate.filename}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-5 sticky top-6"
+                    >
+                      {/* Detail Card Top Header */}
+                      <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">
+                            {isEn ? 'Candidate Analysis' : 'Phân Tích Chi Tiết Ứng Viên'}
+                          </span>
+                          <h3 className="text-base font-black text-slate-900">
+                            {getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
+                          </h3>
                         </div>
+                        <div className="flex items-center gap-2">
+                          {onOpenFullAnalysis && selectedCandidate.fullAnalysis && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const inferredTitle = getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1);
+                                const firstLine = jdText.trim().split('\n')[0] || '';
+                                const jdTitle = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+                                const title = `${jdTitle} - ${inferredTitle}`;
 
-                        {/* Experience fit */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold">
-                            <span className="text-slate-700">{isEn ? 'Experience fit' : 'Experience fit'}</span>
-                            <span className="text-slate-900 font-black">{selectedCandidate.experienceScore}%</span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div 
-                              className="bg-emerald-600 h-2 rounded-full transition-all duration-500" 
-                              style={{ width: `${selectedCandidate.experienceScore}%` }}
-                            />
-                          </div>
+                                const item: HistoryItem = {
+                                  id: `batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+                                  title,
+                                  timestamp: Date.now(),
+                                  cvText: selectedCandidate.cvText || '',
+                                  jdText,
+                                  analysis: selectedCandidate.fullAnalysis,
+                                  score: selectedCandidate.overallScore || 0,
+                                };
+                                onOpenFullAnalysis(item);
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+                              title={isEn ? 'Open complete report in Candidate tab' : 'Xem báo cáo chi tiết ở tab Ứng viên'}
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>{isEn ? 'Full Report' : 'Xem Báo Cáo Chi Tiết'}</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setSelectedCandidate(null)}
+                            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
                         </div>
-
-                        {/* Skills fit */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold">
-                            <span className="text-slate-700">{isEn ? 'Skills fit' : 'Skills fit'}</span>
-                            <span className="text-slate-900 font-black">{selectedCandidate.skillScore}%</span>
-                          </div>
-                          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                            <div 
-                              className="bg-amber-500 h-2 rounded-full transition-all duration-500" 
-                              style={{ width: `${selectedCandidate.skillScore}%` }}
-                            />
-                          </div>
-                        </div>
                       </div>
 
-                      {/* Score breakdown auto insight sentence */}
-                      <div className="text-xs text-slate-600 bg-slate-50/90 p-2.5 rounded-xl border border-slate-100 font-medium leading-relaxed flex items-start gap-2">
-                        <span className="shrink-0 text-sm">💡</span>
-                        <span className="text-[11px] text-slate-700 leading-snug">{getScoreBreakdownInsight(selectedCandidate, isEn)}</span>
-                      </div>
-                    </div>
-
-                    {/* SECTION C: KEY STRENGTHS & CRITICAL GAPS */}
-                    <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
-                          {isEn ? 'C. Key Strengths & Critical Gaps' : 'C. Điểm Mạnh & Điểm Hạn Chế'}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400">
-                          {isEn ? '3-5 key factors' : '3-5 yếu tố trọng yếu'}
-                        </span>
-                      </div>
-
-                      {/* Key Strengths */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <CheckCircle className="w-4 h-4 text-emerald-500" />
-                            {isEn ? 'Key Strengths' : 'Điểm mạnh nổi bật'}
-                          </h4>
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
-                            {getNormalizedList(selectedCandidate.topStrengths, 'strengths', selectedCandidate, isEn).length} {isEn ? 'strengths' : 'điểm mạnh'}
+                      {/* SECTION A: EXECUTIVE SUMMARY */}
+                      <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-md">
+                            A. {isEn ? 'Executive Summary' : 'Tóm Tắt Tổng Quan'}
                           </span>
                         </div>
-                        <ul className="space-y-2">
-                          {getNormalizedList(selectedCandidate.topStrengths, 'strengths', selectedCandidate, isEn).map((str, i) => (
-                            <li key={`str-${i}`} className="text-xs text-slate-700 leading-relaxed bg-emerald-50/30 p-2.5 rounded-xl border border-emerald-500/15 flex items-start gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
-                              <span>{str}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
 
-                      {/* Critical Gaps */}
-                      <div className="space-y-2 pt-2 border-t border-slate-100/80">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                            {isEn ? 'Critical Gaps' : 'Điểm hạn chế'}
-                          </h4>
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                            {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).length} {isEn ? 'gaps' : 'điểm hạn chế'}
+                        <div className="space-y-1.5">
+                          <div className="text-sm font-black text-slate-900 flex items-center gap-2">
+                            <span>{getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}</span>
+                            <span className="text-slate-400 font-normal">·</span>
+                            <span className="text-indigo-600 font-extrabold text-xs">
+                              Rank #{results.findIndex(r => r.filename === selectedCandidate.filename) + 1}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
+                            <span>Overall match: <strong className="text-slate-900 font-black">{selectedCandidate.overallScore}%</strong></span>
+                            <span className="text-slate-300">·</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${getMatchLevelColor(selectedCandidate.matchLevel)}`}>
+                              {getMatchLevelLabel(selectedCandidate.matchLevel)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 bg-indigo-50/80 p-2.5 rounded-xl border border-indigo-100">
+                          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <span>
+                            {isEn ? 'AI Recommendation:' : 'AI đề xuất:'} <strong className="text-indigo-700 font-black">{getAiRecommendationText(selectedCandidate)}</strong>
                           </span>
                         </div>
-                        <ul className="space-y-2">
-                          {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).map((gap, i) => (
-                            <li key={`gap-${i}`} className="text-xs text-slate-700 leading-relaxed bg-amber-50/30 p-2.5 rounded-xl border border-amber-500/15 flex items-start gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
-                              <span>{gap}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
 
-                    {/* SECTION D: RECRUITER QUICK SCAN */}
-                    {(() => {
-                      const quickScanData = getRecruiterQuickScan(selectedCandidate, isEn);
-                      return (
-                        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                            <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
-                              {isEn ? 'D. Recruiter Quick Scan' : 'D. Sàng Lọc Nhanh'}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400">
-                              {isEn ? '4 key observations' : '4 quan sát trọng yếu'}
-                            </span>
+                        <div className="text-xs text-slate-700 space-y-1 bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>{isEn ? 'Decision reason:' : 'Lý do:'}</span>
+                          </div>
+                          <p className="text-slate-600 font-medium leading-relaxed pl-4 border-l-2 border-indigo-400 italic text-[11px]">
+                            {getDecisionReason(selectedCandidate, isEn)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* SECTION B: SCORE BREAKDOWN */}
+                      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
+                            B. {isEn ? 'Score Breakdown' : 'Chi Tiết Điểm Số'}
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          {/* Keyword alignment */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold">
+                              <span className="text-slate-700">{isEn ? 'Keyword alignment' : 'Keyword alignment'}</span>
+                              <span className="text-slate-900 font-black">{selectedCandidate.keywordScore}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-indigo-600 h-2 rounded-full transition-all duration-500" 
+                                style={{ width: `${selectedCandidate.keywordScore}%` }}
+                              />
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {/* Card 1: First Impression */}
-                            <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100/80 space-y-1.5 flex flex-col justify-between">
-                              <div className="flex items-center gap-1.5 text-xs font-black text-indigo-950">
-                                <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                <span>{isEn ? '10-Second First Impression' : 'Ấn tượng trong 10 giây'}</span>
-                              </div>
-                              <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
-                                "{quickScanData.firstImpression10s}"
-                              </p>
+                          {/* Experience fit */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold">
+                              <span className="text-slate-700">{isEn ? 'Experience fit' : 'Experience fit'}</span>
+                              <span className="text-slate-900 font-black">{selectedCandidate.experienceScore}%</span>
                             </div>
-
-                            {/* Card 2: Immediate Strength */}
-                            <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100/80 space-y-1.5 flex flex-col justify-between">
-                              <div className="flex items-center gap-1.5 text-xs font-black text-emerald-950">
-                                <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                <span>{isEn ? 'Immediate Strength' : 'Điểm mạnh nổi bật'}</span>
-                              </div>
-                              <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
-                                "{quickScanData.immediateStrength}"
-                              </p>
+                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-emerald-600 h-2 rounded-full transition-all duration-500" 
+                                style={{ width: `${selectedCandidate.experienceScore}%` }}
+                              />
                             </div>
+                          </div>
 
-                            {/* Card 3: Biggest Doubt */}
-                            <div className="bg-amber-50/50 rounded-xl p-3 border border-amber-100/80 space-y-1.5 flex flex-col justify-between">
-                              <div className="flex items-center gap-1.5 text-xs font-black text-amber-950">
-                                <AlertOctagon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                <span>{isEn ? 'Biggest Doubt' : 'Điểm cần xác minh'}</span>
-                              </div>
-                              <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
-                                "{quickScanData.biggestDoubt}"
-                              </p>
+                          {/* Skills fit */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold">
+                              <span className="text-slate-700">{isEn ? 'Skills fit' : 'Skills fit'}</span>
+                              <span className="text-slate-900 font-black">{selectedCandidate.skillScore}%</span>
                             </div>
-
-                            {/* Card 4: Fastest Point Loss */}
-                            <div className="bg-rose-50/50 rounded-xl p-3 border border-rose-100/80 space-y-1.5 flex flex-col justify-between">
-                              <div className="flex items-center gap-1.5 text-xs font-black text-rose-950">
-                                <TrendingDown className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                                <span>{isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm giảm điểm'}</span>
-                              </div>
-                              <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
-                                "{quickScanData.fastestPointLossSection}"
-                              </p>
+                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-amber-500 h-2 rounded-full transition-all duration-500" 
+                                style={{ width: `${selectedCandidate.skillScore}%` }}
+                              />
                             </div>
                           </div>
                         </div>
-                      );
-                    })()}
 
-                    {/* SECTION E: REQUIREMENT MATCH */}
-                    {(() => {
-                      const compTableRows = getRequirementComparisonTable(selectedCandidate, isEn);
+                        {/* Score breakdown auto insight sentence */}
+                        <div className="text-xs text-slate-600 bg-slate-50/90 p-2.5 rounded-xl border border-slate-100 font-medium leading-relaxed flex items-start gap-2">
+                          <span className="shrink-0 text-sm">💡</span>
+                          <span className="text-[11px] text-slate-700 leading-snug">{getScoreBreakdownInsight(selectedCandidate, isEn)}</span>
+                        </div>
+                      </div>
 
-                      const filteredRows = compTableRows.filter(row => {
-                        if (requirementFilter === 'KHOP') return row.matchStatus === 'khop';
-                        if (requirementFilter === 'CAN_BO_SUNG') return row.matchStatus === 'can_bo_sung';
-                        if (requirementFilter === 'THIEU') return row.matchStatus === 'thieu';
-                        return true; // ALL
-                      });
+                      {/* SECTION C: KEY STRENGTHS & CRITICAL GAPS */}
+                      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
+                            {isEn ? 'C. Key Strengths & Critical Gaps' : 'C. Điểm Mạnh & Điểm Hạn Chế'}
+                          </span>
+                        </div>
 
-                      // Sort pinned items ("Rất quan trọng" + "thieu") to top
-                      const displayCompRows = [...filteredRows].sort((a, b) => {
-                        const aImp = a.importance as string;
-                        const bImp = b.importance as string;
-                        const aPinned = (aImp === 'Rất quan trọng' || aImp === 'High Priority' || aImp === 'Critical' || aImp === 'Very Important') && a.matchStatus === 'thieu';
-                        const bPinned = (bImp === 'Rất quan trọng' || bImp === 'High Priority' || bImp === 'Critical' || bImp === 'Very Important') && b.matchStatus === 'thieu';
-                        if (aPinned && !bPinned) return -1;
-                        if (!aPinned && bPinned) return 1;
-                        return 0;
-                      });
+                        {/* Key Strengths */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <CheckCircle className="w-4 h-4 text-emerald-500" />
+                              {isEn ? 'Key Strengths' : 'Điểm mạnh nổi bật'}
+                            </h4>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                              {getNormalizedList(selectedCandidate.topStrengths, 'strengths', selectedCandidate, isEn).length} {isEn ? 'strengths' : 'điểm mạnh'}
+                            </span>
+                          </div>
+                          {getNormalizedList(selectedCandidate.topStrengths, 'strengths', selectedCandidate, isEn).length === 0 ? (
+                            <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                              {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
+                            </p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {getNormalizedList(selectedCandidate.topStrengths, 'strengths', selectedCandidate, isEn).map((str, i) => (
+                                <li key={`str-${i}`} className="text-xs text-slate-700 leading-relaxed bg-emerald-50/30 p-2.5 rounded-xl border border-emerald-500/15 flex items-start gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
+                                  <span>{str}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
 
-                      const matchedCount = compTableRows.filter(r => r.matchStatus === 'khop').length;
-                      const partialCount = compTableRows.filter(r => r.matchStatus === 'can_bo_sung').length;
-                      const missingCount = compTableRows.filter(r => r.matchStatus === 'thieu').length;
+                        {/* Critical Gaps */}
+                        <div className="space-y-2 pt-2 border-t border-slate-100/80">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              {isEn ? 'Critical Gaps' : 'Điểm hạn chế'}
+                            </h4>
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                              {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).length} {isEn ? 'gaps' : 'điểm hạn chế'}
+                            </span>
+                          </div>
+                          {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).length === 0 ? (
+                            <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                              {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
+                            </p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).map((gap, i) => (
+                                <li key={`gap-${i}`} className="text-xs text-slate-700 leading-relaxed bg-amber-50/30 p-2.5 rounded-xl border border-amber-500/15 flex items-start gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+                                  <span>{gap}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
 
-                      return (
-                        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
-                            <div>
+                      {/* SECTION D: RECRUITER QUICK SCAN */}
+                      {(() => {
+                        const quickScanData = getRecruiterQuickScan(selectedCandidate, isEn);
+                        return (
+                          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                               <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
-                                {isEn ? 'E. Requirement Match' : 'E. Yêu Cầu & Độ Khớp'}
+                                {isEn ? 'D. Recruiter Quick Scan' : 'D. Sàng Lọc Nhanh'}
                               </span>
                             </div>
 
-                            {/* Internal Filter Buttons */}
-                            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-[10px] font-bold overflow-x-auto">
-                              <button
-                                type="button"
-                                onClick={() => setRequirementFilter('ALL')}
-                                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                                  requirementFilter === 'ALL'
-                                    ? 'bg-white text-slate-900 shadow-xs font-black'
-                                    : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                              >
-                                {isEn ? 'All' : 'Tất cả'} ({compTableRows.length})
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRequirementFilter('KHOP')}
-                                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                                  requirementFilter === 'KHOP'
-                                    ? 'bg-emerald-600 text-white font-black shadow-xs'
-                                    : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                              >
-                                {isEn ? 'Matched' : 'Đã khớp'} ({matchedCount})
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRequirementFilter('CAN_BO_SUNG')}
-                                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                                  requirementFilter === 'CAN_BO_SUNG'
-                                    ? 'bg-amber-500 text-white font-black shadow-xs'
-                                    : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                              >
-                                {isEn ? 'Partial' : 'Cần bổ sung'} ({partialCount})
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRequirementFilter('THIEU')}
-                                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                                  requirementFilter === 'THIEU'
-                                    ? 'bg-rose-600 text-white font-black shadow-xs'
-                                    : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                              >
-                                {isEn ? 'Missing' : 'Còn thiếu'} ({missingCount})
-                              </button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {/* Card 1: First Impression */}
+                              <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100/80 space-y-1.5 flex flex-col justify-between">
+                                <div className="flex items-center gap-1.5 text-xs font-black text-indigo-950">
+                                  <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                  <span>{isEn ? '10-Second First Impression' : 'Ấn tượng trong 10 giây'}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
+                                  "{quickScanData.firstImpression10s}"
+                                </p>
+                              </div>
+
+                              {/* Card 2: Immediate Strength */}
+                              <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100/80 space-y-1.5 flex flex-col justify-between">
+                                <div className="flex items-center gap-1.5 text-xs font-black text-emerald-950">
+                                  <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>{isEn ? 'Immediate Strength' : 'Điểm mạnh nổi bật'}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
+                                  "{quickScanData.immediateStrength}"
+                                </p>
+                              </div>
+
+                              {/* Card 3: Biggest Doubt */}
+                              <div className="bg-amber-50/50 rounded-xl p-3 border border-amber-100/80 space-y-1.5 flex flex-col justify-between">
+                                <div className="flex items-center gap-1.5 text-xs font-black text-amber-950">
+                                  <AlertOctagon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  <span>{isEn ? 'Biggest Doubt' : 'Điểm cần xác minh'}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
+                                  "{quickScanData.biggestDoubt}"
+                                </p>
+                              </div>
+
+                              {/* Card 4: Fastest Point Loss */}
+                              <div className="bg-rose-50/50 rounded-xl p-3 border border-rose-100/80 space-y-1.5 flex flex-col justify-between">
+                                <div className="flex items-center gap-1.5 text-xs font-black text-rose-950">
+                                  <TrendingDown className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                  <span>{isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm giảm điểm'}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
+                                  "{quickScanData.fastestPointLossSection}"
+                                </p>
+                              </div>
                             </div>
                           </div>
+                        );
+                      })()}
 
-                          {/* Rows List */}
-                          <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
-                            {displayCompRows.length === 0 ? (
-                              <div className="text-center py-6 text-slate-400 text-xs italic">
-                                {isEn ? 'No requirements found for selected status filter.' : 'Không có yêu cầu nào thuộc trạng thái lọc đã chọn.'}
+                      {/* SECTION E: REQUIREMENT MATCH */}
+                      {(() => {
+                        const compTableRows = getRequirementComparisonTable(selectedCandidate, isEn);
+
+                        const filteredRows = compTableRows.filter(row => {
+                          if (requirementFilter === 'KHOP') return row.matchStatus === 'khop';
+                          if (requirementFilter === 'CAN_BO_SUNG') return row.matchStatus === 'can_bo_sung';
+                          if (requirementFilter === 'THIEU') return row.matchStatus === 'thieu';
+                          return true; // ALL
+                        });
+
+                        // Sort pinned items ("Rất quan trọng" + "thieu") to top
+                        const displayCompRows = [...filteredRows].sort((a, b) => {
+                          const aImp = a.importance as string;
+                          const bImp = b.importance as string;
+                          const aPinned = (aImp === 'Rất quan trọng' || aImp === 'High Priority' || aImp === 'Critical' || aImp === 'Very Important') && a.matchStatus === 'thieu';
+                          const bPinned = (bImp === 'Rất quan trọng' || bImp === 'High Priority' || bImp === 'Critical' || bImp === 'Very Important') && b.matchStatus === 'thieu';
+                          if (aPinned && !bPinned) return -1;
+                          if (!aPinned && bPinned) return 1;
+                          return 0;
+                        });
+
+                        const matchedCount = compTableRows.filter(r => r.matchStatus === 'khop').length;
+                        const partialCount = compTableRows.filter(r => r.matchStatus === 'can_bo_sung').length;
+                        const missingCount = compTableRows.filter(r => r.matchStatus === 'thieu').length;
+
+                        return (
+                          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
+                              <div>
+                                <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
+                                  {isEn ? 'E. Requirement Match' : 'E. Yêu Cầu & Độ Khớp'}
+                                </span>
+                              </div>
+
+                              {/* Internal Filter Buttons */}
+                              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-[10px] font-bold overflow-x-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => setRequirementFilter('ALL')}
+                                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                                    requirementFilter === 'ALL'
+                                      ? 'bg-white text-slate-900 shadow-xs font-black'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  {isEn ? 'All' : 'Tất cả'} ({compTableRows.length})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRequirementFilter('KHOP')}
+                                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                                    requirementFilter === 'KHOP'
+                                      ? 'bg-emerald-600 text-white font-black shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  {isEn ? 'Matched' : 'Đã khớp'} ({matchedCount})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRequirementFilter('CAN_BO_SUNG')}
+                                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                                    requirementFilter === 'CAN_BO_SUNG'
+                                      ? 'bg-amber-500 text-white font-black shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  {isEn ? 'Partial' : 'Cần bổ sung'} ({partialCount})
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRequirementFilter('THIEU')}
+                                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                                    requirementFilter === 'THIEU'
+                                      ? 'bg-rose-600 text-white font-black shadow-xs'
+                                      : 'text-slate-600 hover:text-slate-900'
+                                  }`}
+                                >
+                                  {isEn ? 'Missing' : 'Còn thiếu'} ({missingCount})
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Rows List */}
+                            <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+                              {compTableRows.length === 0 ? (
+                                <div className="text-center py-6 text-slate-500 text-xs italic bg-slate-50 rounded-xl border border-slate-200/80">
+                                  {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
+                                </div>
+                              ) : displayCompRows.length === 0 ? (
+                                <div className="text-center py-6 text-slate-400 text-xs italic">
+                                  {isEn ? 'No requirements found for selected status filter.' : 'Không có yêu cầu nào thuộc trạng thái lọc đã chọn.'}
+                                </div>
+                              ) : (
+                                displayCompRows.map((row, idx) => {
+                                  const rowImp = row.importance as string;
+                                  const isCriticalMissing = (rowImp === 'Rất quan trọng' || rowImp === 'High Priority' || rowImp === 'Critical' || rowImp === 'Very Important') && row.matchStatus === 'thieu';
+
+                                  return (
+                                    <div
+                                      key={`req-row-${idx}`}
+                                      className={`p-3 rounded-xl border text-xs space-y-2 transition-all ${
+                                        isCriticalMissing
+                                          ? 'bg-rose-50/70 border-rose-300 shadow-2xs ring-1 ring-rose-300'
+                                          : 'bg-slate-50/80 border-slate-200/80 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      {/* Header: JD Requirement + Importance + Status Badge */}
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="space-y-1">
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            {isCriticalMissing && (
+                                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-rose-600 text-white shadow-xs flex items-center gap-1">
+                                                <Pin className="w-3 h-3 text-white shrink-0" />
+                                                {isEn ? 'Pinned: Critical & Missing' : 'Ghim: Rất quan trọng & Còn thiếu'}
+                                              </span>
+                                            )}
+                                            <span className="font-black text-slate-900 text-xs">{row.jdTerm}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className={`px-2 py-0.5 rounded text-[10px] border ${getImportanceBadgeStyle(row.importance)}`}>
+                                              {row.importance}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        {/* Status Badge */}
+                                        <div className="shrink-0">{getMatchStatusBadge(row.matchStatus, isEn)}</div>
+                                      </div>
+
+                                      {/* CV Evidence */}
+                                      {row.cvEvidence && (
+                                        <div className="bg-white p-2 rounded-lg border border-slate-200/70 text-[11px] text-slate-700">
+                                          <strong className="text-slate-900 font-bold">{isEn ? 'CV Evidence: ' : 'Bằng chứng trong CV: '}</strong>
+                                          <span className="text-slate-600">{row.cvEvidence}</span>
+                                        </div>
+                                      )}
+
+                                      {/* Gap or Clarification */}
+                                      {row.gapOrClarification && (
+                                        <div className={`p-2 rounded-lg border text-[11px] ${
+                                          row.matchStatus === 'thieu' 
+                                            ? 'bg-rose-100/60 text-rose-900 border-rose-200 font-medium'
+                                            : (row.matchStatus === 'can_bo_sung' ? 'bg-amber-100/60 text-amber-900 border-amber-200 font-medium' : 'bg-emerald-50 text-emerald-900 border-emerald-200/60')
+                                        }`}>
+                                          <strong className="font-bold">{isEn ? 'Gap / Clarification: ' : 'Khoảng trống / Cần làm rõ: '}</strong>
+                                          <span>{row.gapOrClarification}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* SECTION F: INTERVIEW FOLLOW-UP */}
+                      {(() => {
+                        const followUpQuestions = getInterviewFollowUpQuestions(selectedCandidate, isEn);
+                        return (
+                          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3.5 shadow-2xs">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                              <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
+                                {isEn ? 'F. Interview Follow-up Points' : 'F. Các điểm cần xác minh trong phỏng vấn'}
+                              </span>
+                            </div>
+
+                            {followUpQuestions.length === 0 ? (
+                              <div className="text-center py-6 text-slate-500 text-xs italic bg-slate-50 rounded-xl border border-slate-200/80">
+                                {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
                               </div>
                             ) : (
-                              displayCompRows.map((row, idx) => {
-                                const rowImp = row.importance as string;
-                                const isCriticalMissing = (rowImp === 'Rất quan trọng' || rowImp === 'High Priority' || rowImp === 'Critical' || rowImp === 'Very Important') && row.matchStatus === 'thieu';
-
-                                return (
+                              <div className="space-y-2">
+                                {followUpQuestions.map((question, qIdx) => (
                                   <div
-                                    key={`req-row-${idx}`}
-                                    className={`p-3 rounded-xl border text-xs space-y-2 transition-all ${
-                                      isCriticalMissing
-                                        ? 'bg-rose-50/70 border-rose-300 shadow-2xs ring-1 ring-rose-300'
-                                        : 'bg-slate-50/80 border-slate-200/80 hover:bg-slate-50'
-                                    }`}
+                                    key={`f-q-${qIdx}`}
+                                    className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all text-xs"
                                   >
-                                    {/* Header: JD Requirement + Importance + Status Badge */}
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="space-y-1">
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                          {isCriticalMissing && (
-                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-rose-600 text-white shadow-xs flex items-center gap-1">
-                                              <Pin className="w-3 h-3 text-white shrink-0" />
-                                              {isEn ? 'Pinned: Critical & Missing' : 'Ghim: Rất quan trọng & Còn thiếu'}
-                                            </span>
-                                          )}
-                                          <span className="font-black text-slate-900 text-xs">{row.jdTerm}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <span className={`px-2 py-0.5 rounded text-[10px] border ${getImportanceBadgeStyle(row.importance)}`}>
-                                            {row.importance}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {/* Status Badge */}
-                                      <div className="shrink-0">{getMatchStatusBadge(row.matchStatus, isEn)}</div>
+                                    <span className="flex items-center justify-center w-5 h-5 rounded-lg bg-indigo-600 text-white font-black text-[10px] shrink-0 shadow-2xs mt-0.5">
+                                      {qIdx + 1}
+                                    </span>
+                                    <div className="space-y-0.5">
+                                      <p className="text-slate-800 font-bold leading-relaxed">
+                                        {question}
+                                      </p>
                                     </div>
-
-                                    {/* CV Evidence */}
-                                    {row.cvEvidence && (
-                                      <div className="bg-white p-2 rounded-lg border border-slate-200/70 text-[11px] text-slate-700">
-                                        <strong className="text-slate-900 font-bold">{isEn ? 'CV Evidence: ' : 'Bằng chứng trong CV: '}</strong>
-                                        <span className="text-slate-600">{row.cvEvidence}</span>
-                                      </div>
-                                    )}
-
-                                    {/* Gap or Clarification */}
-                                    {row.gapOrClarification && (
-                                      <div className={`p-2 rounded-lg border text-[11px] ${
-                                        row.matchStatus === 'thieu' 
-                                          ? 'bg-rose-100/60 text-rose-900 border-rose-200 font-medium'
-                                          : (row.matchStatus === 'can_bo_sung' ? 'bg-amber-100/60 text-amber-900 border-amber-200 font-medium' : 'bg-emerald-50 text-emerald-900 border-emerald-200/60')
-                                      }`}>
-                                        <strong className="font-bold">{isEn ? 'Gap / Clarification: ' : 'Khoảng trống / Cần làm rõ: '}</strong>
-                                        <span>{row.gapOrClarification}</span>
-                                      </div>
-                                    )}
                                   </div>
-                                );
-                              })
+                                ))}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      );
-                    })()}
+                        );
+                      })()}
 
-                    {/* File name footer */}
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-mono truncate">
-                      <span className="truncate">{selectedCandidate.filename}</span>
-                    </div>
+                      {/* File name footer */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-mono truncate">
+                        <span className="truncate">{selectedCandidate.filename}</span>
+                      </div>
 
-                  </motion.div>
+                    </motion.div>
+                  )
                 ) : (
                   <div className="bg-slate-50 border border-slate-200 border-dashed rounded-3xl p-8 text-center text-slate-500 text-xs py-20 flex flex-col items-center justify-center space-y-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">

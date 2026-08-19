@@ -2902,6 +2902,34 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
         const shortRecommendation = finalResult.feature3?.firstImpression10s ||
                                     (isEn ? 'Recommended for next steps.' : 'Đề xuất tiến hành vòng tiếp theo.');
 
+        try {
+          const currentUser = getUserFromRequest(req);
+          const userEmailVal = currentUser ? currentUser.username : 'user_batch_hr';
+          const candNameVal = candidateName || candidate.filename.replace(/\.[^/.]+$/, "");
+          const firstLine = jdText.trim().split('\n')[0] || '';
+          const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+          const formattedJobTitle = `${jdTitleVal} - ${candNameVal}`;
+
+          recordAnalysisRecord({
+            userEmail: userEmailVal,
+            jobTitle: formattedJobTitle,
+            overallScore,
+            matchLevel: overallScore >= 85 ? 'XUAT_SAC' : (overallScore >= 70 ? 'TOT' : (overallScore >= 50 ? 'TRUNG_BINH' : 'CAN_CAI_THIEN')),
+            cvFileName: candidate.filename,
+            jdTitle: jdTitleVal,
+            topStrengths,
+            missingSkills: keyGaps,
+            recruiterDecision: finalResult.feature3?.inviteDecision || (overallScore >= 70 ? 'YES' : (overallScore >= 50 ? 'MAYBE' : 'NO')),
+            engineUsed: 'Gemini 2.0 Flash Batch Pipeline',
+            durationMs: 0,
+            cvTextLength: candidate.text.length,
+            jdTextLength: jdText.length,
+            fullAnalysis: finalResult,
+          });
+        } catch (recErr) {
+          console.warn('Could not record batch candidate analysis history:', recErr);
+        }
+
         return {
           filename: candidate.filename,
           success: true,

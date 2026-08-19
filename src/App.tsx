@@ -336,6 +336,7 @@ export default function App() {
     setCurrentActiveHistoryId(item.id);
     setCheckedActions([false, false, false, false, false]);
     setActiveTab('feature3');
+    setAppMode('single');
     setIsHistorySidebarOpen(false);
   };
 
@@ -486,7 +487,7 @@ export default function App() {
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>{lang === 'vi' ? 'Phân Tích Cá Nhân' : 'Single CV Match'}</span>
+            <span>{lang === 'vi' ? 'Ứng viên' : 'Candidate'}</span>
           </button>
           <button
             onClick={() => setAppMode('batch')}
@@ -498,7 +499,7 @@ export default function App() {
           >
             <Users className="w-4 h-4" />
             <span className="relative">
-              {lang === 'vi' ? 'Xử Lý Hàng Loạt' : 'Batch Processing'}
+              {lang === 'vi' ? 'Nhà tuyển dụng' : 'Recruiter'}
               <span className="absolute -top-1 -right-2.5 w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
             </span>
           </button>
@@ -788,6 +789,7 @@ export default function App() {
             lang={lang}
             token={token}
             onAddHistoryItems={handleSaveBatchHistoryItems}
+            onOpenFullAnalysis={handleSelectHistoryItem}
           />
         </div>
 

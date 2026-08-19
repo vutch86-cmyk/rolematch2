@@ -61,55 +61,6 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* USER AUTH STATUS / LOGIN BUTTON */}
-          {currentUser ? (
-            <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 p-1 pl-2.5 rounded-xl text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${currentUser.role === 'admin' ? 'bg-amber-400 animate-pulse' : 'bg-sky-400'}`} />
-                <span className="font-bold text-slate-200 hidden xs:inline max-w-[100px] truncate">{currentUser.fullName}</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase ${
-                    currentUser.role === 'admin'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                      : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                  }`}
-                >
-                  {currentUser.role === 'admin' ? 'ADMIN' : 'USER'}
-                </span>
-              </div>
-
-              {/* Admin Dashboard Button if admin */}
-              {currentUser.role === 'admin' && onOpenAdminPanel && (
-                <button
-                  onClick={onOpenAdminPanel}
-                  className="px-2.5 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 rounded-lg font-bold text-[11px] border border-amber-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-amber-500/10"
-                  title={lang === 'vi' ? 'Mở Bảng Quản Trị Admin Dashboard' : 'Open Admin Dashboard'}
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="hidden md:inline">{lang === 'vi' ? 'Admin Dashboard' : 'Admin Dashboard'}</span>
-                </button>
-              )}
-
-              <button
-                onClick={onLogout}
-                className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer ml-1"
-                title={lang === 'vi' ? 'Đăng xuất' : 'Log Out'}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={onOpenLogin}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>{lang === 'vi' ? 'Đăng Nhập' : 'Log In'}</span>
-            </button>
-          )}
-
-
-
           {/* History Drawer Trigger Button */}
           {onOpenHistory && (
             <button
@@ -156,11 +107,6 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/50">
-            <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-            <span>{t.tagline}</span>
-          </div>
-
           {hasData && onReset && (
             <button
               onClick={onReset}
@@ -172,6 +118,52 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
+          {/* USER AUTH STATUS / LOGIN BUTTON - MOVED TO FAR RIGHT */}
+          {currentUser ? (
+            <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 p-1 pl-2 rounded-xl text-xs shadow-xs">
+              <div className="flex items-center gap-1.5">
+                <div className="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shrink-0">
+                  <User className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-bold text-slate-100 text-xs max-w-[120px] sm:max-w-[160px] truncate" title={currentUser.fullName || currentUser.username}>
+                  {currentUser.fullName || currentUser.username}
+                </span>
+                {currentUser.role === 'admin' && (
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    ADMIN
+                  </span>
+                )}
+              </div>
+
+              {/* Admin Dashboard Button if admin */}
+              {currentUser.role === 'admin' && onOpenAdminPanel && (
+                <button
+                  onClick={onOpenAdminPanel}
+                  className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 rounded-lg font-bold text-[11px] border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer shadow-sm shadow-amber-500/10 ml-1"
+                  title={lang === 'vi' ? 'Mở Bảng Quản Trị Admin Dashboard' : 'Open Admin Dashboard'}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden md:inline">Admin</span>
+                </button>
+              )}
+
+              <button
+                onClick={onLogout}
+                className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer ml-1"
+                title={lang === 'vi' ? 'Đăng xuất' : 'Log Out'}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onOpenLogin}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>{lang === 'vi' ? 'Đăng Nhập' : 'Log In'}</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

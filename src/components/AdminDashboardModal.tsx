@@ -59,6 +59,7 @@ import {
   FileDown,
   Lock,
   Unlock,
+  User,
 } from 'lucide-react';
 import { exportToDocx, exportToPdf, exportToTxt } from '../utils/exportCvFiles';
 import {
@@ -1034,14 +1035,9 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-extrabold text-slate-100">
-                    {lang === 'vi' ? 'Bảng Quản Trị Hệ Thống' : 'Admin Control Center'}
-                  </h2>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wide">
-                    ADMIN
-                  </span>
-                </div>
+                <h2 className="text-base font-extrabold text-slate-100">
+                  {lang === 'vi' ? 'Bảng Quản Trị Hệ Thống' : 'Admin Control Center'}
+                </h2>
                 <p className="text-xs text-slate-400">
                   {lang === 'vi'
                     ? 'Quản lý tài khoản, nhật ký lỗi, thống kê server và cấu hình'
@@ -1050,7 +1046,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   fetchStats();
@@ -1064,9 +1060,26 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   className={`w-4 h-4 ${isStatsLoading || isUsersLoading || isLogsLoading ? 'animate-spin text-amber-400' : ''}`}
                 />
               </button>
+
+              {/* Logged in Admin User Info Box - Far Right */}
+              {currentUser && (
+                <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 p-1 pl-2 pr-2.5 rounded-xl text-xs shadow-xs">
+                  <div className="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <User className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold text-slate-100 text-xs max-w-[120px] sm:max-w-[160px] truncate" title={currentUser.fullName || currentUser.username}>
+                    {currentUser.fullName || currentUser.username}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    ADMIN
+                  </span>
+                </div>
+              )}
+
               <button
                 onClick={onClose}
                 className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 cursor-pointer transition-colors"
+                title={lang === 'vi' ? 'Đóng' : 'Close'}
               >
                 <X className="w-5 h-5" />
               </button>
