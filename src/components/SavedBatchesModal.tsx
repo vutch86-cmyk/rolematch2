@@ -11,6 +11,63 @@ interface SavedBatchesModalProps {
   onRestoreBatch: (batchDetails: RecruiterBatchDetail) => void;
 }
 
+const getCaughtErrorMsg = (err: unknown, isEn: boolean): string => {
+  if (err instanceof Error) {
+    if (err.name === 'AbortError') return '';
+    return err.message;
+  }
+  if (typeof err === 'string') return err;
+  return isEn ? 'An unexpected error occurred.' : 'Đã xảy ra lỗi không mong muốn.';
+};
+
+const getResponseError = async (response: Response, isEn: boolean): Promise<string> => {
+  let errJson: any = null;
+  try {
+    errJson = await response.json();
+  } catch {
+    // ignore non-JSON or parsing issues
+  }
+  
+  const rawMsg = errJson?.error || errJson?.message;
+  let serverErrorStr = '';
+  if (rawMsg) {
+    if (typeof rawMsg === 'object') {
+      serverErrorStr = JSON.stringify(rawMsg);
+    } else {
+      serverErrorStr = String(rawMsg);
+    }
+  }
+
+  if (response.status === 401) {
+    return isEn 
+      ? 'Session expired or unauthorized. Please sign in again.' 
+      : 'Hết phiên đăng nhập hoặc không có quyền. Vui lòng đăng nhập lại.';
+  }
+  if (response.status === 403) {
+    return isEn 
+      ? 'Access denied. You do not have permission to perform this action.' 
+      : 'Truy cập bị từ chối. Bạn không có quyền thực hiện hành động này.';
+  }
+  if (response.status === 404) {
+    return isEn 
+      ? 'The requested resource could not be found.' 
+      : 'Không tìm thấy tài nguyên yêu cầu.';
+  }
+  if (response.status === 400 || response.status === 422) {
+    return serverErrorStr || (isEn 
+      ? 'Invalid input or validation error. Please check your inputs.' 
+      : 'Thông tin gửi đi không hợp lệ. Vui lòng kiểm tra lại.');
+  }
+  if (response.status >= 500) {
+    return serverErrorStr || (isEn 
+      ? 'Internal server error. Please try again later.' 
+      : 'Lỗi hệ thống từ máy chủ. Vui lòng thử lại sau.');
+  }
+  return serverErrorStr || (isEn 
+    ? `An unexpected error occurred (Status: ${response.status}).` 
+    : `Đã xảy ra lỗi không mong muốn (Mã trạng thái: ${response.status}).`);
+};
+
 export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
   isOpen,
   onClose,
@@ -26,50 +83,76 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
   const isMountedRef = useRef(true);
+  const listAbortControllerRef = useRef<AbortController | null>(null);
+  const detailAbortControllerRef = useRef<AbortController | null>(null);
 
   // Track mount status
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      if (listAbortControllerRef.current) {
+        listAbortControllerRef.current.abort();
+      }
+      if (detailAbortControllerRef.current) {
+        detailAbortControllerRef.current.abort();
+      }
     };
   }, []);
 
-  // Fetch all batches
-  const fetchBatches = async (abortSignal?: AbortSignal) => {
+  // Clean close aborts ongoing requests
+  const handleClose = () => {
+    if (listAbortControllerRef.current) {
+      listAbortControllerRef.current.abort();
+      listAbortControllerRef.current = null;
+    }
+    if (detailAbortControllerRef.current) {
+      detailAbortControllerRef.current.abort();
+      detailAbortControllerRef.current = null;
+    }
+    onClose();
+  };
+
+  // Fetch all batches with AbortController
+  const fetchBatches = async () => {
+    if (listAbortControllerRef.current) {
+      listAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    listAbortControllerRef.current = controller;
+
     setIsLoading(true);
     setErrorMsg('');
     try {
       const authToken = token || localStorage.getItem('auth_token');
       const response = await fetch('/api/recruiter/batches', {
-        signal: abortSignal,
+        signal: controller.signal,
         headers: {
           ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         },
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error(isEn ? 'Session expired or unauthorized. Please sign in again.' : 'Hết phiên đăng nhập hoặc không có quyền. Vui lòng đăng nhập lại.');
-        }
-        throw new Error(isEn ? 'Failed to fetch saved batches.' : 'Không thể tải danh sách đợt tuyển dụng.');
+        const errText = await getResponseError(response, isEn);
+        throw new Error(errText);
       }
 
       const data = await response.json();
-      if (isMountedRef.current) {
+      if (isMountedRef.current && listAbortControllerRef.current === controller) {
         if (data && data.success === true && Array.isArray(data.batches)) {
           setBatches(data.batches);
         } else {
-          setBatches([]);
+          // P1-2: Throw error and do not clear list if response format is invalid
+          throw new Error(isEn ? 'Invalid list format received from server.' : 'Định dạng danh sách từ máy chủ không hợp lệ.');
         }
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') return;
-      if (isMountedRef.current) {
-        setErrorMsg(err.message || (isEn ? 'An error occurred while loading batches.' : 'Đã xảy ra lỗi khi tải danh sách đợt tuyển dụng.'));
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      if (isMountedRef.current && listAbortControllerRef.current === controller) {
+        setErrorMsg(getCaughtErrorMsg(err, isEn));
       }
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && listAbortControllerRef.current === controller) {
         setIsLoading(false);
       }
     }
@@ -77,68 +160,72 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
 
   // Load batches on open
   useEffect(() => {
-    const controller = new AbortController();
     if (isOpen) {
-      fetchBatches(controller.signal);
+      fetchBatches();
       setSearchTerm('');
       setStatusFilter('All');
       setErrorMsg('');
     }
     return () => {
-      controller.abort();
+      if (listAbortControllerRef.current) {
+        listAbortControllerRef.current.abort();
+        listAbortControllerRef.current = null;
+      }
+      if (detailAbortControllerRef.current) {
+        detailAbortControllerRef.current.abort();
+        detailAbortControllerRef.current = null;
+      }
     };
   }, [isOpen]);
 
   // Handle Escape key for Dialog Accessibility
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loadingBatchId && isOpen) {
-        onClose();
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [loadingBatchId, isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !loadingBatchId) {
-      onClose();
+    if (e.target === e.currentTarget) {
+      handleClose();
     }
   };
 
   // Select and load specific batch detail
   const handleSelectBatch = async (batchId: string, status: string) => {
     if (status !== 'READY') return; // Requirement 3: Only READY can be opened
-    if (loadingBatchId) return;
+    if (loadingBatchId === batchId) return;
+
+    if (detailAbortControllerRef.current) {
+      detailAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    detailAbortControllerRef.current = controller;
 
     setLoadingBatchId(batchId);
     setErrorMsg('');
     try {
       const authToken = token || localStorage.getItem('auth_token');
       const response = await fetch(`/api/recruiter/batches/${batchId}`, {
+        signal: controller.signal,
         headers: {
           ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         },
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error(isEn ? 'Session expired or unauthorized. Please sign in again.' : 'Hết phiên đăng nhập hoặc không có quyền. Vui lòng đăng nhập lại.');
-        }
-        if (response.status === 403) {
-          throw new Error(isEn ? 'You do not have permission to access this batch.' : 'Bạn không có quyền truy cập đợt tuyển dụng này.');
-        }
-        if (response.status === 404) {
-          throw new Error(isEn ? 'Saved batch not found.' : 'Không tìm thấy đợt tuyển dụng.');
-        }
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || (isEn ? `Failed to load batch (status: ${response.status}).` : `Không thể tải chi tiết đợt tuyển dụng (mã lỗi: ${response.status}).`));
+        const errText = await getResponseError(response, isEn);
+        throw new Error(errText);
       }
 
       const data = await response.json();
-      if (isMountedRef.current) {
+      if (isMountedRef.current && detailAbortControllerRef.current === controller) {
         if (data && data.success === true && data.batch && Array.isArray(data.batch.candidates)) {
           onRestoreBatch(data.batch);
           onClose();
@@ -146,12 +233,13 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
           throw new Error(isEn ? 'Invalid batch details format received.' : 'Định dạng dữ liệu đợt tuyển dụng không hợp lệ.');
         }
       }
-    } catch (err: any) {
-      if (isMountedRef.current) {
-        setErrorMsg(err.message || (isEn ? 'An error occurred while retrieving batch details.' : 'Đã xảy ra lỗi khi tải chi tiết đợt tuyển dụng.'));
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      if (isMountedRef.current && detailAbortControllerRef.current === controller) {
+        setErrorMsg(getCaughtErrorMsg(err, isEn));
       }
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && detailAbortControllerRef.current === controller) {
         setLoadingBatchId(null);
       }
     }
@@ -174,21 +262,21 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            READY
+            {isEn ? 'Ready' : 'Sẵn sàng'}
           </span>
         );
       case 'SAVING':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            SAVING
+            {isEn ? 'Saving' : 'Đang lưu'}
           </span>
         );
       case 'FAILED':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            FAILED
+            {isEn ? 'Failed' : 'Lỗi'}
           </span>
         );
       default:
@@ -204,6 +292,9 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
         className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="saved-batches-title"
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
@@ -216,7 +307,7 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                 <Layers className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-black text-slate-900 text-base sm:text-lg tracking-tight">
+                <h3 id="saved-batches-title" className="font-black text-slate-900 text-base sm:text-lg tracking-tight">
                   {isEn ? 'Saved Recruiter Batches' : 'Đợt Tuyển Dụng Đã Lưu'}
                 </h3>
                 <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
@@ -229,6 +320,7 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                 id="saved-batches-refresh-btn"
                 onClick={() => fetchBatches()}
                 disabled={isLoading}
+                aria-label={isEn ? "Refresh list" : "Làm mới danh sách"}
                 className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                 title={isEn ? "Refresh list" : "Làm mới"}
               >
@@ -236,9 +328,9 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
               </button>
               <button
                 id="saved-batches-close-btn"
-                onClick={onClose}
-                disabled={!!loadingBatchId}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                onClick={handleClose}
+                aria-label={isEn ? "Close dialog" : "Đóng hộp thoại"}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -248,6 +340,9 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
           {/* Search and Filters Row */}
           <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col sm:flex-row gap-3 shrink-0">
             <div className="relative flex-1">
+              <label htmlFor="saved-batches-search" className="sr-only">
+                {isEn ? 'Search' : 'Tìm kiếm'}
+              </label>
               <Search className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
               <input
                 id="saved-batches-search"
@@ -259,6 +354,9 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
               />
             </div>
             <div className="flex items-center gap-2">
+              <label htmlFor="saved-batches-status-filter" className="sr-only">
+                {isEn ? 'Filter by status' : 'Lọc theo trạng thái'}
+              </label>
               <Filter className="w-4 h-4 text-slate-400 shrink-0" />
               <select
                 id="saved-batches-status-filter"
@@ -267,9 +365,9 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                 className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-indigo-500 transition-all font-bold"
               >
                 <option value="All">{isEn ? 'All Status' : 'Tất cả trạng thái'}</option>
-                <option value="READY">READY</option>
-                <option value="SAVING">SAVING</option>
-                <option value="FAILED">FAILED</option>
+                <option value="READY">{isEn ? 'Ready' : 'Sẵn sàng'}</option>
+                <option value="SAVING">{isEn ? 'Saving' : 'Đang lưu'}</option>
+                <option value="FAILED">{isEn ? 'Failed' : 'Lỗi'}</option>
               </select>
             </div>
           </div>

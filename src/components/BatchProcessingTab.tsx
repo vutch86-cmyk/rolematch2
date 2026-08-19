@@ -132,10 +132,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     skillScore: c.skillScore,
     topStrengths: c.topStrengths || [],
     keyGaps: c.keyGaps || [],
-    shortRecommendation: c.shortRecommendation !== undefined ? c.shortRecommendation : '',
-    errorMessage: c.errorMessage || undefined,
-    cvText: c.cvText || undefined,
-    fullAnalysis: c.fullAnalysis || null,
+    shortRecommendation: c.shortRecommendation ?? '',
+    errorMessage: c.errorMessage,
+    cvText: c.cvText,
+    fullAnalysis: c.fullAnalysis,
     savedRank: typeof c.rank === 'number' ? c.rank : null,
     processingStatus: c.processingStatus || 'COMPLETED'
   });
@@ -248,9 +248,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       const cleaned = textContent.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
       setJdText(cleaned);
       setJdFileName(file.name);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMsg(isEn ? `Failed to extract JD: ${err.message}` : `Lỗi trích xuất mô tả công việc: ${err.message}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(isEn ? `Failed to extract JD: ${errMsg}` : `Lỗi trích xuất mô tả công việc: ${errMsg}`);
     } finally {
       setIsExtractingJd(false);
       if (e.target) e.target.value = '';
@@ -467,9 +468,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         setIsLoading(false);
       }, 500);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMsg(err.message || (isEn ? "An unexpected error occurred during batch analysis." : "Có lỗi xảy ra trong quá trình phân tích hàng loạt."));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(errMsg || (isEn ? "An unexpected error occurred during batch analysis." : "Có lỗi xảy ra trong quá trình phân tích hàng loạt."));
       setIsLoading(false);
     }
   };

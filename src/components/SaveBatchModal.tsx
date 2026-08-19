@@ -31,6 +31,63 @@ interface SaveBatchModalProps {
   onSaveSuccess: (savedBatch: RecruiterBatchDetail) => void;
 }
 
+const getCaughtErrorMsg = (err: unknown, isEn: boolean): string => {
+  if (err instanceof Error) {
+    if (err.name === 'AbortError') return '';
+    return err.message;
+  }
+  if (typeof err === 'string') return err;
+  return isEn ? 'An unexpected error occurred.' : 'Đã xảy ra lỗi không mong muốn.';
+};
+
+const getResponseError = async (response: Response, isEn: boolean): Promise<string> => {
+  let errJson: any = null;
+  try {
+    errJson = await response.json();
+  } catch {
+    // ignore non-JSON or parsing issues
+  }
+  
+  const rawMsg = errJson?.error || errJson?.message;
+  let serverErrorStr = '';
+  if (rawMsg) {
+    if (typeof rawMsg === 'object') {
+      serverErrorStr = JSON.stringify(rawMsg);
+    } else {
+      serverErrorStr = String(rawMsg);
+    }
+  }
+
+  if (response.status === 401) {
+    return isEn 
+      ? 'Session expired or unauthorized. Please sign in again.' 
+      : 'Hết phiên đăng nhập hoặc không có quyền. Vui lòng đăng nhập lại.';
+  }
+  if (response.status === 403) {
+    return isEn 
+      ? 'Access denied. You do not have permission to perform this action.' 
+      : 'Truy cập bị từ chối. Bạn không có quyền thực hiện hành động này.';
+  }
+  if (response.status === 404) {
+    return isEn 
+      ? 'The requested resource could not be found.' 
+      : 'Không tìm thấy tài nguyên yêu cầu.';
+  }
+  if (response.status === 400 || response.status === 422) {
+    return serverErrorStr || (isEn 
+      ? 'Invalid input or validation error. Please check your inputs.' 
+      : 'Thông tin gửi đi không hợp lệ. Vui lòng kiểm tra lại.');
+  }
+  if (response.status >= 500) {
+    return serverErrorStr || (isEn 
+      ? 'Internal server error. Please try again later.' 
+      : 'Lỗi hệ thống từ máy chủ. Vui lòng thử lại sau.');
+  }
+  return serverErrorStr || (isEn 
+    ? `An unexpected error occurred (Status: ${response.status}).` 
+    : `Đã xảy ra lỗi không mong muốn (Mã trạng thái: ${response.status}).`);
+};
+
 const guessRoleTitle = (jdText: string, jdFileName: string | null): string => {
   if (jdFileName) {
     let cleanName = jdFileName.replace(/\.[^/.]+$/, "").replace(/[\-_]+/g, " ");
@@ -105,6 +162,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
     setErrorMsg('');
 
     try {
+      // P1-1: No || fallback for errorMessage, cvText, fullAnalysis. Preserve empty string, null, and undefined as-is.
       const preparedCandidates = results.map(c => ({
         filename: c.filename,
         candidateName: c.candidateName || '',
@@ -116,10 +174,10 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
         skillScore: c.skillScore,
         topStrengths: c.topStrengths || [],
         keyGaps: c.keyGaps || [],
-        shortRecommendation: c.shortRecommendation || '',
-        errorMessage: c.errorMessage || undefined,
-        cvText: c.cvText || undefined,
-        fullAnalysis: c.fullAnalysis || null,
+        shortRecommendation: c.shortRecommendation,
+        errorMessage: c.errorMessage,
+        cvText: c.cvText,
+        fullAnalysis: c.fullAnalysis,
       }));
 
       const payload = {
@@ -141,22 +199,23 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error(isEn ? 'Session expired or unauthorized. Please sign in again.' : 'Hết phiên đăng nhập hoặc không có quyền. Vui lòng đăng nhập lại.');
-        }
-        const errJson = await response.json().catch(() => ({}));
-        throw new Error(errJson.error || (isEn ? 'Failed to save batch results.' : 'Không thể lưu đợt tuyển dụng.'));
+        const errText = await getResponseError(response, isEn);
+        throw new Error(errText);
       }
 
       const data = await response.json();
-      if (data && data.success === true && data.batch) {
+      // P1-4: Validate save response properties exactly
+      if (data && data.success === true && data.batch && Array.isArray(data.batch.candidates)) {
         onSaveSuccess(data.batch);
         onClose();
       } else {
-        throw new Error(isEn ? 'Failed to parse batch response.' : 'Không thể giải nghĩa dữ liệu đợt tuyển dụng từ máy chủ.');
+        throw new Error(isEn 
+          ? 'Failed to parse batch response: candidates list is missing or invalid.' 
+          : 'Lưu đợt thất bại: danh sách hồ sơ ứng viên phản hồi từ máy chủ không hợp lệ.'
+        );
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || (isEn ? 'An unexpected error occurred.' : 'Đã xảy ra lỗi không mong muốn.'));
+    } catch (err: unknown) {
+      setErrorMsg(getCaughtErrorMsg(err, isEn));
     } finally {
       setIsLoading(false);
     }
@@ -170,6 +229,9 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
         className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="save-batch-title"
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
@@ -182,7 +244,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
                 <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-black text-slate-900 text-base sm:text-lg tracking-tight">
+                <h3 id="save-batch-title" className="font-black text-slate-900 text-base sm:text-lg tracking-tight">
                   {isEn ? 'Save Recruiter Batch' : 'Lưu Đợt Tuyển Dụng'}
                 </h3>
                 <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">
@@ -194,6 +256,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
               id="save-batch-close-btn"
               onClick={onClose}
               disabled={isLoading}
+              aria-label={isEn ? "Close dialog" : "Đóng hộp thoại"}
               className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <X className="w-5 h-5" />
@@ -210,7 +273,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
 
             {/* Batch Name */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
+              <label htmlFor="save-batch-name-input" className="text-xs font-bold text-slate-700 block">
                 {isEn ? 'Batch Name' : 'Tên đợt tuyển dụng'} <span className="text-rose-500">*</span>
               </label>
               <input
@@ -226,7 +289,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
 
             {/* Role Title */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
+              <label htmlFor="save-role-title-input" className="text-xs font-bold text-slate-700 block">
                 {isEn ? 'Role Title' : 'Vị trí / Vai trò tuyển dụng'} <span className="text-rose-500">*</span>
               </label>
               <input
