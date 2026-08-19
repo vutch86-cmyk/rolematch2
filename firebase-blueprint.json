@@ -69,6 +69,52 @@
         "source": { "type": "string" }
       },
       "required": ["id", "uploadedAt", "uploadedBy", "fileName", "fileType", "fileSizeKB", "source"]
+    },
+    "RecruiterBatch": {
+      "title": "RecruiterBatch",
+      "description": "Recruiter processing batch meta snapshot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "batchName": { "type": "string" },
+        "roleTitle": { "type": "string" },
+        "jdText": { "type": "string" },
+        "jdFileName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "createdBy": { "type": "object" },
+        "status": { "type": "string" },
+        "candidateCount": { "type": "number" },
+        "rankedCount": { "type": "number" },
+        "noScoreCount": { "type": "number" },
+        "failedCount": { "type": "number" }
+      },
+      "required": ["id", "batchName", "roleTitle", "jdText", "createdAt", "updatedAt", "createdBy", "status", "candidateCount", "rankedCount", "noScoreCount", "failedCount"]
+    },
+    "SavedBatchCandidate": {
+      "title": "SavedBatchCandidate",
+      "description": "Snapshot details of a candidate within a recruiter batch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "filename": { "type": "string" },
+        "candidateName": { "type": "string" },
+        "success": { "type": "boolean" },
+        "processingStatus": { "type": "string" },
+        "rank": { "type": "number" },
+        "overallScore": { "type": "number" },
+        "matchLevel": { "type": "string" },
+        "keywordScore": { "type": "number" },
+        "experienceScore": { "type": "number" },
+        "skillScore": { "type": "number" },
+        "topStrengths": { "type": "array" },
+        "keyGaps": { "type": "array" },
+        "shortRecommendation": { "type": "string" },
+        "errorMessage": { "type": "string" },
+        "cvText": { "type": "string" },
+        "fullAnalysis": { "type": "object" }
+      },
+      "required": ["id", "filename", "candidateName", "success", "processingStatus"]
     }
   },
   "firestore": {
@@ -87,6 +133,14 @@
     "uploaded_documents/{id}": {
       "schema": "UploadedDocument",
       "description": "Metadata of files uploaded"
+    },
+    "recruiter_batches/{id}": {
+      "schema": "RecruiterBatch",
+      "description": "Recruiter batches summary snapshot"
+    },
+    "recruiter_batches/{batchId}/candidates/{id}": {
+      "schema": "SavedBatchCandidate",
+      "description": "Individual candidates in a saved recruiter batch"
     }
   }
 }

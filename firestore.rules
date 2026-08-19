@@ -21,5 +21,11 @@ service cloud.firestore {
     match /uploaded_documents/{document} {
       allow read, write: if true;
     }
+    match /recruiter_batches/{document} {
+      allow read, write: if true;
+    }
+    match /recruiter_batches/{batchId}/candidates/{document} {
+      allow read, write: if true;
+    }
   }
 }

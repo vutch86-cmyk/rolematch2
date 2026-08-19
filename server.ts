@@ -25,6 +25,51 @@ dotenv.config();
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc, addDoc, setLogLevel } from 'firebase/firestore';
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: any, operationType: OperationType, path: string | null): never {
+  const errMsg = error instanceof Error ? error.message : String(error);
+  const errInfo: FirestoreErrorInfo = {
+    error: errMsg,
+    operationType,
+    path,
+    authInfo: {
+      userId: null,
+      email: null,
+      emailVerified: null,
+      isAnonymous: null,
+      tenantId: null,
+      providerInfo: []
+    }
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 setLogLevel('error');
 
 let configPath = path.join(process.cwd(), 'firebase-applet-config.json');
@@ -499,13 +544,25 @@ async function syncFromFirestore() {
     // Sync Recruiter Batches & their candidates subcollections from Firestore
     try {
       const batchesCol = collection(db, 'recruiter_batches');
-      const batchesSnapshot = await getDocs(batchesCol);
+      let batchesSnapshot;
+      try {
+        batchesSnapshot = await getDocs(batchesCol);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.LIST, 'recruiter_batches');
+      }
+
       if (!batchesSnapshot.empty) {
         const loadedBatches: RecruiterBatchDetail[] = [];
         for (const batchDoc of batchesSnapshot.docs) {
           const batchSummary = batchDoc.data() as RecruiterBatchSummary;
           const candidatesCol = collection(db, 'recruiter_batches', batchSummary.id, 'candidates');
-          const candidatesSnapshot = await getDocs(candidatesCol);
+          let candidatesSnapshot;
+          try {
+            candidatesSnapshot = await getDocs(candidatesCol);
+          } catch (err) {
+            handleFirestoreError(err, OperationType.LIST, `recruiter_batches/${batchSummary.id}/candidates`);
+          }
+
           const candidates: SavedBatchCandidate[] = candidatesSnapshot.docs.map(cDoc => {
             const c = cDoc.data() as SavedBatchCandidate;
             c.rank = hasValidRank(c.rank) ? c.rank : null;
@@ -528,6 +585,7 @@ async function syncFromFirestore() {
       }
     } catch (batchSyncErr) {
       console.error('Error syncing recruiter batches from Firestore:', batchSyncErr);
+      throw batchSyncErr;
     }
 
     console.log(`Firestore Sync Complete: Loaded ${loadedUsers.length} users, ${analysisRecords.length} analysis records, ${auditLogs.length} audit logs, ${uploadedDocuments.length} documents, ${recruiterBatches.length} recruiter batches.`);
@@ -1034,7 +1092,11 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
   };
 
   try {
-    await setDoc(batchDocRef, removeUndefinedDeep(summaryDoc));
+    try {
+      await setDoc(batchDocRef, removeUndefinedDeep(summaryDoc));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `recruiter_batches/${batch.id}`);
+    }
 
     // 2. Save each candidate to candidates subcollection
     for (const candidate of batch.candidates) {
@@ -1058,15 +1120,23 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
         cvText: candidate.cvText !== undefined ? candidate.cvText : undefined,
         fullAnalysis: candidate.fullAnalysis !== undefined ? candidate.fullAnalysis : undefined
       };
-      await setDoc(candDocRef, removeUndefinedDeep(cleanCandidate));
+      try {
+        await setDoc(candDocRef, removeUndefinedDeep(cleanCandidate));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `recruiter_batches/${batch.id}/candidates/${candidate.id}`);
+      }
     }
 
     // 3. Mark batch status READY with new timestamp
     const readyUpdatedAt = new Date().toISOString();
-    await updateDoc(batchDocRef, removeUndefinedDeep({
-      status: 'READY',
-      updatedAt: readyUpdatedAt
-    }));
+    try {
+      await updateDoc(batchDocRef, removeUndefinedDeep({
+        status: 'READY',
+        updatedAt: readyUpdatedAt
+      }));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `recruiter_batches/${batch.id}`);
+    }
 
     // Keep in-memory batch status and updatedAt identical to Firestore
     batch.status = 'READY';
@@ -2562,11 +2632,23 @@ app.get('/api/recruiter/batches/:id', async (req, res) => {
     if (!batch && db) {
       try {
         const batchDocRef = doc(db, 'recruiter_batches', id);
-        const batchDocSnap = await getDoc(batchDocRef);
+        let batchDocSnap;
+        try {
+          batchDocSnap = await getDoc(batchDocRef);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, `recruiter_batches/${id}`);
+        }
+
         if (batchDocSnap.exists()) {
           const summary = batchDocSnap.data() as RecruiterBatchSummary;
           const candidatesCol = collection(db, 'recruiter_batches', id, 'candidates');
-          const candSnapshot = await getDocs(candidatesCol);
+          let candSnapshot;
+          try {
+            candSnapshot = await getDocs(candidatesCol);
+          } catch (err) {
+            handleFirestoreError(err, OperationType.LIST, `recruiter_batches/${id}/candidates`);
+          }
+
           const candidates = candSnapshot.docs.map(d => {
             const c = d.data() as SavedBatchCandidate;
             c.rank = hasValidRank(c.rank) ? c.rank : null;
@@ -2588,6 +2670,10 @@ app.get('/api/recruiter/batches/:id', async (req, res) => {
         }
       } catch (fetchErr) {
         console.warn('Could not load batch from Firestore:', fetchErr);
+        // Throw or pass through if it's already a JSON error string
+        if (fetchErr instanceof Error && fetchErr.message.startsWith('{')) {
+          return res.status(500).json({ error: fetchErr.message });
+        }
       }
     }
 
