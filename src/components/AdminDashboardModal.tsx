@@ -2535,14 +2535,16 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                     </div>
                   ) : (
                     filteredAnalyses.map((item, idx) => {
-                      const scoreColor =
-                        item.overallScore >= 85
-                          ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
-                          : item.overallScore >= 70
-                          ? 'text-sky-400 border-sky-500/40 bg-sky-500/10'
-                          : item.overallScore >= 50
-                          ? 'text-amber-400 border-amber-500/40 bg-amber-500/10'
-                          : 'text-rose-400 border-rose-500/40 bg-rose-500/10';
+                      const hasValidScore = typeof item.overallScore === 'number' && Number.isFinite(item.overallScore);
+                      const scoreColor = !hasValidScore
+                        ? 'text-slate-400 border-slate-700 bg-slate-800/80'
+                        : item.overallScore >= 85
+                        ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
+                        : item.overallScore >= 70
+                        ? 'text-sky-400 border-sky-500/40 bg-sky-500/10'
+                        : item.overallScore >= 50
+                        ? 'text-amber-400 border-amber-500/40 bg-amber-500/10'
+                        : 'text-rose-400 border-rose-500/40 bg-rose-500/10';
 
                       const dur = item.durationMs || 0;
                       const isSlow = dur > 120000;
@@ -2560,8 +2562,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                           <div className="flex items-start gap-3.5 min-w-0 flex-1">
                             {/* Score Dial Badge */}
                             <div className={`w-12 h-12 rounded-2xl border flex flex-col items-center justify-center shrink-0 ${scoreColor}`}>
-                              <span className="text-sm font-black font-mono leading-none">{item.overallScore}</span>
-                              <span className="text-[9px] font-bold opacity-80 mt-0.5">%</span>
+                              <span className="text-sm font-black font-mono leading-none">
+                                {hasValidScore ? item.overallScore : '—'}
+                              </span>
+                              {hasValidScore && <span className="text-[9px] font-bold opacity-80 mt-0.5">%</span>}
                             </div>
 
                             <div className="min-w-0 flex-1 space-y-1">
@@ -2570,11 +2574,25 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                   {formatReportTitle(item.jobTitle, item.userEmail)}
                                 </span>
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 border border-slate-800 text-purple-300">
-                                  {item.matchLevel}
+                                  {item.matchLevel === 'NOT_AVAILABLE'
+                                    ? (lang === 'vi' ? 'Chưa có dữ liệu' : 'Not available')
+                                    : item.matchLevel}
                                 </span>
-                                {item.recruiterDecision === 'YES' && (
+                                {item.recruiterDecision === 'YES' ? (
                                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                                     MỜI PHỎNG VẤN (YES)
+                                  </span>
+                                ) : item.recruiterDecision === 'NO' ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                    TỪ CHỐI (NO)
+                                  </span>
+                                ) : item.recruiterDecision === 'MAYBE' ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                    CÂN NHẮC (MAYBE)
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800/80 text-slate-400 border border-slate-700">
+                                    {lang === 'vi' ? 'Chưa có quyết định' : 'No decision available'}
                                   </span>
                                 )}
 
@@ -3316,7 +3334,11 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   <h3 className="font-black text-slate-100 text-base flex items-center gap-2">
                     <span>{formatReportTitle(selectedAnalysisDetail.jobTitle, selectedAnalysisDetail.userEmail)}</span>
                     <span className="px-2.5 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/40 font-mono">
-                      {selectedAnalysisDetail.overallScore}% - {selectedAnalysisDetail.matchLevel}
+                      {typeof selectedAnalysisDetail.overallScore === 'number' && Number.isFinite(selectedAnalysisDetail.overallScore)
+                        ? `${selectedAnalysisDetail.overallScore}%`
+                        : '—'} - {selectedAnalysisDetail.matchLevel === 'NOT_AVAILABLE'
+                        ? (lang === 'vi' ? 'Chưa có dữ liệu' : 'Not available')
+                        : selectedAnalysisDetail.matchLevel}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400 font-mono">
@@ -3337,9 +3359,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl text-center">
                   <span className="text-slate-400 text-[10px] uppercase font-bold block mb-1">Quyết Định Tuyển Dụng</span>
-                  <span className="text-sm font-black text-emerald-400">
-                    {selectedAnalysisDetail.recruiterDecision || 'INVITE INTERVIEW'}
-                  </span>
+                  {selectedAnalysisDetail.recruiterDecision === 'YES' ? (
+                    <span className="text-sm font-black text-emerald-400">YES (Mời phỏng vấn)</span>
+                  ) : selectedAnalysisDetail.recruiterDecision === 'NO' ? (
+                    <span className="text-sm font-black text-rose-400">NO (Từ chối)</span>
+                  ) : selectedAnalysisDetail.recruiterDecision === 'MAYBE' ? (
+                    <span className="text-sm font-black text-amber-400">MAYBE (Cân nhắc)</span>
+                  ) : (
+                    <span className="text-sm font-bold text-slate-400">
+                      {lang === 'vi' ? 'Chưa có quyết định' : 'No decision available'}
+                    </span>
+                  )}
                 </div>
                 <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl text-center">
                   <span className="text-slate-400 text-[10px] uppercase font-bold block mb-1">Thời Gian Xử Lý AI (Latency)</span>
@@ -3356,7 +3386,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                 <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl text-center">
                   <span className="text-slate-400 text-[10px] uppercase font-bold block mb-1">Mức Độ Tương Thích</span>
                   <span className="text-sm font-black text-purple-400 font-mono">
-                    {selectedAnalysisDetail.matchLevel} ({selectedAnalysisDetail.overallScore}/100)
+                    {selectedAnalysisDetail.matchLevel === 'NOT_AVAILABLE'
+                      ? (lang === 'vi' ? 'Chưa có dữ liệu' : 'Not available')
+                      : selectedAnalysisDetail.matchLevel}{' '}
+                    ({typeof selectedAnalysisDetail.overallScore === 'number' && Number.isFinite(selectedAnalysisDetail.overallScore)
+                      ? `${selectedAnalysisDetail.overallScore}%`
+                      : '—'})
                   </span>
                 </div>
               </div>

@@ -381,6 +381,11 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           const jdTitle = firstLine.substring(0, 36) || (lang === 'vi' ? 'Vị trí công việc' : 'CV Analysis Report');
           const title = `${jdTitle} - ${inferredTitle}`;
 
+          const validScore =
+            typeof r.overallScore === 'number' && Number.isFinite(r.overallScore)
+              ? r.overallScore
+              : null;
+
           return {
             id: `batch-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 11)}`,
             title,
@@ -388,7 +393,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             cvText: r.cvText || '',
             jdText,
             analysis: r.fullAnalysis,
-            score: r.overallScore || 0,
+            score: validScore,
           };
         });
         onAddHistoryItems(newItems);
@@ -507,37 +512,40 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     .sort((a, b) => (b.overallScore as number) - (a.overallScore as number));
 
   // --- Filtering & Sorting Logic ---
-  const filteredResults = results
-    .filter(candidate => {
-      const displayName = getCandidateDisplayName(candidate);
-      const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (candidate.candidateName && candidate.candidateName.toLowerCase().includes(searchTerm.toLowerCase())) || 
-                            candidate.filename.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesLevel = filterLevel === 'All' || candidate.matchLevel === filterLevel;
-      const recType = getCandidateRecType(candidate);
-      const matchesRec = filterRecommendation === 'All' || recType === filterRecommendation;
-      return matchesSearch && matchesLevel && matchesRec;
-    })
-    .sort((a, b) => {
+  const filterCandidates = results.filter(candidate => {
+    const displayName = getCandidateDisplayName(candidate);
+    const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (candidate.candidateName && candidate.candidateName.toLowerCase().includes(searchTerm.toLowerCase())) || 
+                          candidate.filename.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesLevel = filterLevel === 'All' || candidate.matchLevel === filterLevel;
+    const recType = getCandidateRecType(candidate);
+    const matchesRec = filterRecommendation === 'All' || recType === filterRecommendation;
+    return matchesSearch && matchesLevel && matchesRec;
+  });
+
+  const group1 = filterCandidates.filter(c => c.success !== false && !c.errorMessage && typeof c.overallScore === 'number' && Number.isFinite(c.overallScore));
+  const group2 = filterCandidates.filter(c => c.success !== false && !c.errorMessage && !(typeof c.overallScore === 'number' && Number.isFinite(c.overallScore)));
+  const group3 = filterCandidates.filter(c => c.success === false || !!c.errorMessage);
+
+  const sortGroup = (list: CandidateResult[]) => {
+    return [...list].sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'score') {
-        const aValid = a.success !== false && !a.errorMessage && typeof a.overallScore === 'number' && Number.isFinite(a.overallScore);
-        const bValid = b.success !== false && !b.errorMessage && typeof b.overallScore === 'number' && Number.isFinite(b.overallScore);
-
-        if (aValid && bValid) {
-          comparison = (a.overallScore as number) - (b.overallScore as number);
-        } else if (aValid && !bValid) {
-          comparison = 1;
-        } else if (!aValid && bValid) {
-          comparison = -1;
-        } else {
-          comparison = 0;
-        }
+        const aScore = typeof a.overallScore === 'number' && Number.isFinite(a.overallScore) ? a.overallScore : 0;
+        const bScore = typeof b.overallScore === 'number' && Number.isFinite(b.overallScore) ? b.overallScore : 0;
+        comparison = aScore - bScore;
       } else {
         comparison = getCandidateDisplayName(a).localeCompare(getCandidateDisplayName(b));
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
+  };
+
+  const filteredResults = [
+    ...sortGroup(group1),
+    ...sortGroup(group2),
+    ...sortGroup(group3)
+  ];
 
   const toggleSort = (type: 'score' | 'name') => {
     if (sortBy === type) {
@@ -952,47 +960,82 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   // Export results to raw Markdown for recruiters to copy/paste
   const handleExportMarkdown = () => {
     if (results.length === 0) return;
-    let md = `# Candidate Leaderboard Report\n\nGenerated on: ${new Date().toLocaleDateString()}\n\n`;
-    md += `| Rank | Candidate Name | File Name | Overall Fit | Match Level |\n`;
-    md += `|---|---|---|---|---|\n`;
-    results.forEach((r, idx) => {
-      if (r.success === false || r.errorMessage) {
-        md += `| **#${idx + 1}** | ${r.candidateName} | ${r.filename} | **Lỗi xử lý** | - |\n`;
-      } else {
-        md += `| **#${idx + 1}** | ${r.candidateName} | ${r.filename} | **${r.overallScore}%** | ${r.matchLevel} |\n`;
-      }
-    });
-    md += `\n\n## Deep Dive Breakdown\n\n`;
-    results.forEach((r, idx) => {
-      md += `### #${idx + 1} ${r.candidateName}\n`;
-      md += `- **File**: ${r.filename}\n`;
-      if (r.success === false || r.errorMessage) {
-        md += `- **Trạng thái**: Lỗi xử lý (${r.errorMessage || 'Unknown error'})\n\n---\n\n`;
-        return;
-      }
-      md += `- **Overall Score**: ${r.overallScore}%\n`;
-      md += `- **Keyword Match**: ${r.keywordScore}%\n`;
-      md += `- **Experience Fit**: ${r.experienceScore}%\n`;
-      md += `- **Skills Overlap**: ${r.skillScore}%\n`;
-      
-      const strengths = getNormalizedList(r.topStrengths, 'strengths', r, isEn);
-      md += `\n#### Top Strengths:\n`;
-      if (strengths.length === 0) {
-        md += `  - ${isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}\n`;
-      } else {
-        strengths.forEach(s => md += `  - ${s}\n`);
-      }
+    let md = `# ${isEn ? 'Candidate Leaderboard Report' : 'Báo Cáo Bảng Xếp Hạng Ứng Viên'}\n\nGenerated on: ${new Date().toLocaleDateString()}\n\n`;
 
-      const gaps = getNormalizedList(r.keyGaps, 'gaps', r, isEn);
-      md += `\n#### Areas for Improvement / Gaps:\n`;
-      if (gaps.length === 0) {
-        md += `  - ${isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}\n`;
-      } else {
-        gaps.forEach(g => md += `  - ${g}\n`);
-      }
+    const ranked = results
+      .filter(r => r.success !== false && !r.errorMessage && typeof r.overallScore === 'number' && Number.isFinite(r.overallScore))
+      .sort((a, b) => (b.overallScore as number) - (a.overallScore as number));
 
-      md += `\n#### Recruiter Verdict:\n> ${getDecisionReason(r, isEn)}\n\n---\n\n`;
-    });
+    const unranked = results
+      .filter(r => r.success !== false && !r.errorMessage && !(typeof r.overallScore === 'number' && Number.isFinite(r.overallScore)));
+
+    const failed = results
+      .filter(r => r.success === false || !!r.errorMessage);
+
+    if (ranked.length > 0) {
+      md += `## ${isEn ? 'Ranked Candidates' : 'Ứng Viên Được Xếp Hạng'}\n\n`;
+      md += `| Rank | Candidate Name | File Name | Overall Fit | Match Level |\n`;
+      md += `|---|---|---|---|---|\n`;
+      ranked.forEach((r, idx) => {
+        const name = getCandidateDisplayName(r, idx + 1);
+        const matchLvl = r.matchLevel === 'NOT_AVAILABLE'
+          ? (isEn ? 'Not available' : 'Chưa có dữ liệu')
+          : getMatchLevelLabel(r.matchLevel);
+        md += `| **#${idx + 1}** | ${name} | ${r.filename} | **${r.overallScore}%** | ${matchLvl} |\n`;
+      });
+      md += `\n### ${isEn ? 'Ranked Deep Dive Breakdown' : 'Chi Tiết Phân Tích Ứng Viên Xếp Hạng'}\n\n`;
+      ranked.forEach((r, idx) => {
+        const name = getCandidateDisplayName(r, idx + 1);
+        const matchLvl = r.matchLevel === 'NOT_AVAILABLE'
+          ? (isEn ? 'Not available' : 'Chưa có dữ liệu')
+          : getMatchLevelLabel(r.matchLevel);
+        md += `#### #${idx + 1} ${name}\n`;
+        md += `- **File**: ${r.filename}\n`;
+        md += `- **Overall Score**: ${r.overallScore}%\n`;
+        md += `- **Match Level**: ${matchLvl}\n`;
+        md += `- **Keyword Match**: ${typeof r.keywordScore === 'number' && Number.isFinite(r.keywordScore) ? `${r.keywordScore}%` : '—'}\n`;
+        md += `- **Experience Fit**: ${typeof r.experienceScore === 'number' && Number.isFinite(r.experienceScore) ? `${r.experienceScore}%` : '—'}\n`;
+        md += `- **Skills Overlap**: ${typeof r.skillScore === 'number' && Number.isFinite(r.skillScore) ? `${r.skillScore}%` : '—'}\n`;
+
+        const strengths = getNormalizedList(r.topStrengths, 'strengths', r, isEn);
+        md += `\n##### Top Strengths:\n`;
+        if (strengths.length === 0) {
+          md += `  - ${isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}\n`;
+        } else {
+          strengths.forEach(s => md += `  - ${s}\n`);
+        }
+
+        const gaps = getNormalizedList(r.keyGaps, 'gaps', r, isEn);
+        md += `\n##### Areas for Improvement / Gaps:\n`;
+        if (gaps.length === 0) {
+          md += `  - ${isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}\n`;
+        } else {
+          gaps.forEach(g => md += `  - ${g}\n`);
+        }
+
+        md += `\n##### Recruiter Verdict:\n> ${getDecisionReason(r, isEn)}\n\n---\n\n`;
+      });
+    }
+
+    if (unranked.length > 0) {
+      md += `## ${isEn ? 'Candidates Without Score' : 'Ứng Viên Chưa Có Điểm'}\n\n`;
+      unranked.forEach((r) => {
+        const name = getCandidateDisplayName(r);
+        const matchLvl = isEn ? 'Not available' : 'Chưa có dữ liệu';
+        md += `- **${name}** (${r.filename}) — ${isEn ? 'No score' : 'Chưa có điểm'} (${matchLvl})\n`;
+      });
+      md += `\n`;
+    }
+
+    if (failed.length > 0) {
+      md += `## ${isEn ? 'Processing Errors' : 'Lỗi Xử Lý'}\n\n`;
+      failed.forEach((r) => {
+        const name = getCandidateDisplayName(r);
+        const errStr = r.errorMessage || (isEn ? 'Processing error' : 'Lỗi trong quá trình xử lý');
+        md += `- **${name}** (${r.filename}) — ${errStr}\n`;
+      });
+      md += `\n`;
+    }
 
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -2152,6 +2195,11 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                                 const jdTitle = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
                                 const title = `${jdTitle} - ${inferredTitle}`;
 
+                                const validScore =
+                                  typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore)
+                                    ? selectedCandidate.overallScore
+                                    : null;
+
                                 const item: HistoryItem = {
                                   id: `batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                                   title,
@@ -2159,7 +2207,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                                   cvText: selectedCandidate.cvText || '',
                                   jdText,
                                   analysis: selectedCandidate.fullAnalysis,
-                                  score: selectedCandidate.overallScore || 0,
+                                  score: validScore,
                                 };
                                 onOpenFullAnalysis(item);
                               }}

@@ -65,7 +65,10 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
     return `${dateStr} ${timeStr}`;
   };
 
-  const getScoreBadgeClass = (score: number = 0) => {
+  const getScoreBadgeClass = (score?: number | null) => {
+    if (typeof score !== 'number' || !Number.isFinite(score)) {
+      return 'bg-slate-100 text-slate-600 border-slate-200';
+    }
     if (score >= 80) {
       return 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
     }
@@ -157,7 +160,11 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
             ) : (
               filteredItems.map((item, idx) => {
                 const isCurrent = item.id === currentActiveId;
-                const score = item.score || item.analysis?.feature1?.scores?.overallRoleScore || 0;
+                const score = typeof item.score === 'number' && Number.isFinite(item.score)
+                  ? item.score
+                  : typeof item.analysis?.feature1?.scores?.overallRoleScore === 'number' && Number.isFinite(item.analysis?.feature1?.scores?.overallRoleScore)
+                  ? item.analysis.feature1.scores.overallRoleScore
+                  : null;
 
                 return (
                   <div
@@ -196,7 +203,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         )}`}
                       >
                         <Sparkles className="w-3 h-3 shrink-0" />
-                        <span>{score}%</span>
+                        <span>{typeof score === 'number' && Number.isFinite(score) ? `${score}%` : '—'}</span>
                       </div>
                     </div>
 

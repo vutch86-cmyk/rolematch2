@@ -106,7 +106,7 @@ export interface HistoryItem {
   cvText: string;
   jdText: string;
   analysis: CompleteCVAnalysisResponse;
-  score?: number;
+  score?: number | null;
 }
 
 export interface LogItem {
@@ -218,13 +218,13 @@ export interface AnalysisRecordItem {
   timestamp: string;
   userEmail: string;
   jobTitle: string;
-  overallScore: number;
-  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN';
+  overallScore: number | null;
+  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE';
   cvFileName?: string;
   jdTitle?: string;
   topStrengths: string[];
   missingSkills: string[];
-  recruiterDecision: 'YES' | 'NO' | 'MAYBE';
+  recruiterDecision?: 'YES' | 'NO' | 'MAYBE';
   engineUsed: string;
   durationMs: number;
   cvTextLength: number;
