@@ -1,33 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { X, Search, Filter, Calendar, Users, AlertCircle, Loader2, Layers, CheckCircle, RefreshCw, FolderOpen, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Search, Filter, Calendar, Users, AlertCircle, Loader2, Layers, RefreshCw, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-interface RecruiterBatchSummary {
-  id: string;
-  batchName: string;
-  roleTitle: string;
-  jdText: string;
-  jdFileName?: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: {
-    userId: string;
-    username: string;
-    fullName: string;
-  };
-  status: 'SAVING' | 'READY' | 'FAILED';
-  candidateCount: number;
-  rankedCount: number;
-  noScoreCount: number;
-  failedCount: number;
-}
+import { RecruiterBatchSummary, RecruiterBatchDetail } from '../types';
 
 interface SavedBatchesModalProps {
   isOpen: boolean;
   onClose: () => void;
   isEn: boolean;
   token: string | null;
-  onRestoreBatch: (batchDetails: any) => void;
+  onRestoreBatch: (batchDetails: RecruiterBatchDetail) => void;
 }
 
 export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
@@ -44,12 +25,24 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
-  const fetchBatches = async () => {
+  const isMountedRef = useRef(true);
+
+  // Track mount status
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Fetch all batches
+  const fetchBatches = async (abortSignal?: AbortSignal) => {
     setIsLoading(true);
     setErrorMsg('');
     try {
       const authToken = token || localStorage.getItem('auth_token');
       const response = await fetch('/api/recruiter/batches', {
+        signal: abortSignal,
         headers: {
           ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
         },
@@ -63,25 +56,63 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
       }
 
       const data = await response.json();
-      setBatches(data || []);
+      if (isMountedRef.current) {
+        if (data && data.success === true && Array.isArray(data.batches)) {
+          setBatches(data.batches);
+        } else {
+          setBatches([]);
+        }
+      }
     } catch (err: any) {
-      setErrorMsg(err.message || (isEn ? 'An error occurred while loading batches.' : 'Đã xảy ra lỗi khi tải danh sách đợt tuyển dụng.'));
+      if (err.name === 'AbortError') return;
+      if (isMountedRef.current) {
+        setErrorMsg(err.message || (isEn ? 'An error occurred while loading batches.' : 'Đã xảy ra lỗi khi tải danh sách đợt tuyển dụng.'));
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
+  // Load batches on open
   useEffect(() => {
+    const controller = new AbortController();
     if (isOpen) {
-      fetchBatches();
+      fetchBatches(controller.signal);
       setSearchTerm('');
       setStatusFilter('All');
+      setErrorMsg('');
     }
+    return () => {
+      controller.abort();
+    };
   }, [isOpen]);
+
+  // Handle Escape key for Dialog Accessibility
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loadingBatchId && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [loadingBatchId, isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const handleSelectBatch = async (batchId: string) => {
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && !loadingBatchId) {
+      onClose();
+    }
+  };
+
+  // Select and load specific batch detail
+  const handleSelectBatch = async (batchId: string, status: string) => {
+    if (status !== 'READY') return; // Requirement 3: Only READY can be opened
+    if (loadingBatchId) return;
+
     setLoadingBatchId(batchId);
     setErrorMsg('');
     try {
@@ -96,26 +127,43 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
         if (response.status === 401) {
           throw new Error(isEn ? 'Session expired or unauthorized. Please sign in again.' : 'Hết phiên đăng nhập hoặc không có quyền. Vui lòng đăng nhập lại.');
         }
-        throw new Error(isEn ? 'Failed to load batch details.' : 'Không thể tải chi tiết đợt tuyển dụng.');
+        if (response.status === 403) {
+          throw new Error(isEn ? 'You do not have permission to access this batch.' : 'Bạn không có quyền truy cập đợt tuyển dụng này.');
+        }
+        if (response.status === 404) {
+          throw new Error(isEn ? 'Saved batch not found.' : 'Không tìm thấy đợt tuyển dụng.');
+        }
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || (isEn ? `Failed to load batch (status: ${response.status}).` : `Không thể tải chi tiết đợt tuyển dụng (mã lỗi: ${response.status}).`));
       }
 
-      const batchDetail = await response.json();
-      if (!batchDetail) {
-        throw new Error(isEn ? 'Batch data is empty.' : 'Dữ liệu đợt tuyển dụng trống.');
+      const data = await response.json();
+      if (isMountedRef.current) {
+        if (data && data.success === true && data.batch && Array.isArray(data.batch.candidates)) {
+          onRestoreBatch(data.batch);
+          onClose();
+        } else {
+          throw new Error(isEn ? 'Invalid batch details format received.' : 'Định dạng dữ liệu đợt tuyển dụng không hợp lệ.');
+        }
       }
-
-      onRestoreBatch(batchDetail);
-      onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || (isEn ? 'An error occurred while retrieving batch details.' : 'Đã xảy ra lỗi khi tải chi tiết đợt tuyển dụng.'));
+      if (isMountedRef.current) {
+        setErrorMsg(err.message || (isEn ? 'An error occurred while retrieving batch details.' : 'Đã xảy ra lỗi khi tải chi tiết đợt tuyển dụng.'));
+      }
     } finally {
-      setLoadingBatchId(null);
+      if (isMountedRef.current) {
+        setLoadingBatchId(null);
+      }
     }
   };
 
+  // Requirement 15: Search according to batchName, roleTitle, and jdFileName
   const filteredBatches = batches.filter(b => {
-    const nameMatch = b.batchName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                     b.roleTitle.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase().trim();
+    const nameMatch = !searchLower ||
+                     b.batchName.toLowerCase().includes(searchLower) ||
+                     b.roleTitle.toLowerCase().includes(searchLower) ||
+                     (b.jdFileName && b.jdFileName.toLowerCase().includes(searchLower));
     const statusMatch = statusFilter === 'All' || b.status === statusFilter;
     return nameMatch && statusMatch;
   });
@@ -150,7 +198,11 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div 
+        id="saved-batches-backdrop"
+        onClick={handleBackdropClick}
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+      >
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -174,15 +226,19 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={fetchBatches}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                id="saved-batches-refresh-btn"
+                onClick={() => fetchBatches()}
+                disabled={isLoading}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                 title={isEn ? "Refresh list" : "Làm mới"}
               >
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
               <button
+                id="saved-batches-close-btn"
                 onClick={onClose}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                disabled={!!loadingBatchId}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -194,16 +250,18 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
               <input
+                id="saved-batches-search"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={isEn ? "Search by batch name or role title..." : "Tìm kiếm theo tên đợt hoặc vị trí..."}
+                placeholder={isEn ? "Search by batch, role or JD file..." : "Tìm kiếm theo tên đợt, vị trí hoặc tệp JD..."}
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-indigo-500 transition-all font-medium"
               />
             </div>
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-slate-400 shrink-0" />
               <select
+                id="saved-batches-status-filter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:border-indigo-500 transition-all font-bold"
@@ -242,16 +300,17 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                   </h4>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm">
                     {isEn 
-                      ? 'Analyze any set of candidate CVs against a JD and click "Save Batch" on the leaderboard header to persist snapshots.' 
+                      ? 'Analyze candidate CVs and click "Save Batch" on the leaderboard header to persist snapshots.' 
                       : 'Hãy chạy phân tích danh sách CV và chọn "Lưu đợt tuyển dụng" trong thanh công cụ xếp hạng.'
                     }
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
                 {filteredBatches.map((batch) => {
                   const isCurrentLoading = loadingBatchId === batch.id;
+                  const isReady = batch.status === 'READY';
                   const dateString = new Date(batch.createdAt).toLocaleString(isEn ? 'en-US' : 'vi-VN', {
                     year: 'numeric',
                     month: 'short',
@@ -263,10 +322,12 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                   return (
                     <motion.div
                       key={batch.id}
-                      onClick={() => !isCurrentLoading && handleSelectBatch(batch.id)}
+                      onClick={() => isReady && !isCurrentLoading && handleSelectBatch(batch.id, batch.status)}
                       className={`group bg-white rounded-2xl p-4 sm:p-5 border transition-all flex flex-col justify-between gap-3 text-left ${
-                        isCurrentLoading
-                          ? 'border-indigo-400 bg-indigo-50/20 cursor-not-allowed'
+                        !isReady
+                          ? 'border-slate-150 bg-slate-50/50 opacity-60 cursor-not-allowed'
+                          : isCurrentLoading
+                          ? 'border-indigo-400 bg-indigo-50/20 cursor-wait'
                           : 'border-slate-200 hover:border-indigo-400 hover:shadow-md cursor-pointer active:scale-[0.99]'
                       }`}
                     >
@@ -287,6 +348,11 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                         <p className="text-xs font-semibold text-slate-600 line-clamp-1">
                           {batch.roleTitle}
                         </p>
+                        {batch.jdFileName && (
+                          <p className="text-[10px] text-slate-400 font-medium italic line-clamp-1">
+                            JD: {batch.jdFileName}
+                          </p>
+                        )}
                       </div>
 
                       {/* Info & Stats */}
@@ -302,17 +368,29 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                       </div>
 
                       {/* Detail metrics micro layout */}
-                      {batch.status === 'READY' && (
-                        <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-bold">
-                          <div className="bg-emerald-50/50 border border-emerald-100 text-emerald-800 py-1 rounded">
-                            {isEn ? 'Ranked:' : 'Hợp lệ:'} {batch.rankedCount}
+                      {isReady && (
+                        <div className="space-y-2.5">
+                          <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-bold">
+                            <div className="bg-emerald-50/50 border border-emerald-100 text-emerald-800 py-1 rounded">
+                              {isEn ? 'Ranked:' : 'Hợp lệ:'} {batch.rankedCount}
+                            </div>
+                            <div className="bg-slate-50 border border-slate-100 text-slate-600 py-1 rounded">
+                              {isEn ? 'No score:' : 'Không điểm:'} {batch.noScoreCount}
+                            </div>
+                            <div className="bg-rose-50 border border-rose-100 text-rose-800 py-1 rounded">
+                              {isEn ? 'Failed:' : 'Lỗi:'} {batch.failedCount}
+                            </div>
                           </div>
-                          <div className="bg-slate-50 border border-slate-100 text-slate-600 py-1 rounded">
-                            {isEn ? 'No score:' : 'Không điểm:'} {batch.noScoreCount}
-                          </div>
-                          <div className="bg-rose-50 border border-rose-100 text-rose-800 py-1 rounded">
-                            {isEn ? 'Failed:' : 'Lỗi:'} {batch.failedCount}
-                          </div>
+
+                          {/* Leaderboard Trigger Button */}
+                          <button
+                            id={`open-leaderboard-${batch.id}`}
+                            disabled={isCurrentLoading}
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs group-hover:bg-indigo-700"
+                          >
+                            <FolderOpen className="w-3.5 h-3.5" />
+                            <span>{isEn ? 'Open leaderboard' : 'Mở bảng xếp hạng'}</span>
+                          </button>
                         </div>
                       )}
                     </motion.div>

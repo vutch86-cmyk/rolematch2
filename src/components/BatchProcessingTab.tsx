@@ -50,7 +50,7 @@ import {
   Legend
 } from 'recharts';
 
-import { HistoryItem, ComparisonRow } from '../types';
+import { HistoryItem, ComparisonRow, RecruiterBatchDetail, SavedBatchCandidate } from '../types';
 import { SaveBatchModal } from './SaveBatchModal';
 import { SavedBatchesModal } from './SavedBatchesModal';
 
@@ -97,7 +97,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   // Saved Batches Integration States
   const [isSaveBatchModalOpen, setIsSaveBatchModalOpen] = useState<boolean>(false);
   const [isSavedBatchesModalOpen, setIsSavedBatchesModalOpen] = useState<boolean>(false);
-  const [activeSavedBatch, setActiveSavedBatch] = useState<any>(null);
+  const [activeSavedBatch, setActiveSavedBatch] = useState<RecruiterBatchDetail | null>(null);
   const [batchError, setBatchError] = useState<string>('');
   const [batchNotice, setBatchNotice] = useState<string>('');
 
@@ -121,29 +121,31 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [jdFileName, setJdFileName] = useState<string | null>(null);
   const jdFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleRestoreBatch = (batch: any) => {
+  const mapSavedCandidateToResult = (c: SavedBatchCandidate): CandidateResult => ({
+    filename: c.filename,
+    success: c.success !== false,
+    candidateName: c.candidateName || '',
+    overallScore: c.overallScore,
+    matchLevel: c.matchLevel || 'NOT_AVAILABLE',
+    keywordScore: c.keywordScore,
+    experienceScore: c.experienceScore,
+    skillScore: c.skillScore,
+    topStrengths: c.topStrengths || [],
+    keyGaps: c.keyGaps || [],
+    shortRecommendation: c.shortRecommendation !== undefined ? c.shortRecommendation : '',
+    errorMessage: c.errorMessage || undefined,
+    cvText: c.cvText || undefined,
+    fullAnalysis: c.fullAnalysis || null,
+    savedRank: typeof c.rank === 'number' ? c.rank : null,
+    processingStatus: c.processingStatus || 'COMPLETED'
+  });
+
+  const handleRestoreBatch = (batch: RecruiterBatchDetail) => {
     setActiveSavedBatch(batch);
     setJdText(batch.jdText || '');
     setJdFileName(batch.jdFileName || null);
 
-    const mappedResults: CandidateResult[] = batch.candidates.map((c: any) => ({
-      filename: c.filename,
-      success: c.success !== false,
-      candidateName: c.candidateName || '',
-      overallScore: c.overallScore,
-      matchLevel: c.matchLevel || 'NOT_AVAILABLE',
-      keywordScore: c.keywordScore,
-      experienceScore: c.experienceScore,
-      skillScore: c.skillScore,
-      topStrengths: c.topStrengths || [],
-      keyGaps: c.keyGaps || [],
-      shortRecommendation: c.shortRecommendation || '',
-      errorMessage: c.errorMessage,
-      cvText: c.cvText,
-      fullAnalysis: c.fullAnalysis || null,
-      savedRank: c.rank,
-      processingStatus: c.processingStatus
-    }));
+    const mappedResults: CandidateResult[] = batch.candidates.map(mapSavedCandidateToResult);
 
     setResults(mappedResults);
     setSelectedCandidate(null);
@@ -156,10 +158,14 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     setTimeout(() => setBatchNotice(''), 5000);
   };
 
-  const handleSaveSuccess = (savedBatchName: string, savedRoleTitle: string) => {
+  const handleSaveSuccess = (savedBatch: RecruiterBatchDetail) => {
+    setActiveSavedBatch(savedBatch);
+    const mappedResults: CandidateResult[] = savedBatch.candidates.map(mapSavedCandidateToResult);
+    setResults(mappedResults);
+
     setBatchNotice(isEn
-      ? `Successfully saved batch "${savedBatchName}" for role "${savedRoleTitle}"!`
-      : `Lưu thành công đợt tuyển dụng "${savedBatchName}" cho vai trò "${savedRoleTitle}"!`
+      ? `Successfully saved batch "${savedBatch.batchName}" for role "${savedBatch.roleTitle}"!`
+      : `Lưu thành công đợt tuyển dụng "${savedBatch.batchName}" cho vai trò "${savedBatch.roleTitle}"!`
     );
     setTimeout(() => setBatchNotice(''), 5000);
   };
@@ -350,6 +356,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     setErrorMsg('');
     setResults([]);
     setSelectedCandidate(null);
+    setActiveSavedBatch(null);
 
     // Simulated progress steps to reassure the recruiter of background processing
     const totalFiles = uploadedFiles.length;
@@ -1062,7 +1069,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         const matchLvl = r.matchLevel === 'NOT_AVAILABLE'
           ? (isEn ? 'Not available' : 'Chưa có dữ liệu')
           : getMatchLevelLabel(r.matchLevel);
-        md += `#### #${idx + 1} ${name}\n`;
+        md += `#### #${rankValue} ${name}\n`;
         md += `- **File**: ${r.filename}\n`;
         md += `- **Overall Score**: ${r.overallScore}%\n`;
         md += `- **Match Level**: ${matchLvl}\n`;
