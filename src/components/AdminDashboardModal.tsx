@@ -241,13 +241,14 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const filteredAnalyses = useMemo(() => {
     return analyses.filter((item) => {
       const q = analysisSearchQuery.toLowerCase();
+      const { skills: searchableMissingSkills } = getRecordMissingSkills(item);
       const matchesQuery =
         !q ||
         item.userEmail.toLowerCase().includes(q) ||
         item.jobTitle.toLowerCase().includes(q) ||
         (item.cvFileName && item.cvFileName.toLowerCase().includes(q)) ||
         (item.engineUsed && item.engineUsed.toLowerCase().includes(q)) ||
-        (item.missingSkills || []).some((s) => s.toLowerCase().includes(q));
+        searchableMissingSkills.some((s) => s.toLowerCase().includes(q));
 
       const matchesLevel = analysisLevelFilter === 'ALL' || item.matchLevel === analysisLevelFilter;
 
@@ -3635,11 +3636,29 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   <AlertTriangle className="w-4 h-4" /> Kỹ Năng Thiếu Hụt So Với JD (Missing Skills)
                 </h4>
                 <div className="p-4 bg-amber-950/20 border border-amber-500/30 rounded-2xl flex flex-wrap gap-2">
-                  {selectedAnalysisDetail.missingSkills?.map((sk, idx) => (
-                    <span key={`det-sk-${idx}-${sk}`} className="px-3 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 rounded-xl font-semibold">
-                      ✗ {sk}
-                    </span>
-                  ))}
+                  {(() => {
+                    const { skills, isLegacy } = getRecordMissingSkills(selectedAnalysisDetail);
+
+                    if (skills.length === 0) {
+                      return (
+                        <span className="text-slate-400 italic">
+                          {lang === 'vi'
+                            ? 'Không ghi nhận yêu cầu JD còn thiếu'
+                            : 'No missing JD requirements identified'}
+                        </span>
+                      );
+                    }
+
+                    return skills.map((skill, index) => (
+                      <span
+                        key={`det-sk-${index}-${skill}`}
+                        className="px-3 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 rounded-xl font-semibold"
+                      >
+                        ✗ {skill}
+                        {isLegacy ? ' (Legacy data)' : ''}
+                      </span>
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
