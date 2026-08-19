@@ -62,7 +62,7 @@ interface CandidateResult {
   success: boolean;
   candidateName: string;
   overallScore: number | null;
-  matchLevel: 'Very High' | 'High' | 'Medium' | 'Low';
+  matchLevel: 'Very High' | 'High' | 'Medium' | 'Low' | 'NOT_AVAILABLE';
   keywordScore: number | null;
   experienceScore: number | null;
   skillScore: number | null;
@@ -496,6 +496,16 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     return isEn ? 'Candidate' : 'Ứng viên';
   };
 
+  // Ranking list of valid candidates with finite numeric scores
+  const validRankedCandidates = results
+    .filter(c => 
+      c.success !== false && 
+      !c.errorMessage && 
+      typeof c.overallScore === 'number' && 
+      Number.isFinite(c.overallScore)
+    )
+    .sort((a, b) => (b.overallScore as number) - (a.overallScore as number));
+
   // --- Filtering & Sorting Logic ---
   const filteredResults = results
     .filter(candidate => {
@@ -511,9 +521,18 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     .sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'score') {
-        const scoreA = typeof a.overallScore === 'number' && Number.isFinite(a.overallScore) ? a.overallScore : -1;
-        const scoreB = typeof b.overallScore === 'number' && Number.isFinite(b.overallScore) ? b.overallScore : -1;
-        comparison = scoreA - scoreB;
+        const aValid = a.success !== false && !a.errorMessage && typeof a.overallScore === 'number' && Number.isFinite(a.overallScore);
+        const bValid = b.success !== false && !b.errorMessage && typeof b.overallScore === 'number' && Number.isFinite(b.overallScore);
+
+        if (aValid && bValid) {
+          comparison = (a.overallScore as number) - (b.overallScore as number);
+        } else if (aValid && !bValid) {
+          comparison = 1;
+        } else if (!aValid && bValid) {
+          comparison = -1;
+        } else {
+          comparison = 0;
+        }
       } else {
         comparison = getCandidateDisplayName(a).localeCompare(getCandidateDisplayName(b));
       }
@@ -545,6 +564,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   let highMatchCount = 0;
   let mediumMatchCount = 0;
   let lowMatchCount = 0;
+  let noScoreCount = 0;
 
   successfulCandidates.forEach(r => {
     const rec = getCandidateRecType(r);
@@ -556,18 +576,20 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     if (r.matchLevel === 'Very High') veryHighMatchCount++;
     else if (r.matchLevel === 'High') highMatchCount++;
     else if (r.matchLevel === 'Medium') mediumMatchCount++;
-    else lowMatchCount++;
+    else if (r.matchLevel === 'Low') lowMatchCount++;
+    else noScoreCount++;
   });
 
-  const validDecisionTotal = interviewRecommendedCount + underReviewCount + lowPriorityCount;
-  const yesPct = validDecisionTotal > 0 ? Math.round((interviewRecommendedCount / validDecisionTotal) * 100) : 0;
-  const maybePct = validDecisionTotal > 0 ? Math.round((underReviewCount / validDecisionTotal) * 100) : 0;
-  const noPct = validDecisionTotal > 0 ? Math.max(0, 100 - yesPct - maybePct) : 0;
+  const yesPct = successfulTotal > 0 ? Math.round((interviewRecommendedCount / successfulTotal) * 100) : 0;
+  const maybePct = successfulTotal > 0 ? Math.round((underReviewCount / successfulTotal) * 100) : 0;
+  const noPct = successfulTotal > 0 ? Math.round((lowPriorityCount / successfulTotal) * 100) : 0;
+  const noDecisionPct = successfulTotal > 0 ? Math.max(0, 100 - yesPct - maybePct - noPct) : 0;
 
   const veryHighPct = successfulTotal > 0 ? Math.round((veryHighMatchCount / successfulTotal) * 100) : 0;
   const highPct = successfulTotal > 0 ? Math.round((highMatchCount / successfulTotal) * 100) : 0;
   const mediumPct = successfulTotal > 0 ? Math.round((mediumMatchCount / successfulTotal) * 100) : 0;
-  const lowPct = successfulTotal > 0 ? Math.max(0, 100 - veryHighPct - highPct - mediumPct) : 0;
+  const lowPct = successfulTotal > 0 ? Math.round((lowMatchCount / successfulTotal) * 100) : 0;
+  const noScorePct = successfulTotal > 0 ? Math.max(0, 100 - veryHighPct - highPct - mediumPct - lowPct) : 0;
 
   const candidatesWithValidScore = successfulCandidates.filter(r => typeof r.overallScore === 'number' && Number.isFinite(r.overallScore));
   const avgScore = candidatesWithValidScore.length > 0
@@ -607,7 +629,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       name: isEn ? 'No decision available' : 'Chưa có quyết định',
       count: noDecisionCount,
       value: noDecisionCount,
-      percentage: 0,
+      percentage: noDecisionPct,
       color: '#94a3b8',
       type: 'NONE'
     }] : [])
@@ -646,13 +668,19 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       percentage: lowPct, 
       color: '#f43f5e', 
       level: 'Low' 
-    }
+    },
+    ...(noScoreCount > 0 ? [{
+      name: isEn ? 'Not available' : 'Chưa có dữ liệu',
+      count: noScoreCount,
+      value: noScoreCount,
+      percentage: noScorePct,
+      color: '#94a3b8',
+      level: 'NOT_AVAILABLE'
+    }] : [])
   ];
 
   // --- Top 10 Candidates for Bar Chart (Only candidates with valid scores) ---
-  const top10Candidates = [...candidatesWithValidScore]
-    .sort((a, b) => (b.overallScore as number) - (a.overallScore as number))
-    .slice(0, 10);
+  const top10Candidates = validRankedCandidates.slice(0, 10);
 
   const top10ChartData = top10Candidates.map((r, idx) => {
     const disp = getCandidateDisplayName(r, idx + 1);
@@ -743,8 +771,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         return isEn ? 'Medium Match' : 'Phù hợp Trung bình';
       case 'Low':
         return isEn ? 'Low Match' : 'Phù hợp Thấp';
+      case 'NOT_AVAILABLE':
+        return isEn ? 'Not available' : 'Chưa có dữ liệu';
       default:
-        return level;
+        return level || (isEn ? 'Not available' : 'Chưa có dữ liệu');
     }
   };
 
@@ -758,8 +788,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         return 'bg-amber-500/10 text-amber-600 border border-amber-500/30';
       case 'Low':
         return 'bg-rose-500/10 text-rose-600 border border-rose-500/30';
+      case 'NOT_AVAILABLE':
+        return 'bg-slate-100 text-slate-600 border border-slate-200/80';
       default:
-        return 'bg-slate-500/10 text-slate-600 border border-slate-500/30';
+        return 'bg-slate-100 text-slate-600 border border-slate-200/80';
     }
   };
 
@@ -1809,6 +1841,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                   <option value="High">{isEn ? 'High Match' : 'Phù hợp Cao'}</option>
                   <option value="Medium">{isEn ? 'Medium Match' : 'Phù hợp Trung bình'}</option>
                   <option value="Low">{isEn ? 'Low Match' : 'Phù hợp Thấp'}</option>
+                  <option value="NOT_AVAILABLE">{isEn ? 'Not available' : 'Chưa có dữ liệu'}</option>
                 </select>
 
                 {/* Recommendation Filter */}
@@ -1821,6 +1854,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                   <option value="YES">{isEn ? 'YES - Interview' : 'YES - Phỏng vấn'}</option>
                   <option value="MAYBE">{isEn ? 'MAYBE - Review' : 'MAYBE - Xem xét'}</option>
                   <option value="NO">{isEn ? 'NO - Low Priority' : 'NO - Không ưu tiên'}</option>
+                  <option value="NONE">{isEn ? 'No decision' : 'Chưa có quyết định'}</option>
                 </select>
               </div>
 
@@ -1870,9 +1904,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
               ) : (
                 <div className="space-y-3.5">
                   {filteredResults.map((candidate, idx) => {
-                    const originalIndex = results.findIndex(r => r.filename === candidate.filename);
                     const isSelected = selectedCandidate?.filename === candidate.filename;
-                    const rankNum = originalIndex + 1;
+                    const rankIdx = validRankedCandidates.findIndex(r => r.filename === candidate.filename);
+                    const rankNum = rankIdx !== -1 ? rankIdx + 1 : null;
                     const roleSubtitle = getCandidateRole(candidate);
                     const isError = candidate.success === false || !!candidate.errorMessage;
 
@@ -1890,7 +1924,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         >
                           <div className="flex items-center justify-between gap-3">
                             <h4 className="font-black text-slate-900 text-sm sm:text-base truncate">
-                              {getCandidateDisplayName(candidate, rankNum)}
+                              {getCandidateDisplayName(candidate, idx + 1)}
                             </h4>
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-200 shrink-0">
                               {isEn ? 'Processing Error' : 'Xử lý thất bại'}
@@ -1924,20 +1958,26 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         {/* Line 1: #1  Candidate Name ---------- 86% */}
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className={`text-xs font-black px-2 py-0.5 rounded-lg border ${
-                              originalIndex === 0 
-                                ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
-                                : originalIndex === 1
-                                ? 'bg-slate-300 text-slate-800 border-slate-400'
-                                : originalIndex === 2
-                                ? 'bg-amber-800 text-white border-amber-900'
-                                : 'bg-slate-100 text-slate-700 border-slate-200'
-                            }`}>
-                              #{rankNum}
-                            </span>
+                            {rankNum !== null ? (
+                              <span className={`text-xs font-black px-2 py-0.5 rounded-lg border ${
+                                rankIdx === 0 
+                                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                                  : rankIdx === 1
+                                  ? 'bg-slate-300 text-slate-800 border-slate-400'
+                                  : rankIdx === 2
+                                  ? 'bg-amber-800 text-white border-amber-900'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}>
+                                #{rankNum}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg border bg-slate-100 text-slate-600 border-slate-200">
+                                {isEn ? 'No score' : 'Chưa có điểm'}
+                              </span>
+                            )}
                             <h4 className="font-black text-slate-900 text-sm sm:text-base truncate flex items-center gap-1.5">
-                              {getCandidateDisplayName(candidate, rankNum)}
-                              {originalIndex === 0 && (
+                              {getCandidateDisplayName(candidate, rankNum || (idx + 1))}
+                              {rankIdx === 0 && (
                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-[9px] text-amber-600 font-black tracking-wide">
                                   <Flame className="w-2.5 h-2.5 fill-amber-500 text-amber-500 animate-pulse" />
                                   TOP 1
@@ -2106,7 +2146,8 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             <button
                               type="button"
                               onClick={() => {
-                                const inferredTitle = getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1);
+                                const modalRankIdx = validRankedCandidates.findIndex(r => r.filename === selectedCandidate.filename);
+                                const inferredTitle = getCandidateDisplayName(selectedCandidate, modalRankIdx !== -1 ? modalRankIdx + 1 : undefined);
                                 const firstLine = jdText.trim().split('\n')[0] || '';
                                 const jdTitle = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
                                 const title = `${jdTitle} - ${inferredTitle}`;
@@ -2147,13 +2188,25 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         </div>
 
                         <div className="space-y-1.5">
-                          <div className="text-sm font-black text-slate-900 flex items-center gap-2">
-                            <span>{getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}</span>
-                            <span className="text-slate-400 font-normal">·</span>
-                            <span className="text-indigo-600 font-extrabold text-xs">
-                              Rank #{results.findIndex(r => r.filename === selectedCandidate.filename) + 1}
-                            </span>
-                          </div>
+                          {(() => {
+                            const modalRankIdx = validRankedCandidates.findIndex(r => r.filename === selectedCandidate.filename);
+                            const modalRankNum = modalRankIdx !== -1 ? modalRankIdx + 1 : null;
+                            return (
+                              <div className="text-sm font-black text-slate-900 flex items-center gap-2">
+                                <span>{getCandidateDisplayName(selectedCandidate, modalRankNum || undefined)}</span>
+                                <span className="text-slate-400 font-normal">·</span>
+                                {modalRankNum !== null ? (
+                                  <span className="text-indigo-600 font-extrabold text-xs">
+                                    Rank #{modalRankNum}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500 font-bold text-xs">
+                                    {!selectedCandidate.success || selectedCandidate.errorMessage ? (isEn ? 'Processing Error' : 'Xử lý thất bại') : (isEn ? 'No score' : 'Chưa có điểm')}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
                             <span>Overall match: <strong className="text-slate-900 font-black">{typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore) ? `${selectedCandidate.overallScore}%` : '—'}</strong></span>
                             <span className="text-slate-300">·</span>

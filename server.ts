@@ -604,13 +604,13 @@ export interface AnalysisRecordItem {
   timestamp: string;
   userEmail: string;
   jobTitle: string;
-  overallScore: number;
-  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN';
+  overallScore: number | null;
+  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE';
   cvFileName?: string;
   jdTitle?: string;
   topStrengths: string[];
   missingSkills: string[];
-  recruiterDecision: 'YES' | 'NO' | 'MAYBE';
+  recruiterDecision?: 'YES' | 'NO' | 'MAYBE';
   engineUsed: string;
   durationMs: number;
   cvTextLength: number;
@@ -2863,11 +2863,12 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
         const rawOverallScore = finalResult.feature1?.scores?.overallRoleScore;
         const overallScore = (typeof rawOverallScore === 'number' && Number.isFinite(rawOverallScore)) ? rawOverallScore : null;
 
-        let matchLevel: 'Very High' | 'High' | 'Medium' | 'Low' = 'Low';
+        let matchLevel: 'Very High' | 'High' | 'Medium' | 'Low' | 'NOT_AVAILABLE' = 'NOT_AVAILABLE';
         if (overallScore !== null) {
           if (overallScore >= 85) matchLevel = 'Very High';
           else if (overallScore >= 70) matchLevel = 'High';
           else if (overallScore >= 50) matchLevel = 'Medium';
+          else matchLevel = 'Low';
         }
 
         // Collect topStrengths strictly from actual analysis data
@@ -2938,8 +2939,8 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           recordAnalysisRecord({
             userEmail: userEmailVal,
             jobTitle: formattedJobTitle,
-            overallScore: overallScore ?? 0,
-            matchLevel: overallScore !== null ? (overallScore >= 85 ? 'XUAT_SAC' : (overallScore >= 70 ? 'TOT' : (overallScore >= 50 ? 'TRUNG_BINH' : 'CAN_CAI_THIEN'))) : 'CAN_CAI_THIEN',
+            overallScore: overallScore,
+            matchLevel: overallScore !== null ? (overallScore >= 85 ? 'XUAT_SAC' : (overallScore >= 70 ? 'TOT' : (overallScore >= 50 ? 'TRUNG_BINH' : 'CAN_CAI_THIEN'))) : 'NOT_AVAILABLE',
             cvFileName: candidate.filename,
             jdTitle: jdTitleVal,
             topStrengths,
@@ -2985,11 +2986,11 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           filename: candidate.filename,
           success: false,
           candidateName: candidate.filename.replace(/\.[^/.]+$/, ""),
-          overallScore: 0,
-          matchLevel: 'Low',
-          keywordScore: 0,
-          experienceScore: 0,
-          skillScore: 0,
+          overallScore: null,
+          matchLevel: 'NOT_AVAILABLE',
+          keywordScore: null,
+          experienceScore: null,
+          skillScore: null,
           topStrengths: [],
           keyGaps: [],
           shortRecommendation: '',
@@ -2998,7 +2999,17 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
       }
     });
 
-    analysisResults.sort((a, b) => b.overallScore - a.overallScore);
+    analysisResults.sort((a, b) => {
+      const aValid = a.success !== false && typeof a.overallScore === 'number' && Number.isFinite(a.overallScore);
+      const bValid = b.success !== false && typeof b.overallScore === 'number' && Number.isFinite(b.overallScore);
+
+      if (aValid && bValid) {
+        return (b.overallScore as number) - (a.overallScore as number);
+      }
+      if (aValid && !bValid) return -1;
+      if (!aValid && bValid) return 1;
+      return 0;
+    });
 
     res.json({
       success: true,
