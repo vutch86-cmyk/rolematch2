@@ -2860,12 +2860,15 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
         if (!candidateName || !isPlausiblePersonName(candidateName)) {
           candidateName = extractNameFromFilename(candidate.filename) || candidate.filename.replace(/\.[^/.]+$/, "");
         }
-        const overallScore = finalResult.feature1?.scores?.overallRoleScore ?? 0;
+        const rawOverallScore = finalResult.feature1?.scores?.overallRoleScore;
+        const overallScore = (typeof rawOverallScore === 'number' && Number.isFinite(rawOverallScore)) ? rawOverallScore : null;
 
         let matchLevel: 'Very High' | 'High' | 'Medium' | 'Low' = 'Low';
-        if (overallScore >= 85) matchLevel = 'Very High';
-        else if (overallScore >= 70) matchLevel = 'High';
-        else if (overallScore >= 50) matchLevel = 'Medium';
+        if (overallScore !== null) {
+          if (overallScore >= 85) matchLevel = 'Very High';
+          else if (overallScore >= 70) matchLevel = 'High';
+          else if (overallScore >= 50) matchLevel = 'Medium';
+        }
 
         // Collect topStrengths strictly from actual analysis data
         const strengthsList: string[] = [];
@@ -2929,18 +2932,19 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
           const formattedJobTitle = `${jdTitleVal} - ${candNameVal}`;
 
-          const recruiterDecisionVal = finalResult.feature3?.inviteDecision || undefined;
+          const rawInvite = finalResult.feature3?.inviteDecision;
+          const recruiterDecisionVal = (rawInvite === 'YES' || rawInvite === 'MAYBE' || rawInvite === 'NO') ? rawInvite : undefined;
 
           recordAnalysisRecord({
             userEmail: userEmailVal,
             jobTitle: formattedJobTitle,
-            overallScore,
-            matchLevel: overallScore >= 85 ? 'XUAT_SAC' : (overallScore >= 70 ? 'TOT' : (overallScore >= 50 ? 'TRUNG_BINH' : 'CAN_CAI_THIEN')),
+            overallScore: overallScore ?? 0,
+            matchLevel: overallScore !== null ? (overallScore >= 85 ? 'XUAT_SAC' : (overallScore >= 70 ? 'TOT' : (overallScore >= 50 ? 'TRUNG_BINH' : 'CAN_CAI_THIEN'))) : 'CAN_CAI_THIEN',
             cvFileName: candidate.filename,
             jdTitle: jdTitleVal,
             topStrengths,
             missingSkills: keyGaps,
-            recruiterDecision: recruiterDecisionVal || 'MAYBE',
+            recruiterDecision: recruiterDecisionVal,
             engineUsed: 'Gemini 2.0 Flash Batch Pipeline',
             durationMs: 0,
             cvTextLength: candidate.text.length,
@@ -2951,15 +2955,24 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           console.warn('Could not record batch candidate analysis history:', recErr);
         }
 
+        const rawKw = finalResult.feature1?.scores?.keywordMatchScore;
+        const keywordScore = (typeof rawKw === 'number' && Number.isFinite(rawKw)) ? rawKw : null;
+
+        const rawExp = finalResult.feature1?.scores?.experienceOutcomeScore;
+        const experienceScore = (typeof rawExp === 'number' && Number.isFinite(rawExp)) ? rawExp : null;
+
+        const rawSk = finalResult.feature1?.scores?.skillMatchScore;
+        const skillScore = (typeof rawSk === 'number' && Number.isFinite(rawSk)) ? rawSk : null;
+
         return {
           filename: candidate.filename,
           success: true,
           candidateName,
           overallScore,
           matchLevel,
-          keywordScore: finalResult.feature1?.scores?.keywordMatchScore ?? 0,
-          experienceScore: finalResult.feature1?.scores?.experienceOutcomeScore ?? 0,
-          skillScore: finalResult.feature1?.scores?.skillMatchScore ?? 0,
+          keywordScore,
+          experienceScore,
+          skillScore,
           topStrengths,
           keyGaps,
           shortRecommendation,

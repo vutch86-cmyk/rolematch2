@@ -61,11 +61,11 @@ interface CandidateResult {
   filename: string;
   success: boolean;
   candidateName: string;
-  overallScore: number;
+  overallScore: number | null;
   matchLevel: 'Very High' | 'High' | 'Medium' | 'Low';
-  keywordScore: number;
-  experienceScore: number;
-  skillScore: number;
+  keywordScore: number | null;
+  experienceScore: number | null;
+  skillScore: number | null;
   topStrengths: string[];
   keyGaps: string[];
   shortRecommendation: string;
@@ -407,6 +407,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
   // Helper for recommendation classification (YES / MAYBE / NO / NONE)
   const getCandidateRecType = (candidate: CandidateResult): 'YES' | 'MAYBE' | 'NO' | 'NONE' => {
+    if (candidate.success === false || candidate.errorMessage) return 'NONE';
     const invite = candidate.fullAnalysis?.feature3?.inviteDecision;
     if (invite === 'YES' || invite === 'MAYBE' || invite === 'NO') {
       return invite;
@@ -432,7 +433,8 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
   const handleSelectTop3ForComparison = () => {
     const top3 = [...results]
-      .sort((a, b) => b.overallScore - a.overallScore)
+      .filter(r => r.success !== false && !r.errorMessage && typeof r.overallScore === 'number' && Number.isFinite(r.overallScore))
+      .sort((a, b) => (b.overallScore as number) - (a.overallScore as number))
       .slice(0, 3)
       .map(r => r.filename);
     setSelectedForComparison(top3);
@@ -509,7 +511,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     .sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'score') {
-        comparison = a.overallScore - b.overallScore;
+        const scoreA = typeof a.overallScore === 'number' && Number.isFinite(a.overallScore) ? a.overallScore : -1;
+        const scoreB = typeof b.overallScore === 'number' && Number.isFinite(b.overallScore) ? b.overallScore : -1;
+        comparison = scoreA - scoreB;
       } else {
         comparison = getCandidateDisplayName(a).localeCompare(getCandidateDisplayName(b));
       }
@@ -527,20 +531,27 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
   // --- Batch Overview & Distribution Statistics ---
   const totalProcessed = results.length;
+  const processingErrorCount = results.filter(r => r.success === false || !!r.errorMessage).length;
+
+  const successfulCandidates = results.filter(r => r.success !== false && !r.errorMessage);
+  const successfulTotal = successfulCandidates.length;
+
   let interviewRecommendedCount = 0; // YES
   let underReviewCount = 0;          // MAYBE
   let lowPriorityCount = 0;          // NO
+  let noDecisionCount = 0;           // Successful candidates with missing decision
 
   let veryHighMatchCount = 0;
   let highMatchCount = 0;
   let mediumMatchCount = 0;
   let lowMatchCount = 0;
 
-  results.forEach(r => {
+  successfulCandidates.forEach(r => {
     const rec = getCandidateRecType(r);
     if (rec === 'YES') interviewRecommendedCount++;
     else if (rec === 'MAYBE') underReviewCount++;
-    else lowPriorityCount++;
+    else if (rec === 'NO') lowPriorityCount++;
+    else noDecisionCount++;
 
     if (r.matchLevel === 'Very High') veryHighMatchCount++;
     else if (r.matchLevel === 'High') highMatchCount++;
@@ -548,21 +559,23 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     else lowMatchCount++;
   });
 
-  const yesPct = totalProcessed > 0 ? Math.round((interviewRecommendedCount / totalProcessed) * 100) : 0;
-  const maybePct = totalProcessed > 0 ? Math.round((underReviewCount / totalProcessed) * 100) : 0;
-  const noPct = totalProcessed > 0 ? Math.max(0, 100 - yesPct - maybePct) : 0;
+  const validDecisionTotal = interviewRecommendedCount + underReviewCount + lowPriorityCount;
+  const yesPct = validDecisionTotal > 0 ? Math.round((interviewRecommendedCount / validDecisionTotal) * 100) : 0;
+  const maybePct = validDecisionTotal > 0 ? Math.round((underReviewCount / validDecisionTotal) * 100) : 0;
+  const noPct = validDecisionTotal > 0 ? Math.max(0, 100 - yesPct - maybePct) : 0;
 
-  const veryHighPct = totalProcessed > 0 ? Math.round((veryHighMatchCount / totalProcessed) * 100) : 0;
-  const highPct = totalProcessed > 0 ? Math.round((highMatchCount / totalProcessed) * 100) : 0;
-  const mediumPct = totalProcessed > 0 ? Math.round((mediumMatchCount / totalProcessed) * 100) : 0;
-  const lowPct = totalProcessed > 0 ? Math.max(0, 100 - veryHighPct - highPct - mediumPct) : 0;
+  const veryHighPct = successfulTotal > 0 ? Math.round((veryHighMatchCount / successfulTotal) * 100) : 0;
+  const highPct = successfulTotal > 0 ? Math.round((highMatchCount / successfulTotal) * 100) : 0;
+  const mediumPct = successfulTotal > 0 ? Math.round((mediumMatchCount / successfulTotal) * 100) : 0;
+  const lowPct = successfulTotal > 0 ? Math.max(0, 100 - veryHighPct - highPct - mediumPct) : 0;
 
-  const avgScore = totalProcessed > 0
-    ? Math.round(results.reduce((acc, curr) => acc + curr.overallScore, 0) / totalProcessed)
-    : 0;
-  const maxScore = totalProcessed > 0
-    ? Math.max(...results.map(r => r.overallScore))
-    : 0;
+  const candidatesWithValidScore = successfulCandidates.filter(r => typeof r.overallScore === 'number' && Number.isFinite(r.overallScore));
+  const avgScore = candidatesWithValidScore.length > 0
+    ? Math.round(candidatesWithValidScore.reduce((acc, curr) => acc + (curr.overallScore as number), 0) / candidatesWithValidScore.length)
+    : null;
+  const maxScore = candidatesWithValidScore.length > 0
+    ? Math.max(...candidatesWithValidScore.map(r => (r.overallScore as number)))
+    : null;
 
   // --- Recommendation Distribution Chart Data (Donut Chart) ---
   const recommendationChartData = [
@@ -589,7 +602,15 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       percentage: noPct, 
       color: '#64748b', 
       type: 'NO' 
-    }
+    },
+    ...(noDecisionCount > 0 ? [{
+      name: isEn ? 'No decision available' : 'Chưa có quyết định',
+      count: noDecisionCount,
+      value: noDecisionCount,
+      percentage: 0,
+      color: '#94a3b8',
+      type: 'NONE'
+    }] : [])
   ];
 
   // --- Match Level Distribution Chart Data (Donut Chart) ---
@@ -628,9 +649,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     }
   ];
 
-  // --- Top 10 Candidates for Bar Chart (Avoid clutter in large batches) ---
-  const top10Candidates = [...results]
-    .sort((a, b) => b.overallScore - a.overallScore)
+  // --- Top 10 Candidates for Bar Chart (Only candidates with valid scores) ---
+  const top10Candidates = [...candidatesWithValidScore]
+    .sort((a, b) => (b.overallScore as number) - (a.overallScore as number))
     .slice(0, 10);
 
   const top10ChartData = top10Candidates.map((r, idx) => {
@@ -1298,16 +1319,34 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                     <span className="w-2 h-2 rounded-full bg-slate-400"></span>
                     <span>{lowPriorityCount} {isEn ? 'low priority' : 'không ưu tiên'}</span>
                   </span>
+                  {noDecisionCount > 0 && (
+                    <>
+                      <span className="text-slate-300">·</span>
+                      <span className="inline-flex items-center gap-1 text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                        <span>{noDecisionCount} {isEn ? 'no decision available' : 'chưa có quyết định'}</span>
+                      </span>
+                    </>
+                  )}
+                  {processingErrorCount > 0 && (
+                    <>
+                      <span className="text-slate-300">·</span>
+                      <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-lg border border-rose-200/60 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                        <span>{processingErrorCount} {isEn ? 'processing failed' : 'xử lý thất bại'}</span>
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {/* Score Stats Line */}
                 <div className="text-xs sm:text-sm font-bold text-slate-600 flex flex-wrap items-center gap-2 pt-0.5">
                   <span className="text-slate-800">
-                    {isEn ? 'Average score:' : 'Điểm trung bình:'} <span className="text-indigo-600 font-black">{avgScore}%</span>
+                    {isEn ? 'Average score:' : 'Điểm trung bình:'} <span className="text-indigo-600 font-black">{avgScore !== null ? `${avgScore}%` : (isEn ? 'No score' : 'Chưa có điểm')}</span>
                   </span>
                   <span className="text-slate-300">·</span>
                   <span className="text-slate-800">
-                    {isEn ? 'Highest:' : 'Cao nhất:'} <span className="text-emerald-600 font-black">{maxScore}%</span>
+                    {isEn ? 'Highest:' : 'Cao nhất:'} <span className="text-emerald-600 font-black">{maxScore !== null ? `${maxScore}%` : (isEn ? 'No score' : 'Chưa có điểm')}</span>
                   </span>
                 </div>
               </div>
@@ -1316,11 +1355,11 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
               <div className="grid grid-cols-2 gap-3 min-w-[240px]">
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 text-center">
                   <span className="text-[11px] font-bold text-slate-500 block">{isEn ? 'Avg Score' : 'Điểm Trung Bình'}</span>
-                  <span className="text-2xl font-black text-indigo-700 mt-0.5 block">{avgScore}%</span>
+                  <span className="text-2xl font-black text-indigo-700 mt-0.5 block">{avgScore !== null ? `${avgScore}%` : '—'}</span>
                 </div>
                 <div className="bg-emerald-50/60 p-3.5 rounded-2xl border border-emerald-200/70 text-center">
                   <span className="text-[11px] font-bold text-emerald-700 block">{isEn ? 'Top Score' : 'Điểm Cao Nhất'}</span>
-                  <span className="text-2xl font-black text-emerald-700 mt-0.5 block">{maxScore}%</span>
+                  <span className="text-2xl font-black text-emerald-700 mt-0.5 block">{maxScore !== null ? `${maxScore}%` : '—'}</span>
                 </div>
               </div>
 
@@ -1665,7 +1704,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Overall Score' : 'Điểm Tổng'}</td>
                           {comparedCandidatesList.map(c => (
                             <td key={`td-score-${c.filename}`} className="p-3.5">
-                              <span className="text-sm font-black text-indigo-700">{c.overallScore}%</span>
+                              <span className="text-sm font-black text-indigo-700">
+                                {typeof c.overallScore === 'number' && Number.isFinite(c.overallScore) ? `${c.overallScore}%` : '—'}
+                              </span>
                             </td>
                           ))}
                         </tr>
@@ -1691,7 +1732,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Top Strength' : 'Điểm Mạnh Chính'}</td>
                           {comparedCandidatesList.map(c => (
                             <td key={`td-str-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
-                              {c.topStrengths?.[0] || 'N/A'}
+                              {c.topStrengths?.[0] || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu')}
                             </td>
                           ))}
                         </tr>
@@ -1699,13 +1740,15 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Critical Gaps' : 'Điểm Hạn Chế'}</td>
                           {comparedCandidatesList.map(c => (
                             <td key={`td-gap-${c.filename}`} className="p-3.5">
-                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                                c.keyGaps?.length > 0 
-                                  ? 'bg-amber-50 text-amber-700 border border-amber-200' 
-                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              }`}>
-                                {c.keyGaps?.length || 0} {isEn ? 'gaps' : 'điểm lưu ý'}
-                              </span>
+                              {c.keyGaps && c.keyGaps.length > 0 ? (
+                                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                  {c.keyGaps.length} {isEn ? 'gaps' : 'điểm lưu ý'}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
+                                  {isEn ? 'No analysis data available' : 'Chưa có dữ liệu'}
+                                </span>
+                              )}
                             </td>
                           ))}
                         </tr>
@@ -1903,7 +1946,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             </h4>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="text-base sm:text-lg font-black text-slate-900">{candidate.overallScore}%</span>
+                            <span className="text-base sm:text-lg font-black text-slate-900">
+                              {typeof candidate.overallScore === 'number' && Number.isFinite(candidate.overallScore) ? `${candidate.overallScore}%` : '—'}
+                            </span>
                           </div>
                         </div>
 
@@ -1919,17 +1964,17 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 font-bold text-slate-600">
                           <div>
                             <span className="text-slate-400 font-normal">{isEn ? 'Keywords' : 'Từ khóa'} </span>
-                            <span className="text-slate-800 font-black">{candidate.keywordScore}%</span>
+                            <span className="text-slate-800 font-black">{typeof candidate.keywordScore === 'number' && Number.isFinite(candidate.keywordScore) ? `${candidate.keywordScore}%` : '—'}</span>
                           </div>
                           <span className="text-slate-300">·</span>
                           <div>
                             <span className="text-slate-400 font-normal">{isEn ? 'Experience' : 'Kinh nghiệm'} </span>
-                            <span className="text-slate-800 font-black">{candidate.experienceScore}%</span>
+                            <span className="text-slate-800 font-black">{typeof candidate.experienceScore === 'number' && Number.isFinite(candidate.experienceScore) ? `${candidate.experienceScore}%` : '—'}</span>
                           </div>
                           <span className="text-slate-300">·</span>
                           <div>
                             <span className="text-slate-400 font-normal">{isEn ? 'Skills' : 'Kỹ năng'} </span>
-                            <span className="text-slate-800 font-black">{candidate.skillScore}%</span>
+                            <span className="text-slate-800 font-black">{typeof candidate.skillScore === 'number' && Number.isFinite(candidate.skillScore) ? `${candidate.skillScore}%` : '—'}</span>
                           </div>
                         </div>
 
@@ -1949,9 +1994,15 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         <div className="text-xs text-slate-700 flex items-center justify-between pt-1 border-t border-slate-100/80">
                           <div className="flex items-center gap-1.5">
                             <span className="text-slate-500 font-normal">{isEn ? 'Critical gaps:' : 'Điểm hạn chế:'}</span>
-                            <span className={`font-bold px-1.5 py-0.2 rounded text-[11px] ${criticalGapsCount > 0 ? 'text-amber-700 bg-amber-50 border border-amber-200/60' : 'text-emerald-700 bg-emerald-50 border border-emerald-200/60'}`}>
-                              {criticalGapsCount}
-                            </span>
+                            {criticalGapsCount > 0 ? (
+                              <span className="font-bold px-1.5 py-0.2 rounded text-[11px] text-amber-700 bg-amber-50 border border-amber-200/60">
+                                {criticalGapsCount}
+                              </span>
+                            ) : (
+                              <span className="font-medium px-1.5 py-0.2 rounded text-[11px] text-slate-600 bg-slate-100 border border-slate-200/80">
+                                {isEn ? 'No analysis data available' : 'Chưa có dữ liệu'}
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -2104,7 +2155,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             </span>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
-                            <span>Overall match: <strong className="text-slate-900 font-black">{selectedCandidate.overallScore}%</strong></span>
+                            <span>Overall match: <strong className="text-slate-900 font-black">{typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore) ? `${selectedCandidate.overallScore}%` : '—'}</strong></span>
                             <span className="text-slate-300">·</span>
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${getMatchLevelColor(selectedCandidate.matchLevel)}`}>
                               {getMatchLevelLabel(selectedCandidate.matchLevel)}
@@ -2143,12 +2194,12 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           <div className="space-y-1">
                             <div className="flex justify-between text-xs font-bold">
                               <span className="text-slate-700">{isEn ? 'Keyword alignment' : 'Keyword alignment'}</span>
-                              <span className="text-slate-900 font-black">{selectedCandidate.keywordScore}%</span>
+                              <span className="text-slate-900 font-black">{typeof selectedCandidate.keywordScore === 'number' && Number.isFinite(selectedCandidate.keywordScore) ? `${selectedCandidate.keywordScore}%` : '—'}</span>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                               <div 
                                 className="bg-indigo-600 h-2 rounded-full transition-all duration-500" 
-                                style={{ width: `${selectedCandidate.keywordScore}%` }}
+                                style={{ width: `${selectedCandidate.keywordScore || 0}%` }}
                               />
                             </div>
                           </div>
@@ -2157,12 +2208,12 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           <div className="space-y-1">
                             <div className="flex justify-between text-xs font-bold">
                               <span className="text-slate-700">{isEn ? 'Experience fit' : 'Experience fit'}</span>
-                              <span className="text-slate-900 font-black">{selectedCandidate.experienceScore}%</span>
+                              <span className="text-slate-900 font-black">{typeof selectedCandidate.experienceScore === 'number' && Number.isFinite(selectedCandidate.experienceScore) ? `${selectedCandidate.experienceScore}%` : '—'}</span>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                               <div 
                                 className="bg-emerald-600 h-2 rounded-full transition-all duration-500" 
-                                style={{ width: `${selectedCandidate.experienceScore}%` }}
+                                style={{ width: `${selectedCandidate.experienceScore || 0}%` }}
                               />
                             </div>
                           </div>
@@ -2171,12 +2222,12 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           <div className="space-y-1">
                             <div className="flex justify-between text-xs font-bold">
                               <span className="text-slate-700">{isEn ? 'Skills fit' : 'Skills fit'}</span>
-                              <span className="text-slate-900 font-black">{selectedCandidate.skillScore}%</span>
+                              <span className="text-slate-900 font-black">{typeof selectedCandidate.skillScore === 'number' && Number.isFinite(selectedCandidate.skillScore) ? `${selectedCandidate.skillScore}%` : '—'}</span>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                               <div 
                                 className="bg-amber-500 h-2 rounded-full transition-all duration-500" 
-                                style={{ width: `${selectedCandidate.skillScore}%` }}
+                                style={{ width: `${selectedCandidate.skillScore || 0}%` }}
                               />
                             </div>
                           </div>
@@ -2231,9 +2282,15 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               <AlertTriangle className="w-4 h-4 text-amber-500" />
                               {isEn ? 'Critical Gaps' : 'Điểm hạn chế'}
                             </h4>
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                              {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).length} {isEn ? 'gaps' : 'điểm hạn chế'}
-                            </span>
+                            {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).length > 0 ? (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
+                                {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).length} {isEn ? 'gaps' : 'điểm hạn chế'}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/80">
+                                {isEn ? 'No analysis data available' : 'Chưa có dữ liệu'}
+                              </span>
+                            )}
                           </div>
                           {getNormalizedList(selectedCandidate.keyGaps, 'gaps', selectedCandidate, isEn).length === 0 ? (
                             <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl border border-slate-200/80">
