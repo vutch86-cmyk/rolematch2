@@ -232,3 +232,70 @@ export interface AnalysisRecordItem {
   fullAnalysis?: CompleteCVAnalysisResponse;
 }
 
+// --- RECRUITER BATCH PERSISTENCE DATA MODEL ---
+export type RecruiterBatchStatus =
+  | 'SAVING'
+  | 'READY'
+  | 'FAILED';
+
+export type CandidateProcessingStatus =
+  | 'COMPLETED'
+  | 'NO_SCORE'
+  | 'FAILED';
+
+export interface RecruiterBatchOwner {
+  userId: string;
+  username: string;
+  fullName: string;
+}
+
+export interface RecruiterBatchSummary {
+  id: string;
+  batchName: string;
+  roleTitle: string;
+  jdText: string;
+  jdFileName?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: RecruiterBatchOwner;
+  status: RecruiterBatchStatus;
+  candidateCount: number;
+  rankedCount: number;
+  noScoreCount: number;
+  failedCount: number;
+}
+
+export interface SavedBatchCandidate {
+  id: string;
+  filename: string;
+  candidateName: string;
+  success: boolean;
+  processingStatus: CandidateProcessingStatus;
+
+  rank: number | null;
+  overallScore: number | null;
+  matchLevel:
+    | 'Very High'
+    | 'High'
+    | 'Medium'
+    | 'Low'
+    | 'NOT_AVAILABLE';
+
+  keywordScore: number | null;
+  experienceScore: number | null;
+  skillScore: number | null;
+
+  topStrengths: string[];
+  keyGaps: string[];
+  shortRecommendation: string;
+
+  errorMessage?: string;
+  cvText?: string;
+  fullAnalysis?: CompleteCVAnalysisResponse;
+}
+
+export interface RecruiterBatchDetail
+  extends RecruiterBatchSummary {
+  candidates: SavedBatchCandidate[];
+}
+

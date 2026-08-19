@@ -10,6 +10,14 @@ import mammoth from 'mammoth';
 import * as pdfParseModule from 'pdf-parse';
 import crypto from 'crypto';
 import AdmZip from 'adm-zip';
+import {
+  RecruiterBatchStatus,
+  CandidateProcessingStatus,
+  RecruiterBatchOwner,
+  RecruiterBatchSummary,
+  SavedBatchCandidate,
+  RecruiterBatchDetail
+} from './src/types';
 
 dotenv.config();
 
@@ -69,6 +77,7 @@ const DOCUMENTS_FILE = path.join(DATA_DIR, 'documents.json');
 const ANALYSES_FILE = path.join(DATA_DIR, 'analyses.json');
 const AUDIT_LOGS_FILE = path.join(DATA_DIR, 'audit_logs.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'app_settings.json');
+const RECRUITER_BATCHES_FILE = path.join(DATA_DIR, 'recruiter-batches.json');
 
 export interface AppSettings {
   limitEnabled: boolean;
@@ -317,6 +326,18 @@ function loadAllDataFromFiles() {
     } else {
       fs.writeFileSync(AUDIT_LOGS_FILE, JSON.stringify(auditLogs, null, 2), 'utf-8');
     }
+
+    // Load Recruiter Batches
+    if (fs.existsSync(RECRUITER_BATCHES_FILE)) {
+      const raw = fs.readFileSync(RECRUITER_BATCHES_FILE, 'utf-8');
+      const loaded = JSON.parse(raw);
+      if (Array.isArray(loaded)) {
+        recruiterBatches.length = 0;
+        recruiterBatches.push(...loaded);
+      }
+    } else {
+      fs.writeFileSync(RECRUITER_BATCHES_FILE, JSON.stringify(recruiterBatches, null, 2), 'utf-8');
+    }
     console.log('Successfully loaded baseline data from local files.');
   } catch (err) {
     console.error('Error loading data from files:', err);
@@ -467,7 +488,44 @@ async function syncFromFirestore() {
     uploadedDocuments.length = 0;
     uploadedDocuments.push(...loadedDocs);
 
-    console.log(`Firestore Sync Complete: Loaded ${loadedUsers.length} users, ${analysisRecords.length} analysis records, ${auditLogs.length} audit logs, ${uploadedDocuments.length} documents.`);
+    // Sync Recruiter Batches & their candidates subcollections from Firestore
+    try {
+      const batchesCol = collection(db, 'recruiter_batches');
+      const batchesSnapshot = await getDocs(batchesCol);
+      if (!batchesSnapshot.empty) {
+        const loadedBatches: RecruiterBatchDetail[] = [];
+        for (const batchDoc of batchesSnapshot.docs) {
+          const batchSummary = batchDoc.data() as RecruiterBatchSummary;
+          const candidatesCol = collection(db, 'recruiter_batches', batchSummary.id, 'candidates');
+          const candidatesSnapshot = await getDocs(candidatesCol);
+          const candidates: SavedBatchCandidate[] = candidatesSnapshot.docs.map(cDoc => cDoc.data() as SavedBatchCandidate);
+
+          // Order candidates: ranked completed first (1, 2, 3...), then unranked
+          candidates.sort((a, b) => {
+            if (a.rank !== null && b.rank !== null) return a.rank - b.rank;
+            if (a.rank !== null) return -1;
+            if (b.rank !== null) return 1;
+            const nameDiff = a.candidateName.localeCompare(b.candidateName, undefined, { sensitivity: 'base' });
+            if (nameDiff !== 0) return nameDiff;
+            return a.filename.localeCompare(b.filename, undefined, { sensitivity: 'base' });
+          });
+
+          loadedBatches.push({
+            ...batchSummary,
+            candidates
+          });
+        }
+
+        loadedBatches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        recruiterBatches.length = 0;
+        recruiterBatches.push(...loadedBatches);
+        saveRecruiterBatchesToFile();
+      }
+    } catch (batchSyncErr) {
+      console.error('Error syncing recruiter batches from Firestore:', batchSyncErr);
+    }
+
+    console.log(`Firestore Sync Complete: Loaded ${loadedUsers.length} users, ${analysisRecords.length} analysis records, ${auditLogs.length} audit logs, ${uploadedDocuments.length} documents, ${recruiterBatches.length} recruiter batches.`);
   } catch (err) {
     console.error('Error synchronizing data from Firestore:', err);
   }
@@ -871,6 +929,89 @@ function recordAnalysisRecord(rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'>)
     setDoc(doc(db, 'analysis_records', item.id), item).catch(err => console.error('Error saving analysis record to Firestore:', err));
   }
   return item;
+}
+
+// --- RECRUITER BATCHES REPOSITORY ---
+const recruiterBatches: RecruiterBatchDetail[] = [];
+
+function saveRecruiterBatchesToFile(): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(RECRUITER_BATCHES_FILE, JSON.stringify(recruiterBatches, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing recruiter batches to file:', err);
+  }
+}
+
+async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Promise<void> {
+  if (!db) return;
+
+  const batchDocRef = doc(db, 'recruiter_batches', batch.id);
+
+  // 1. Initial metadata write with status SAVING
+  const summaryDoc: RecruiterBatchSummary = {
+    id: batch.id,
+    batchName: batch.batchName,
+    roleTitle: batch.roleTitle,
+    jdText: batch.jdText,
+    jdFileName: batch.jdFileName || undefined,
+    createdAt: batch.createdAt,
+    updatedAt: new Date().toISOString(),
+    createdBy: batch.createdBy,
+    status: 'SAVING',
+    candidateCount: batch.candidateCount,
+    rankedCount: batch.rankedCount,
+    noScoreCount: batch.noScoreCount,
+    failedCount: batch.failedCount
+  };
+
+  try {
+    await setDoc(batchDocRef, summaryDoc);
+
+    // 2. Save each candidate to candidates subcollection
+    for (const candidate of batch.candidates) {
+      const candDocRef = doc(db, 'recruiter_batches', batch.id, 'candidates', candidate.id);
+      const cleanCandidate: SavedBatchCandidate = {
+        id: candidate.id,
+        filename: candidate.filename,
+        candidateName: candidate.candidateName,
+        success: candidate.success,
+        processingStatus: candidate.processingStatus,
+        rank: candidate.rank,
+        overallScore: candidate.overallScore,
+        matchLevel: candidate.matchLevel,
+        keywordScore: candidate.keywordScore,
+        experienceScore: candidate.experienceScore,
+        skillScore: candidate.skillScore,
+        topStrengths: candidate.topStrengths || [],
+        keyGaps: candidate.keyGaps || [],
+        shortRecommendation: candidate.shortRecommendation || '',
+        errorMessage: candidate.errorMessage || undefined,
+        cvText: candidate.cvText || undefined,
+        fullAnalysis: candidate.fullAnalysis || undefined
+      };
+      await setDoc(candDocRef, cleanCandidate);
+    }
+
+    // 3. Mark batch status READY
+    await updateDoc(batchDocRef, {
+      status: 'READY',
+      updatedAt: new Date().toISOString()
+    });
+  } catch (firestoreErr) {
+    console.error('Error persisting recruiter batch to Firestore:', firestoreErr);
+    try {
+      await updateDoc(batchDocRef, {
+        status: 'FAILED',
+        updatedAt: new Date().toISOString()
+      });
+    } catch {
+      // ignore
+    }
+    throw firestoreErr;
+  }
 }
 
 
@@ -2041,6 +2182,332 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
   dbUser.dailyAnalysisCount = {};
   await saveUsersAsync(users);
   res.json({ success: true, message: `Đã đặt lại giới hạn lượt phân tích của người dùng "${dbUser.fullName}" về 0.` });
+});
+
+// ==========================================
+// RECRUITER BATCH PERSISTENCE API ROUTES
+// ==========================================
+
+function normalizeScore(val: any): number | null {
+  if (typeof val === 'number' && Number.isFinite(val)) {
+    return val;
+  }
+  return null;
+}
+
+// 1. POST /api/recruiter/batches - Save batch results
+app.post('/api/recruiter/batches', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập để lưu batch kết quả tuyển dụng.' });
+    }
+
+    const { batchName, roleTitle, jdText, jdFileName, candidates: rawCandidates } = req.body || {};
+
+    if (!batchName || typeof batchName !== 'string' || !batchName.trim()) {
+      return res.status(400).json({ error: 'Tên đợt tuyển dụng (batchName) là bắt buộc.' });
+    }
+    if (!roleTitle || typeof roleTitle !== 'string' || !roleTitle.trim()) {
+      return res.status(400).json({ error: 'Vị trí tuyển dụng (roleTitle) là bắt buộc.' });
+    }
+    if (!jdText || typeof jdText !== 'string' || !jdText.trim()) {
+      return res.status(400).json({ error: 'Nội dung mô tả công việc (jdText) là bắt buộc.' });
+    }
+    if (!Array.isArray(rawCandidates) || rawCandidates.length === 0) {
+      return res.status(400).json({ error: 'Danh sách ứng viên (candidates) không được để trống.' });
+    }
+
+    const cleanBatchName = batchName.trim();
+    const cleanRoleTitle = roleTitle.trim();
+    const cleanJdText = jdText.trim();
+    const cleanJdFileName = (typeof jdFileName === 'string' && jdFileName.trim()) ? jdFileName.trim() : undefined;
+
+    const createdBy: RecruiterBatchOwner = {
+      userId: currentUser.id,
+      username: currentUser.username,
+      fullName: currentUser.fullName || currentUser.username
+    };
+
+    // Normalize candidates
+    const normalizedCandidates: SavedBatchCandidate[] = rawCandidates.map((raw: any, idx: number) => {
+      const candidateId = (raw.id && typeof raw.id === 'string' && raw.id.trim())
+        ? raw.id.trim()
+        : `cand_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
+      const filename = (typeof raw.filename === 'string' && raw.filename.trim())
+        ? raw.filename.trim()
+        : `candidate_${idx + 1}.pdf`;
+      const candidateName = (typeof raw.candidateName === 'string' && raw.candidateName.trim())
+        ? raw.candidateName.trim()
+        : extractNameFromFilename(filename) || filename.replace(/\.[^/.]+$/, '');
+
+      const isFailed = raw.success === false || !!raw.errorMessage;
+      const overallScore = isFailed ? null : normalizeScore(raw.overallScore);
+      const keywordScore = isFailed ? null : normalizeScore(raw.keywordScore);
+      const experienceScore = isFailed ? null : normalizeScore(raw.experienceScore);
+      const skillScore = isFailed ? null : normalizeScore(raw.skillScore);
+
+      const processingStatus: CandidateProcessingStatus = isFailed
+        ? 'FAILED'
+        : (overallScore !== null ? 'COMPLETED' : 'NO_SCORE');
+
+      let matchLevel: 'Very High' | 'High' | 'Medium' | 'Low' | 'NOT_AVAILABLE' = 'NOT_AVAILABLE';
+      if (processingStatus === 'COMPLETED' && ['Very High', 'High', 'Medium', 'Low'].includes(raw.matchLevel)) {
+        matchLevel = raw.matchLevel;
+      } else if (processingStatus === 'COMPLETED' && overallScore !== null) {
+        if (overallScore >= 85) matchLevel = 'Very High';
+        else if (overallScore >= 70) matchLevel = 'High';
+        else if (overallScore >= 50) matchLevel = 'Medium';
+        else matchLevel = 'Low';
+      }
+
+      const topStrengths: string[] = isFailed
+        ? []
+        : (Array.isArray(raw.topStrengths)
+            ? raw.topStrengths.filter((s: any): s is string => typeof s === 'string' && s.trim().length > 0).map((s: string) => s.trim())
+            : []);
+
+      const keyGaps: string[] = isFailed
+        ? []
+        : (Array.isArray(raw.keyGaps)
+            ? raw.keyGaps.filter((g: any): g is string => typeof g === 'string' && g.trim().length > 0).map((g: string) => g.trim())
+            : []);
+
+      const shortRecommendation = isFailed
+        ? ''
+        : ((typeof raw.shortRecommendation === 'string') ? raw.shortRecommendation.trim() : '');
+
+      return {
+        id: candidateId,
+        filename,
+        candidateName,
+        success: !isFailed,
+        processingStatus,
+        rank: null,
+        overallScore,
+        matchLevel,
+        keywordScore,
+        experienceScore,
+        skillScore,
+        topStrengths,
+        keyGaps,
+        shortRecommendation,
+        errorMessage: isFailed ? (raw.errorMessage || 'Phân tích ứng viên thất bại') : undefined,
+        cvText: raw.cvText || undefined,
+        fullAnalysis: raw.fullAnalysis || undefined
+      };
+    });
+
+    // Server-side rank snapshot for COMPLETED candidates
+    const completedCandidates = normalizedCandidates.filter(c => c.processingStatus === 'COMPLETED');
+    completedCandidates.sort((a, b) => {
+      const scoreDiff = (b.overallScore as number) - (a.overallScore as number);
+      if (scoreDiff !== 0) return scoreDiff;
+      const nameDiff = a.candidateName.localeCompare(b.candidateName, undefined, { sensitivity: 'base' });
+      if (nameDiff !== 0) return nameDiff;
+      return a.filename.localeCompare(b.filename, undefined, { sensitivity: 'base' });
+    });
+
+    completedCandidates.forEach((c, index) => {
+      c.rank = index + 1;
+    });
+
+    const candidateCount = normalizedCandidates.length;
+    const rankedCount = completedCandidates.length;
+    const noScoreCount = normalizedCandidates.filter(c => c.processingStatus === 'NO_SCORE').length;
+    const failedCount = normalizedCandidates.filter(c => c.processingStatus === 'FAILED').length;
+
+    const nowIso = new Date().toISOString();
+    const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+    const newBatchDetail: RecruiterBatchDetail = {
+      id: batchId,
+      batchName: cleanBatchName,
+      roleTitle: cleanRoleTitle,
+      jdText: cleanJdText,
+      jdFileName: cleanJdFileName,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      createdBy,
+      status: 'READY',
+      candidateCount,
+      rankedCount,
+      noScoreCount,
+      failedCount,
+      candidates: normalizedCandidates
+    };
+
+    // Save to Firestore if available
+    if (db) {
+      try {
+        await persistRecruiterBatchToFirestore(newBatchDetail);
+      } catch (fErr: any) {
+        newBatchDetail.status = 'FAILED';
+        recruiterBatches.unshift(newBatchDetail);
+        saveRecruiterBatchesToFile();
+        return res.status(500).json({
+          error: 'Không thể lưu dữ liệu batch vào cơ sở dữ liệu đám mây Firestore: ' + (fErr.message || String(fErr))
+        });
+      }
+    }
+
+    // Save to in-memory cache and local file
+    recruiterBatches.unshift(newBatchDetail);
+    saveRecruiterBatchesToFile();
+
+    // Record audit log
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress;
+    const clientUa = req.headers['user-agent'];
+    recordAuditLog({
+      userEmail: currentUser.username,
+      userRole: currentUser.role === 'admin' ? 'admin' : 'normal',
+      action: 'RECRUITER_BATCH_CREATED',
+      category: 'AI_SERVICE',
+      status: 'success',
+      details: `Đã lưu đợt phân tích Recruiter Batch: "${cleanBatchName}" (ID: ${batchId}, Vị trí: "${cleanRoleTitle}", Tổng: ${candidateCount}, Đã xếp hạng: ${rankedCount}, Không có điểm: ${noScoreCount}, Thất bại: ${failedCount})`,
+      ipAddress: clientIp,
+      userAgent: clientUa
+    });
+
+    return res.status(201).json({
+      success: true,
+      batch: newBatchDetail
+    });
+  } catch (err: any) {
+    console.error('API /api/recruiter/batches POST Error:', err);
+    return res.status(500).json({
+      error: 'Lỗi hệ thống khi lưu kết quả Recruiter Batch: ' + (err.message || String(err))
+    });
+  }
+});
+
+// 2. GET /api/recruiter/batches - List saved batches summary
+app.get('/api/recruiter/batches', (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập để xem danh sách batch.' });
+    }
+
+    let userBatches = currentUser.role === 'admin'
+      ? [...recruiterBatches]
+      : recruiterBatches.filter(
+          b => b.createdBy.userId === currentUser.id || b.createdBy.username.toLowerCase() === currentUser.username.toLowerCase()
+        );
+
+    // Optional query filtering
+    const search = (req.query.search as string)?.toLowerCase().trim();
+    if (search) {
+      userBatches = userBatches.filter(b =>
+        b.batchName.toLowerCase().includes(search) ||
+        b.roleTitle.toLowerCase().includes(search) ||
+        (b.jdFileName && b.jdFileName.toLowerCase().includes(search))
+      );
+    }
+
+    const statusFilter = (req.query.status as string)?.trim();
+    if (statusFilter) {
+      userBatches = userBatches.filter(b => b.status === statusFilter);
+    }
+
+    // Sort newest first
+    userBatches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Map to RecruiterBatchSummary (omit candidates and fullAnalysis)
+    const summaries: RecruiterBatchSummary[] = userBatches.map(b => ({
+      id: b.id,
+      batchName: b.batchName,
+      roleTitle: b.roleTitle,
+      jdText: b.jdText,
+      jdFileName: b.jdFileName,
+      createdAt: b.createdAt,
+      updatedAt: b.updatedAt,
+      createdBy: b.createdBy,
+      status: b.status,
+      candidateCount: b.candidateCount,
+      rankedCount: b.rankedCount,
+      noScoreCount: b.noScoreCount,
+      failedCount: b.failedCount
+    }));
+
+    return res.json({
+      success: true,
+      batches: summaries
+    });
+  } catch (err: any) {
+    console.error('API /api/recruiter/batches GET Error:', err);
+    return res.status(500).json({
+      error: 'Lỗi hệ thống khi tải danh sách Recruiter Batch: ' + (err.message || String(err))
+    });
+  }
+});
+
+// 3. GET /api/recruiter/batches/:id - Get batch detail
+app.get('/api/recruiter/batches/:id', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập để mở chi tiết batch.' });
+    }
+
+    const { id } = req.params;
+    let batch = recruiterBatches.find(b => b.id === id);
+
+    // Fallback: If not in memory, try loading from Firestore
+    if (!batch && db) {
+      try {
+        const batchDocRef = doc(db, 'recruiter_batches', id);
+        const batchDocSnap = await getDoc(batchDocRef);
+        if (batchDocSnap.exists()) {
+          const summary = batchDocSnap.data() as RecruiterBatchSummary;
+          const candidatesCol = collection(db, 'recruiter_batches', id, 'candidates');
+          const candSnapshot = await getDocs(candidatesCol);
+          const candidates = candSnapshot.docs.map(d => d.data() as SavedBatchCandidate);
+
+          candidates.sort((a, b) => {
+            if (a.rank !== null && b.rank !== null) return a.rank - b.rank;
+            if (a.rank !== null) return -1;
+            if (b.rank !== null) return 1;
+            const nameDiff = a.candidateName.localeCompare(b.candidateName, undefined, { sensitivity: 'base' });
+            if (nameDiff !== 0) return nameDiff;
+            return a.filename.localeCompare(b.filename, undefined, { sensitivity: 'base' });
+          });
+
+          batch = {
+            ...summary,
+            candidates
+          };
+          recruiterBatches.unshift(batch);
+          saveRecruiterBatchesToFile();
+        }
+      } catch (fetchErr) {
+        console.warn('Could not load batch from Firestore:', fetchErr);
+      }
+    }
+
+    if (!batch) {
+      return res.status(404).json({ error: 'Không tìm thấy đợt tuyển dụng với ID chỉ định.' });
+    }
+
+    // Access control: Only owner or admin can view detail
+    const isOwner = batch.createdBy.userId === currentUser.id ||
+      batch.createdBy.username.toLowerCase() === currentUser.username.toLowerCase();
+    const isAdmin = currentUser.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Bạn không có quyền truy cập đợt tuyển dụng này.' });
+    }
+
+    return res.json({
+      success: true,
+      batch
+    });
+  } catch (err: any) {
+    console.error('API /api/recruiter/batches/:id GET Error:', err);
+    return res.status(500).json({
+      error: 'Lỗi hệ thống khi mở chi tiết Recruiter Batch: ' + (err.message || String(err))
+    });
+  }
 });
 
 // 9. Admin: Test Live Connection to AI Models (Ping Test)
