@@ -333,7 +333,12 @@ function loadAllDataFromFiles() {
       const loaded = JSON.parse(raw);
       if (Array.isArray(loaded)) {
         recruiterBatches.length = 0;
-        recruiterBatches.push(...loaded);
+        for (const b of loaded) {
+          if (Array.isArray(b.candidates)) {
+            sortBatchCandidates(b.candidates);
+          }
+          recruiterBatches.push(b);
+        }
       }
     } else {
       fs.writeFileSync(RECRUITER_BATCHES_FILE, JSON.stringify(recruiterBatches, null, 2), 'utf-8');
@@ -500,15 +505,8 @@ async function syncFromFirestore() {
           const candidatesSnapshot = await getDocs(candidatesCol);
           const candidates: SavedBatchCandidate[] = candidatesSnapshot.docs.map(cDoc => cDoc.data() as SavedBatchCandidate);
 
-          // Order candidates: ranked completed first (1, 2, 3...), then unranked
-          candidates.sort((a, b) => {
-            if (a.rank !== null && b.rank !== null) return a.rank - b.rank;
-            if (a.rank !== null) return -1;
-            if (b.rank !== null) return 1;
-            const nameDiff = a.candidateName.localeCompare(b.candidateName, undefined, { sensitivity: 'base' });
-            if (nameDiff !== 0) return nameDiff;
-            return a.filename.localeCompare(b.filename, undefined, { sensitivity: 'base' });
-          });
+          // Order candidates: ranked completed first (1, 2, 3...), then NO_SCORE, then FAILED, then alphabetical
+          sortBatchCandidates(candidates);
 
           loadedBatches.push({
             ...batchSummary,
@@ -931,6 +929,54 @@ function recordAnalysisRecord(rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'>)
   return item;
 }
 
+// Helper to deeply remove undefined properties from objects/arrays before Firestore writes
+function removeUndefinedDeep<T>(value: T): T {
+  if (value === undefined) {
+    return undefined as unknown as T;
+  }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefinedDeep(item)) as unknown as T;
+  }
+  if (value instanceof Date || value instanceof RegExp) {
+    return value;
+  }
+  const result: Record<string, any> = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (v !== undefined) {
+      result[k] = removeUndefinedDeep(v);
+    }
+  }
+  return result as T;
+}
+
+// Helper to stably sort batch candidates
+function sortBatchCandidates(candidates: SavedBatchCandidate[]): SavedBatchCandidate[] {
+  return candidates.sort((a, b) => {
+    // 1. Ranked candidates first (rank ascending: 1, 2, 3...)
+    if (a.rank !== null && b.rank !== null) {
+      return a.rank - b.rank;
+    }
+    if (a.rank !== null) return -1;
+    if (b.rank !== null) return 1;
+
+    // 2. NO_SCORE before FAILED
+    if (a.processingStatus !== b.processingStatus) {
+      if (a.processingStatus === 'NO_SCORE' && b.processingStatus === 'FAILED') return -1;
+      if (a.processingStatus === 'FAILED' && b.processingStatus === 'NO_SCORE') return 1;
+    }
+
+    // 3. Stably sort unranked candidates by candidateName then filename
+    const nameDiff = (a.candidateName || '').localeCompare(b.candidateName || '', undefined, { sensitivity: 'base' });
+    if (nameDiff !== 0) return nameDiff;
+    return (a.filename || '').localeCompare(b.filename || '', undefined, { sensitivity: 'base' });
+  });
+}
+
 // --- RECRUITER BATCHES REPOSITORY ---
 const recruiterBatches: RecruiterBatchDetail[] = [];
 
@@ -940,8 +986,9 @@ function saveRecruiterBatchesToFile(): void {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(RECRUITER_BATCHES_FILE, JSON.stringify(recruiterBatches, null, 2), 'utf-8');
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error writing recruiter batches to file:', err);
+    throw new Error('Không thể ghi dữ liệu đợt tuyển dụng vào tệp tin cục bộ.');
   }
 }
 
@@ -958,7 +1005,7 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
     jdText: batch.jdText,
     jdFileName: batch.jdFileName || undefined,
     createdAt: batch.createdAt,
-    updatedAt: new Date().toISOString(),
+    updatedAt: batch.updatedAt,
     createdBy: batch.createdBy,
     status: 'SAVING',
     candidateCount: batch.candidateCount,
@@ -968,7 +1015,7 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
   };
 
   try {
-    await setDoc(batchDocRef, summaryDoc);
+    await setDoc(batchDocRef, removeUndefinedDeep(summaryDoc));
 
     // 2. Save each candidate to candidates subcollection
     for (const candidate of batch.candidates) {
@@ -992,23 +1039,29 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
         cvText: candidate.cvText || undefined,
         fullAnalysis: candidate.fullAnalysis || undefined
       };
-      await setDoc(candDocRef, cleanCandidate);
+      await setDoc(candDocRef, removeUndefinedDeep(cleanCandidate));
     }
 
-    // 3. Mark batch status READY
-    await updateDoc(batchDocRef, {
+    // 3. Mark batch status READY with new timestamp
+    const readyUpdatedAt = new Date().toISOString();
+    await updateDoc(batchDocRef, removeUndefinedDeep({
       status: 'READY',
-      updatedAt: new Date().toISOString()
-    });
-  } catch (firestoreErr) {
+      updatedAt: readyUpdatedAt
+    }));
+
+    // Keep in-memory batch status and updatedAt identical to Firestore
+    batch.status = 'READY';
+    batch.updatedAt = readyUpdatedAt;
+  } catch (firestoreErr: any) {
     console.error('Error persisting recruiter batch to Firestore:', firestoreErr);
+    batch.status = 'FAILED';
     try {
-      await updateDoc(batchDocRef, {
+      await updateDoc(batchDocRef, removeUndefinedDeep({
         status: 'FAILED',
         updatedAt: new Date().toISOString()
-      });
+      }));
     } catch {
-      // ignore
+      // ignore secondary update failure
     }
     throw firestoreErr;
   }
@@ -2188,6 +2241,14 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
 // RECRUITER BATCH PERSISTENCE API ROUTES
 // ==========================================
 
+const ALLOWED_BATCH_MATCH_LEVELS = [
+  'Very High',
+  'High',
+  'Medium',
+  'Low',
+  'NOT_AVAILABLE'
+] as const;
+
 function normalizeScore(val: any): number | null {
   if (typeof val === 'number' && Number.isFinite(val)) {
     return val;
@@ -2200,7 +2261,7 @@ app.post('/api/recruiter/batches', async (req, res) => {
   try {
     const currentUser = getUserFromRequest(req);
     if (!currentUser) {
-      return res.status(401).json({ error: 'Vui lòng đăng nhập để lưu batch kết quả tuyển dụng.' });
+      return res.status(401).json({ error: 'Vui lòng đăng nhập để lưu kết quả tuyển dụng.' });
     }
 
     const { batchName, roleTitle, jdText, jdFileName, candidates: rawCandidates } = req.body || {};
@@ -2229,11 +2290,9 @@ app.post('/api/recruiter/batches', async (req, res) => {
       fullName: currentUser.fullName || currentUser.username
     };
 
-    // Normalize candidates
+    // Normalize candidates with server-generated unique IDs and exact match levels
     const normalizedCandidates: SavedBatchCandidate[] = rawCandidates.map((raw: any, idx: number) => {
-      const candidateId = (raw.id && typeof raw.id === 'string' && raw.id.trim())
-        ? raw.id.trim()
-        : `cand_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
+      const candidateId = `cand_${crypto.randomUUID()}`;
       const filename = (typeof raw.filename === 'string' && raw.filename.trim())
         ? raw.filename.trim()
         : `candidate_${idx + 1}.pdf`;
@@ -2252,13 +2311,8 @@ app.post('/api/recruiter/batches', async (req, res) => {
         : (overallScore !== null ? 'COMPLETED' : 'NO_SCORE');
 
       let matchLevel: 'Very High' | 'High' | 'Medium' | 'Low' | 'NOT_AVAILABLE' = 'NOT_AVAILABLE';
-      if (processingStatus === 'COMPLETED' && ['Very High', 'High', 'Medium', 'Low'].includes(raw.matchLevel)) {
-        matchLevel = raw.matchLevel;
-      } else if (processingStatus === 'COMPLETED' && overallScore !== null) {
-        if (overallScore >= 85) matchLevel = 'Very High';
-        else if (overallScore >= 70) matchLevel = 'High';
-        else if (overallScore >= 50) matchLevel = 'Medium';
-        else matchLevel = 'Low';
+      if (typeof raw.matchLevel === 'string' && (ALLOWED_BATCH_MATCH_LEVELS as readonly string[]).includes(raw.matchLevel)) {
+        matchLevel = raw.matchLevel as any;
       }
 
       const topStrengths: string[] = isFailed
@@ -2312,13 +2366,16 @@ app.post('/api/recruiter/batches', async (req, res) => {
       c.rank = index + 1;
     });
 
+    // Stable sort across all candidate statuses
+    sortBatchCandidates(normalizedCandidates);
+
     const candidateCount = normalizedCandidates.length;
     const rankedCount = completedCandidates.length;
     const noScoreCount = normalizedCandidates.filter(c => c.processingStatus === 'NO_SCORE').length;
     const failedCount = normalizedCandidates.filter(c => c.processingStatus === 'FAILED').length;
 
     const nowIso = new Date().toISOString();
-    const batchId = `batch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const batchId = `batch_${crypto.randomUUID()}`;
 
     const newBatchDetail: RecruiterBatchDetail = {
       id: batchId,
@@ -2337,25 +2394,51 @@ app.post('/api/recruiter/batches', async (req, res) => {
       candidates: normalizedCandidates
     };
 
-    // Save to Firestore if available
+    // Pre-insert into in-memory store
+    recruiterBatches.unshift(newBatchDetail);
+
+    // Persistence Flow:
     if (db) {
+      // 1. Cloud Firestore primary persistence
       try {
         await persistRecruiterBatchToFirestore(newBatchDetail);
-      } catch (fErr: any) {
-        newBatchDetail.status = 'FAILED';
-        recruiterBatches.unshift(newBatchDetail);
-        saveRecruiterBatchesToFile();
+      } catch (firestoreErr) {
+        console.error('Firestore save failed for recruiter batch:', firestoreErr);
+        // Best effort to save local file as FAILED
+        try {
+          saveRecruiterBatchesToFile();
+        } catch (localErr) {
+          console.warn('Secondary local file write also failed for FAILED batch:', localErr);
+        }
         return res.status(500).json({
-          error: 'Không thể lưu dữ liệu batch vào cơ sở dữ liệu đám mây Firestore: ' + (fErr.message || String(fErr))
+          error: 'Không thể lưu đợt tuyển dụng vào cơ sở dữ liệu đám mây.'
+        });
+      }
+
+      // 2. Local cache file update
+      try {
+        saveRecruiterBatchesToFile();
+      } catch (localErr) {
+        console.warn('Warning: Firestore saved successfully but local file cache write failed:', localErr);
+      }
+    } else {
+      // Local-only persistence
+      try {
+        saveRecruiterBatchesToFile();
+      } catch (localErr) {
+        console.error('Local persistence failed:', localErr);
+        // Rollback in-memory addition
+        const idx = recruiterBatches.indexOf(newBatchDetail);
+        if (idx !== -1) {
+          recruiterBatches.splice(idx, 1);
+        }
+        return res.status(500).json({
+          error: 'Không thể lưu dữ liệu đợt tuyển dụng vào tệp tin cục bộ.'
         });
       }
     }
 
-    // Save to in-memory cache and local file
-    recruiterBatches.unshift(newBatchDetail);
-    saveRecruiterBatchesToFile();
-
-    // Record audit log
+    // Record audit log only upon successful persistence
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress;
     const clientUa = req.headers['user-agent'];
     recordAuditLog({
@@ -2376,7 +2459,7 @@ app.post('/api/recruiter/batches', async (req, res) => {
   } catch (err: any) {
     console.error('API /api/recruiter/batches POST Error:', err);
     return res.status(500).json({
-      error: 'Lỗi hệ thống khi lưu kết quả Recruiter Batch: ' + (err.message || String(err))
+      error: 'Lỗi hệ thống khi lưu kết quả đợt tuyển dụng.'
     });
   }
 });
@@ -2437,7 +2520,7 @@ app.get('/api/recruiter/batches', (req, res) => {
   } catch (err: any) {
     console.error('API /api/recruiter/batches GET Error:', err);
     return res.status(500).json({
-      error: 'Lỗi hệ thống khi tải danh sách Recruiter Batch: ' + (err.message || String(err))
+      error: 'Lỗi hệ thống khi tải danh sách đợt tuyển dụng.'
     });
   }
 });
@@ -2464,21 +2547,18 @@ app.get('/api/recruiter/batches/:id', async (req, res) => {
           const candSnapshot = await getDocs(candidatesCol);
           const candidates = candSnapshot.docs.map(d => d.data() as SavedBatchCandidate);
 
-          candidates.sort((a, b) => {
-            if (a.rank !== null && b.rank !== null) return a.rank - b.rank;
-            if (a.rank !== null) return -1;
-            if (b.rank !== null) return 1;
-            const nameDiff = a.candidateName.localeCompare(b.candidateName, undefined, { sensitivity: 'base' });
-            if (nameDiff !== 0) return nameDiff;
-            return a.filename.localeCompare(b.filename, undefined, { sensitivity: 'base' });
-          });
+          sortBatchCandidates(candidates);
 
           batch = {
             ...summary,
             candidates
           };
           recruiterBatches.unshift(batch);
-          saveRecruiterBatchesToFile();
+          try {
+            saveRecruiterBatchesToFile();
+          } catch (lErr) {
+            console.warn('Could not save loaded batch to local file cache:', lErr);
+          }
         }
       } catch (fetchErr) {
         console.warn('Could not load batch from Firestore:', fetchErr);
@@ -2505,7 +2585,7 @@ app.get('/api/recruiter/batches/:id', async (req, res) => {
   } catch (err: any) {
     console.error('API /api/recruiter/batches/:id GET Error:', err);
     return res.status(500).json({
-      error: 'Lỗi hệ thống khi mở chi tiết Recruiter Batch: ' + (err.message || String(err))
+      error: 'Lỗi hệ thống khi mở chi tiết đợt tuyển dụng.'
     });
   }
 });
