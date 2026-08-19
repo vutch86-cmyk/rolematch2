@@ -2867,40 +2867,59 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
         else if (overallScore >= 70) matchLevel = 'High';
         else if (overallScore >= 50) matchLevel = 'Medium';
 
-        // Collect 3 strengths
+        // Collect topStrengths strictly from actual analysis data
         const strengthsList: string[] = [];
-        if (finalResult.feature1?.summary?.biggestStrength) {
-          strengthsList.push(finalResult.feature1.summary.biggestStrength);
+        if (typeof finalResult.feature1?.summary?.biggestStrength === 'string' && finalResult.feature1.summary.biggestStrength.trim()) {
+          strengthsList.push(finalResult.feature1.summary.biggestStrength.trim());
         }
-        if (finalResult.feature3?.immediateStrength) {
-          strengthsList.push(finalResult.feature3.immediateStrength);
+        if (typeof finalResult.feature3?.immediateStrength === 'string' && finalResult.feature3.immediateStrength.trim()) {
+          const val = finalResult.feature3.immediateStrength.trim();
+          if (!strengthsList.includes(val)) {
+            strengthsList.push(val);
+          }
         }
-        if (finalResult.feature3?.decisionReason) {
-          strengthsList.push(finalResult.feature3.decisionReason);
+        if (Array.isArray(finalResult.topStrengths)) {
+          for (const item of finalResult.topStrengths) {
+            if (typeof item === 'string' && item.trim() && !strengthsList.includes(item.trim())) {
+              strengthsList.push(item.trim());
+            }
+          }
         }
-        while (strengthsList.length < 3) {
-          strengthsList.push(isEn ? 'Meets core requirements' : 'Đáp ứng các yêu cầu cốt lõi');
-        }
-        const topStrengths = strengthsList.slice(0, 3);
+        const topStrengths = strengthsList;
 
-        // Collect 3 gaps
+        // Collect keyGaps strictly from actual analysis data
         const gapsList: string[] = [];
-        if (finalResult.feature3?.biggestDoubt) {
-          gapsList.push(finalResult.feature3.biggestDoubt);
+        if (typeof finalResult.feature3?.biggestDoubt === 'string' && finalResult.feature3.biggestDoubt.trim()) {
+          gapsList.push(finalResult.feature3.biggestDoubt.trim());
         }
-        if (finalResult.feature3?.fastestPointLossSection) {
-          gapsList.push(finalResult.feature3.fastestPointLossSection);
+        if (typeof finalResult.feature3?.fastestPointLossSection === 'string' && finalResult.feature3.fastestPointLossSection.trim()) {
+          const val = finalResult.feature3.fastestPointLossSection.trim();
+          if (!gapsList.includes(val)) {
+            gapsList.push(val);
+          }
         }
-        if (finalResult.feature1?.summary?.missingKeywordsSkills && finalResult.feature1.summary.missingKeywordsSkills.length > 0) {
-          gapsList.push(finalResult.feature1.summary.missingKeywordsSkills[0]);
+        if (Array.isArray(finalResult.feature1?.summary?.missingKeywordsSkills)) {
+          for (const item of finalResult.feature1.summary.missingKeywordsSkills) {
+            if (typeof item === 'string' && item.trim() && !gapsList.includes(item.trim())) {
+              gapsList.push(item.trim());
+            }
+          }
         }
-        while (gapsList.length < 3) {
-          gapsList.push(isEn ? 'Opportunity for skill refinement' : 'Cần bổ sung một số kỹ năng phụ');
+        if (Array.isArray(finalResult.keyGaps)) {
+          for (const item of finalResult.keyGaps) {
+            if (typeof item === 'string' && item.trim() && !gapsList.includes(item.trim())) {
+              gapsList.push(item.trim());
+            }
+          }
         }
-        const keyGaps = gapsList.slice(0, 3);
+        const keyGaps = gapsList;
 
-        const shortRecommendation = finalResult.feature3?.firstImpression10s ||
-                                    (isEn ? 'Recommended for next steps.' : 'Đề xuất tiến hành vòng tiếp theo.');
+        // shortRecommendation strictly from real data
+        const shortRecommendation = (typeof finalResult.feature3?.firstImpression10s === 'string' && finalResult.feature3.firstImpression10s.trim())
+          ? finalResult.feature3.firstImpression10s.trim()
+          : ((typeof finalResult.shortRecommendation === 'string' && finalResult.shortRecommendation.trim())
+            ? finalResult.shortRecommendation.trim()
+            : '');
 
         try {
           const currentUser = getUserFromRequest(req);
@@ -2909,6 +2928,8 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           const firstLine = jdText.trim().split('\n')[0] || '';
           const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
           const formattedJobTitle = `${jdTitleVal} - ${candNameVal}`;
+
+          const recruiterDecisionVal = finalResult.feature3?.inviteDecision || undefined;
 
           recordAnalysisRecord({
             userEmail: userEmailVal,
@@ -2919,7 +2940,7 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
             jdTitle: jdTitleVal,
             topStrengths,
             missingSkills: keyGaps,
-            recruiterDecision: finalResult.feature3?.inviteDecision || (overallScore >= 70 ? 'YES' : (overallScore >= 50 ? 'MAYBE' : 'NO')),
+            recruiterDecision: recruiterDecisionVal || 'MAYBE',
             engineUsed: 'Gemini 2.0 Flash Batch Pipeline',
             durationMs: 0,
             cvTextLength: candidate.text.length,
@@ -2956,9 +2977,10 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           keywordScore: 0,
           experienceScore: 0,
           skillScore: 0,
-          topStrengths: ['Failed to analyze'],
-          keyGaps: ['Check file format or API quota'],
-          shortRecommendation: err.message || 'Lỗi xử lý AI.'
+          topStrengths: [],
+          keyGaps: [],
+          shortRecommendation: '',
+          errorMessage: err.message || 'Lỗi xử lý AI.'
         };
       }
     });

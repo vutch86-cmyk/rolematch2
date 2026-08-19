@@ -69,6 +69,7 @@ interface CandidateResult {
   topStrengths: string[];
   keyGaps: string[];
   shortRecommendation: string;
+  errorMessage?: string;
   cvText?: string;
   fullAnalysis?: any;
 }
@@ -404,15 +405,13 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     }
   };
 
-  // Helper for recommendation classification (YES / MAYBE / NO)
-  const getCandidateRecType = (candidate: CandidateResult): 'YES' | 'MAYBE' | 'NO' => {
-    if (candidate.overallScore >= 70 || candidate.matchLevel === 'Very High' || candidate.matchLevel === 'High') {
-      return 'YES';
-    } else if (candidate.overallScore >= 50 || candidate.matchLevel === 'Medium') {
-      return 'MAYBE';
-    } else {
-      return 'NO';
+  // Helper for recommendation classification (YES / MAYBE / NO / NONE)
+  const getCandidateRecType = (candidate: CandidateResult): 'YES' | 'MAYBE' | 'NO' | 'NONE' => {
+    const invite = candidate.fullAnalysis?.feature3?.inviteDecision;
+    if (invite === 'YES' || invite === 'MAYBE' || invite === 'NO') {
+      return invite;
     }
+    return 'NONE';
   };
 
   // Toggle candidate comparison (Max 3 candidates)
@@ -702,13 +701,15 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   };
 
   const getAiRecommendationText = (candidate: CandidateResult) => {
-    if (candidate.overallScore >= 70 || candidate.matchLevel === 'Very High' || candidate.matchLevel === 'High') {
+    const invite = candidate.fullAnalysis?.feature3?.inviteDecision;
+    if (invite === 'YES') {
       return isEn ? 'Recommend for interview' : 'Đề xuất phỏng vấn';
-    } else if (candidate.overallScore >= 50 || candidate.matchLevel === 'Medium') {
+    } else if (invite === 'MAYBE') {
       return isEn ? 'Under review / Clarify in interview' : 'Cần xem xét & xác minh thêm';
-    } else {
+    } else if (invite === 'NO') {
       return isEn ? 'Low priority' : 'Không ưu tiên';
     }
+    return isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích';
   };
 
   const getMatchLevelLabel = (level: string) => {
@@ -742,11 +743,11 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   };
 
   const getDecisionReason = (candidate: CandidateResult, isEn: boolean) => {
-    if (candidate.shortRecommendation && candidate.shortRecommendation.trim()) {
-      return candidate.shortRecommendation.trim();
+    if (candidate.fullAnalysis?.feature3?.decisionReason && typeof candidate.fullAnalysis.feature3.decisionReason === 'string' && candidate.fullAnalysis.feature3.decisionReason.trim()) {
+      return candidate.fullAnalysis.feature3.decisionReason.trim();
     }
-    if (candidate.fullAnalysis?.feature3?.recruiterDecisionReason && candidate.fullAnalysis.feature3.recruiterDecisionReason.trim()) {
-      return candidate.fullAnalysis.feature3.recruiterDecisionReason.trim();
+    if (candidate.shortRecommendation && typeof candidate.shortRecommendation === 'string' && candidate.shortRecommendation.trim()) {
+      return candidate.shortRecommendation.trim();
     }
     return isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích';
   };
@@ -766,7 +767,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     isEn: boolean
   ): string[] => {
     if (!rawList || !Array.isArray(rawList)) return [];
-    return rawList.filter(b => b && typeof b === 'string' && b.trim().length > 0);
+    return rawList.filter(b => b && typeof b === 'string' && b.trim().length > 0).slice(0, 5);
   };
 
   // Helper for Section D: Recruiter Quick Scan
@@ -775,14 +776,13 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     const noData = isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích';
 
     const firstImpression10s = (f3?.firstImpression10s && typeof f3.firstImpression10s === 'string' && f3.firstImpression10s.trim())
-      || (candidate.shortRecommendation && candidate.shortRecommendation.trim())
       || noData;
 
     const immediateStrength = (f3?.immediateStrength && typeof f3.immediateStrength === 'string' && f3.immediateStrength.trim())
-      || (candidate.topStrengths && candidate.topStrengths.length > 0 ? candidate.topStrengths[0] : noData);
+      || noData;
 
     const biggestDoubt = (f3?.biggestDoubt && typeof f3.biggestDoubt === 'string' && f3.biggestDoubt.trim())
-      || (candidate.keyGaps && candidate.keyGaps.length > 0 ? candidate.keyGaps[0] : noData);
+      || noData;
 
     const fastestPointLossSection = (f3?.fastestPointLossSection && typeof f3.fastestPointLossSection === 'string' && f3.fastestPointLossSection.trim())
       || noData;
@@ -903,21 +903,42 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     md += `| Rank | Candidate Name | File Name | Overall Fit | Match Level |\n`;
     md += `|---|---|---|---|---|\n`;
     results.forEach((r, idx) => {
-      md += `| **#${idx + 1}** | ${r.candidateName} | ${r.filename} | **${r.overallScore}%** | ${r.matchLevel} |\n`;
+      if (r.success === false || r.errorMessage) {
+        md += `| **#${idx + 1}** | ${r.candidateName} | ${r.filename} | **Lỗi xử lý** | - |\n`;
+      } else {
+        md += `| **#${idx + 1}** | ${r.candidateName} | ${r.filename} | **${r.overallScore}%** | ${r.matchLevel} |\n`;
+      }
     });
     md += `\n\n## Deep Dive Breakdown\n\n`;
     results.forEach((r, idx) => {
       md += `### #${idx + 1} ${r.candidateName}\n`;
       md += `- **File**: ${r.filename}\n`;
+      if (r.success === false || r.errorMessage) {
+        md += `- **Trạng thái**: Lỗi xử lý (${r.errorMessage || 'Unknown error'})\n\n---\n\n`;
+        return;
+      }
       md += `- **Overall Score**: ${r.overallScore}%\n`;
       md += `- **Keyword Match**: ${r.keywordScore}%\n`;
       md += `- **Experience Fit**: ${r.experienceScore}%\n`;
       md += `- **Skills Overlap**: ${r.skillScore}%\n`;
+      
+      const strengths = getNormalizedList(r.topStrengths, 'strengths', r, isEn);
       md += `\n#### Top Strengths:\n`;
-      r.topStrengths.forEach(s => md += `  - ${s}\n`);
+      if (strengths.length === 0) {
+        md += `  - ${isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}\n`;
+      } else {
+        strengths.forEach(s => md += `  - ${s}\n`);
+      }
+
+      const gaps = getNormalizedList(r.keyGaps, 'gaps', r, isEn);
       md += `\n#### Areas for Improvement / Gaps:\n`;
-      r.keyGaps.forEach(g => md += `  - ${g}\n`);
-      md += `\n#### Recruiter Verdict:\n> ${r.shortRecommendation}\n\n---\n\n`;
+      if (gaps.length === 0) {
+        md += `  - ${isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}\n`;
+      } else {
+        gaps.forEach(g => md += `  - ${g}\n`);
+      }
+
+      md += `\n#### Recruiter Verdict:\n> ${getDecisionReason(r, isEn)}\n\n---\n\n`;
     });
 
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
@@ -1843,7 +1864,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                     const aiRec = getAiRecommendationText(candidate);
                     const topStrength = candidate.topStrengths && candidate.topStrengths.length > 0
                       ? candidate.topStrengths[0]
-                      : (isEn ? 'Chưa có dữ liệu từ kết quả phân tích' : 'Chưa có dữ liệu từ kết quả phân tích');
+                      : (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích');
                     const criticalGapsCount = candidate.keyGaps ? candidate.keyGaps.length : 0;
 
                     return (
