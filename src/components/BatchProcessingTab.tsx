@@ -31,7 +31,9 @@ import {
   AlertOctagon,
   Pin,
   Eye,
-  HelpCircle
+  HelpCircle,
+  Save,
+  FolderOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -49,6 +51,8 @@ import {
 } from 'recharts';
 
 import { HistoryItem, ComparisonRow } from '../types';
+import { SaveBatchModal } from './SaveBatchModal';
+import { SavedBatchesModal } from './SavedBatchesModal';
 
 interface BatchProcessingTabProps {
   lang: 'vi' | 'en';
@@ -72,6 +76,8 @@ interface CandidateResult {
   errorMessage?: string;
   cvText?: string;
   fullAnalysis?: any;
+  savedRank?: number | null;
+  processingStatus?: 'COMPLETED' | 'NO_SCORE' | 'FAILED';
 }
 
 export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, token, onAddHistoryItems, onOpenFullAnalysis }) => {
@@ -87,6 +93,13 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
   const [expandedMissingSkills, setExpandedMissingSkills] = useState<boolean>(false);
+
+  // Saved Batches Integration States
+  const [isSaveBatchModalOpen, setIsSaveBatchModalOpen] = useState<boolean>(false);
+  const [isSavedBatchesModalOpen, setIsSavedBatchesModalOpen] = useState<boolean>(false);
+  const [activeSavedBatch, setActiveSavedBatch] = useState<any>(null);
+  const [batchError, setBatchError] = useState<string>('');
+  const [batchNotice, setBatchNotice] = useState<string>('');
 
   // Sorting and Filtering
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -107,6 +120,49 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [isExtractingJd, setIsExtractingJd] = useState<boolean>(false);
   const [jdFileName, setJdFileName] = useState<string | null>(null);
   const jdFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRestoreBatch = (batch: any) => {
+    setActiveSavedBatch(batch);
+    setJdText(batch.jdText || '');
+    setJdFileName(batch.jdFileName || null);
+
+    const mappedResults: CandidateResult[] = batch.candidates.map((c: any) => ({
+      filename: c.filename,
+      success: c.success !== false,
+      candidateName: c.candidateName || '',
+      overallScore: c.overallScore,
+      matchLevel: c.matchLevel || 'NOT_AVAILABLE',
+      keywordScore: c.keywordScore,
+      experienceScore: c.experienceScore,
+      skillScore: c.skillScore,
+      topStrengths: c.topStrengths || [],
+      keyGaps: c.keyGaps || [],
+      shortRecommendation: c.shortRecommendation || '',
+      errorMessage: c.errorMessage,
+      cvText: c.cvText,
+      fullAnalysis: c.fullAnalysis || null,
+      savedRank: c.rank,
+      processingStatus: c.processingStatus
+    }));
+
+    setResults(mappedResults);
+    setSelectedCandidate(null);
+    setUploadedFiles([]);
+
+    setBatchNotice(isEn
+      ? `Successfully loaded saved snapshot of "${batch.batchName}"!`
+      : `Phục hồi thành công ảnh chụp đợt "${batch.batchName}"!`
+    );
+    setTimeout(() => setBatchNotice(''), 5000);
+  };
+
+  const handleSaveSuccess = (savedBatchName: string, savedRoleTitle: string) => {
+    setBatchNotice(isEn
+      ? `Successfully saved batch "${savedBatchName}" for role "${savedRoleTitle}"!`
+      : `Lưu thành công đợt tuyển dụng "${savedBatchName}" cho vai trò "${savedRoleTitle}"!`
+    );
+    setTimeout(() => setBatchNotice(''), 5000);
+  };
 
   const handleJdFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -510,7 +566,14 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       typeof c.overallScore === 'number' && 
       Number.isFinite(c.overallScore)
     )
-    .sort((a, b) => (b.overallScore as number) - (a.overallScore as number));
+    .sort((a, b) => {
+      if (activeSavedBatch !== null) {
+        const aRank = a.savedRank ?? 999999;
+        const bRank = b.savedRank ?? 999999;
+        return aRank - bRank;
+      }
+      return (b.overallScore as number) - (a.overallScore as number);
+    });
 
   // --- Filtering & Sorting Logic ---
   const filterCandidates = results.filter(candidate => {
@@ -965,7 +1028,14 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
     const ranked = results
       .filter(r => r.success !== false && !r.errorMessage && typeof r.overallScore === 'number' && Number.isFinite(r.overallScore))
-      .sort((a, b) => (b.overallScore as number) - (a.overallScore as number));
+      .sort((a, b) => {
+        if (activeSavedBatch !== null) {
+          const aRank = a.savedRank ?? 999999;
+          const bRank = b.savedRank ?? 999999;
+          return aRank - bRank;
+        }
+        return (b.overallScore as number) - (a.overallScore as number);
+      });
 
     const unranked = results
       .filter(r => r.success !== false && !r.errorMessage && !(typeof r.overallScore === 'number' && Number.isFinite(r.overallScore)));
@@ -978,15 +1048,17 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       md += `| Rank | Candidate Name | File Name | Overall Fit | Match Level |\n`;
       md += `|---|---|---|---|---|\n`;
       ranked.forEach((r, idx) => {
-        const name = getCandidateDisplayName(r, idx + 1);
+        const rankValue = activeSavedBatch !== null ? (r.savedRank ?? idx + 1) : (idx + 1);
+        const name = getCandidateDisplayName(r, rankValue);
         const matchLvl = r.matchLevel === 'NOT_AVAILABLE'
           ? (isEn ? 'Not available' : 'Chưa có dữ liệu')
           : getMatchLevelLabel(r.matchLevel);
-        md += `| **#${idx + 1}** | ${name} | ${r.filename} | **${r.overallScore}%** | ${matchLvl} |\n`;
+        md += `| **#${rankValue}** | ${name} | ${r.filename} | **${r.overallScore}%** | ${matchLvl} |\n`;
       });
       md += `\n### ${isEn ? 'Ranked Deep Dive Breakdown' : 'Chi Tiết Phân Tích Ứng Viên Xếp Hạng'}\n\n`;
       ranked.forEach((r, idx) => {
-        const name = getCandidateDisplayName(r, idx + 1);
+        const rankValue = activeSavedBatch !== null ? (r.savedRank ?? idx + 1) : (idx + 1);
+        const name = getCandidateDisplayName(r, rankValue);
         const matchLvl = r.matchLevel === 'NOT_AVAILABLE'
           ? (isEn ? 'Not available' : 'Chưa có dữ liệu')
           : getMatchLevelLabel(r.matchLevel);
@@ -1062,22 +1134,87 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-indigo-900 pointer-events-none hidden md:block">
           <UserCheck className="w-56 h-56" />
         </div>
-        <div className="max-w-3xl space-y-2">
-          <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
-            <Sparkles className="w-3 h-3" />
-            <span>{isEn ? 'HR & RECRUITER PREMIUM MODULE' : 'MODULE CAO CẤP CHO NHÀ TUYỂN DỤNG'}</span>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+          <div className="max-w-3xl space-y-2">
+            <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <Sparkles className="w-3 h-3" />
+              <span>{isEn ? 'HR & RECRUITER PREMIUM MODULE' : 'MODULE CAO CẤP CHO NHÀ TUYỂN DỤNG'}</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+              {isEn ? 'Batch CV Processing & Ranker' : 'Xử Lý CV Hàng Loạt & Xếp Hạng Ứng Viên'}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+              {isEn 
+                ? 'Upload a folder of resumes (or a single ZIP archive) containing PDF, DOCX, TXT files, paste a Job Description (JD), and let Gemini instantly analyze, compare, and rank candidates on a visual leaderboard.'
+                : 'Tải lên danh sách nhiều CV (hỗ trợ tệp ZIP hoặc chọn đồng thời nhiều file PDF, DOCX, TXT), nhập JD yêu cầu và để Gemini tự động phân tích, chấm điểm, xếp hạng ứng viên trực quan.'
+              }
+            </p>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-            {isEn ? 'Batch CV Processing & Ranker' : 'Xử Lý CV Hàng Loạt & Xếp Hạng Ứng Viên'}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-            {isEn 
-              ? 'Upload a folder of resumes (or a single ZIP archive) containing PDF, DOCX, TXT files, paste a Job Description (JD), and let Gemini instantly analyze, compare, and rank candidates on a visual leaderboard.'
-              : 'Tải lên danh sách nhiều CV (hỗ trợ tệp ZIP hoặc chọn đồng thời nhiều file PDF, DOCX, TXT), nhập JD yêu cầu và để Gemini tự động phân tích, chấm điểm, xếp hạng ứng viên trực quan.'
-            }
-          </p>
+          <div className="shrink-0 flex flex-wrap gap-2.5">
+            <button
+              onClick={() => setIsSavedBatchesModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-slate-950/20 whitespace-nowrap"
+            >
+              <FolderOpen className="w-4 h-4 text-slate-300" />
+              <span>{isEn ? 'Saved Batches' : 'Đợt tuyển dụng đã lưu'}</span>
+            </button>
+            {results.length > 0 && !activeSavedBatch && (
+              <button
+                onClick={() => setIsSaveBatchModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-emerald-700/20 whitespace-nowrap"
+              >
+                <Save className="w-4 h-4 text-emerald-100" />
+                <span>{isEn ? 'Save Current Batch' : 'Lưu đợt này'}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Saved Snapshot Status Indicator Banner */}
+      {activeSavedBatch && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 rounded-r-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+              <FolderOpen className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs font-black text-amber-900 uppercase tracking-wide">
+                {isEn ? 'Viewing Saved Snapshot' : 'Đang xem ảnh chụp đợt tuyển dụng đã lưu'}
+              </p>
+              <p className="text-[11px] text-amber-700 font-bold mt-0.5 leading-relaxed">
+                {isEn ? 'Batch:' : 'Đợt:'} <span className="text-slate-900 font-extrabold">{activeSavedBatch.batchName}</span> • {isEn ? 'Role:' : 'Vị trí:'} <span className="text-slate-900 font-extrabold">{activeSavedBatch.roleTitle}</span> • {isEn ? 'Saved at:' : 'Lưu ngày:'} <span className="text-slate-900 font-extrabold">{new Date(activeSavedBatch.createdAt).toLocaleString()}</span>
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setActiveSavedBatch(null);
+              setResults([]);
+              setJdText('');
+              setJdFileName(null);
+              setSelectedCandidate(null);
+            }}
+            className="px-3.5 py-2 bg-amber-900 hover:bg-amber-950 text-white font-black text-[11px] rounded-lg transition-colors cursor-pointer shrink-0 whitespace-nowrap border border-amber-950/20"
+          >
+            {isEn ? 'Clear Snapshot & Start New' : 'Xóa ảnh chụp & Tạo đợt mới'}
+          </button>
+        </div>
+      )}
+
+      {/* Local Notification Toasts */}
+      {batchNotice && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 text-xs font-black flex items-center gap-2 shadow-xs animate-fade-in">
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{batchNotice}</span>
+        </div>
+      )}
+      {batchError && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4 text-xs font-black flex items-center gap-2 shadow-xs animate-fade-in">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{batchError}</span>
+        </div>
+      )}
 
       {/* Main Form Fields Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1997,7 +2134,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                 <div className="space-y-3.5">
                   {filteredResults.map((candidate, idx) => {
                     const isSelected = selectedCandidate?.filename === candidate.filename;
-                    const rankIdx = validRankedCandidates.findIndex(r => r.filename === candidate.filename);
+                    const rankIdx = activeSavedBatch !== null
+                      ? (candidate.savedRank !== null && candidate.savedRank !== undefined ? candidate.savedRank - 1 : -1)
+                      : validRankedCandidates.findIndex(r => r.filename === candidate.filename);
                     const rankNum = rankIdx !== -1 ? rankIdx + 1 : null;
                     const roleSubtitle = getCandidateRole(candidate);
                     const isError = candidate.success === false || !!candidate.errorMessage;
@@ -2239,41 +2378,46 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         {selectedCandidate.filename}
                       </div>
                     </motion.div>
-                  ) : (
-                    <motion.div
-                      key={`detail-${selectedCandidate.filename}`}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-5 sticky top-6"
-                    >
-                      {/* Detail Card Top Header */}
-                      <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">
-                            {isEn ? 'Candidate Analysis' : 'Phân Tích Chi Tiết Ứng Viên'}
-                          </span>
-                          <h3 className="text-base font-black text-slate-900">
-                            {getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
-                          </h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {onOpenFullAnalysis && selectedCandidate.fullAnalysis && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const modalRankIdx = validRankedCandidates.findIndex(r => r.filename === selectedCandidate.filename);
-                                const inferredTitle = getCandidateDisplayName(selectedCandidate, modalRankIdx !== -1 ? modalRankIdx + 1 : undefined);
-                                const firstLine = jdText.trim().split('\n')[0] || '';
-                                const jdTitle = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
-                                const title = `${jdTitle} - ${inferredTitle}`;
+                  ) : (() => {
+                    const detailRankIdx = activeSavedBatch !== null
+                      ? (selectedCandidate.savedRank !== null && selectedCandidate.savedRank !== undefined ? selectedCandidate.savedRank - 1 : -1)
+                      : validRankedCandidates.findIndex(r => r.filename === selectedCandidate.filename);
+                    const detailRankNum = detailRankIdx !== -1 ? detailRankIdx + 1 : undefined;
 
-                                const validScore =
-                                  typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore)
-                                    ? selectedCandidate.overallScore
-                                    : null;
+                    return (
+                      <motion.div
+                        key={`detail-${selectedCandidate.filename}`}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-5 sticky top-6"
+                      >
+                        {/* Detail Card Top Header */}
+                        <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">
+                              {isEn ? 'Candidate Analysis' : 'Phân Tích Chi Tiết Ứng Viên'}
+                            </span>
+                            <h3 className="text-base font-black text-slate-900">
+                              {getCandidateDisplayName(selectedCandidate, detailRankNum || results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
+                            </h3>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {onOpenFullAnalysis && selectedCandidate.fullAnalysis && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const inferredTitle = getCandidateDisplayName(selectedCandidate, detailRankNum);
+                                  const firstLine = jdText.trim().split('\n')[0] || '';
+                                  const jdTitle = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+                                  const title = `${jdTitle} - ${inferredTitle}`;
 
-                                const item: HistoryItem = {
+                                  const validScore =
+                                    typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore)
+                                      ? selectedCandidate.overallScore
+                                      : null;
+
+                                  const item: HistoryItem = {
                                   id: `batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                                   title,
                                   timestamp: Date.now(),
@@ -2748,7 +2892,8 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       </div>
 
                     </motion.div>
-                  )
+                    );
+                  })()
                 ) : (
                   <div className="bg-slate-50 border border-slate-200 border-dashed rounded-3xl p-8 text-center text-slate-500 text-xs py-20 flex flex-col items-center justify-center space-y-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
@@ -2773,6 +2918,31 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           </div>
 
         </div>
+      )}
+
+      {/* SaveBatchModal */}
+      {isSaveBatchModalOpen && (
+        <SaveBatchModal
+          isOpen={isSaveBatchModalOpen}
+          onClose={() => setIsSaveBatchModalOpen(false)}
+          onSaveSuccess={handleSaveSuccess}
+          jdText={jdText}
+          jdFileName={jdFileName}
+          results={results}
+          isEn={isEn}
+          token={token}
+        />
+      )}
+
+      {/* SavedBatchesModal */}
+      {isSavedBatchesModalOpen && (
+        <SavedBatchesModal
+          isOpen={isSavedBatchesModalOpen}
+          onClose={() => setIsSavedBatchesModalOpen(false)}
+          onRestoreBatch={handleRestoreBatch}
+          isEn={isEn}
+          token={token}
+        />
       )}
     </div>
   );
