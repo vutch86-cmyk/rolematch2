@@ -86,6 +86,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [results, setResults] = useState<CandidateResult[]>([]);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
+  const [expandedMissingSkills, setExpandedMissingSkills] = useState<boolean>(false);
 
   // Sorting and Filtering
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -997,23 +998,27 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         md += `- **Experience Fit**: ${typeof r.experienceScore === 'number' && Number.isFinite(r.experienceScore) ? `${r.experienceScore}%` : '—'}\n`;
         md += `- **Skills Overlap**: ${typeof r.skillScore === 'number' && Number.isFinite(r.skillScore) ? `${r.skillScore}%` : '—'}\n`;
 
-        const biggestStrength = r.fullAnalysis?.feature1?.summary?.biggestStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu');
-        const immediateStrength = r.fullAnalysis?.feature3?.immediateStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu');
-        const biggestDoubt = r.fullAnalysis?.feature3?.biggestDoubt || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu');
-        const fastestPointLossSection = r.fullAnalysis?.feature3?.fastestPointLossSection || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu');
-        const missingList = Array.isArray(r.fullAnalysis?.feature1?.summary?.missingKeywordsSkills)
-          ? r.fullAnalysis.feature1.summary.missingKeywordsSkills.filter((k: any) => typeof k === 'string' && k.trim().length > 0)
-          : [];
+        const biggestStrength = r.fullAnalysis?.feature1?.summary?.biggestStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích');
+        const immediateStrength = r.fullAnalysis?.feature3?.immediateStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích');
+        const biggestDoubt = r.fullAnalysis?.feature3?.biggestDoubt || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích');
+        const fastestPointLossSection = r.fullAnalysis?.feature3?.fastestPointLossSection || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích');
 
         md += `\n##### ${isEn ? 'JD Match Strength' : 'Điểm mạnh phù hợp JD'}:\n  - ${biggestStrength}\n`;
         md += `\n##### ${isEn ? '10s Quick Scan Strength' : 'Điểm mạnh nổi bật khi đọc nhanh'}:\n  - ${immediateStrength}\n`;
         md += `\n##### ${isEn ? 'Main Recruiter Concern' : 'Nghi ngờ chính'}:\n  - ${biggestDoubt}\n`;
         md += `\n##### ${isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm mất điểm'}:\n  - ${fastestPointLossSection}\n`;
         md += `\n##### ${isEn ? 'Unproven JD Requirements' : 'Yêu cầu JD chưa có bằng chứng'}:\n`;
-        if (missingList.length === 0) {
-          md += `  - ${isEn ? 'No missing keywords or requirements detected' : 'Không có từ khóa thiếu'}\n`;
+
+        const rawMissingList = r.fullAnalysis?.feature1?.summary?.missingKeywordsSkills;
+        if (!Array.isArray(rawMissingList)) {
+          md += `  - ${isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}\n`;
         } else {
-          missingList.forEach((m: string) => md += `  - ${m}\n`);
+          const missingList = rawMissingList.filter((k: any) => typeof k === 'string' && k.trim().length > 0);
+          if (missingList.length === 0) {
+            md += `  - ${isEn ? 'No missing JD requirements identified' : 'Không ghi nhận yêu cầu JD còn thiếu'}\n`;
+          } else {
+            missingList.forEach((m: string) => md += `  - ${m}\n`);
+          }
         }
 
         md += `\n##### Recruiter Verdict:\n> ${getDecisionReason(r, isEn)}\n\n---\n\n`;
@@ -1807,36 +1812,64 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           ))}
                         </tr>
                         <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'JD Match Strength' : 'Điểm Mạnh Chính'}</td>
+                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'JD Match Strength' : 'Điểm mạnh phù hợp JD'}</td>
                           {comparedCandidatesList.map(c => (
                             <td key={`td-str-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
-                              {c.fullAnalysis?.feature1?.summary?.biggestStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu')}
+                              {c.fullAnalysis?.feature1?.summary?.biggestStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
                             </td>
                           ))}
                         </tr>
                         <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Needs Verification' : 'Cần Xác Minh'}</td>
+                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? '10s Quick Scan Strength' : 'Điểm mạnh khi đọc nhanh'}</td>
+                          {comparedCandidatesList.map(c => (
+                            <td key={`td-imm-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
+                              {c.fullAnalysis?.feature3?.immediateStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Main Recruiter Concern' : 'Nghi ngờ chính'}</td>
                           {comparedCandidatesList.map(c => (
                             <td key={`td-doubt-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
-                              {c.fullAnalysis?.feature3?.biggestDoubt || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu')}
+                              {c.fullAnalysis?.feature3?.biggestDoubt || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
                             </td>
                           ))}
                         </tr>
                         <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Missing JD Evidence' : 'Thiếu Bằng Chứng JD'}</td>
+                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm mất điểm'}</td>
+                          {comparedCandidatesList.map(c => (
+                            <td key={`td-loss-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
+                              {c.fullAnalysis?.feature3?.fastestPointLossSection || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Unproven JD Requirements' : 'Yêu cầu JD chưa có bằng chứng'}</td>
                           {comparedCandidatesList.map(c => {
-                            const missingList = Array.isArray(c.fullAnalysis?.feature1?.summary?.missingKeywordsSkills)
-                              ? c.fullAnalysis.feature1.summary.missingKeywordsSkills.filter((k: any) => typeof k === 'string' && k.trim().length > 0)
-                              : [];
+                            const rawMissing = c.fullAnalysis?.feature1?.summary?.missingKeywordsSkills;
+                            if (!Array.isArray(rawMissing)) {
+                              return (
+                                <td key={`td-gap-${c.filename}`} className="p-3.5">
+                                  <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
+                                    {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
+                                  </span>
+                                </td>
+                              );
+                            }
+                            const missingList = rawMissing.filter((k: any) => typeof k === 'string' && k.trim().length > 0);
                             return (
                               <td key={`td-gap-${c.filename}`} className="p-3.5">
                                 {missingList.length > 0 ? (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                    {missingList.length} {isEn ? 'items' : 'yêu cầu'}
-                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {missingList.map((tag, i) => (
+                                      <span key={`comp-tag-${i}`} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100/70 text-amber-900 border border-amber-200/80">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
                                 ) : (
                                   <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
-                                    {isEn ? 'No data' : 'Chưa có dữ liệu'}
+                                    {isEn ? 'No missing JD requirements identified' : 'Không ghi nhận yêu cầu JD còn thiếu'}
                                   </span>
                                 )}
                               </td>
@@ -2001,8 +2034,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                     const topStrength = candidate.fullAnalysis?.feature1?.summary?.biggestStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích');
                     const biggestDoubt = candidate.fullAnalysis?.feature3?.biggestDoubt;
                     const hasDoubt = typeof biggestDoubt === 'string' && biggestDoubt.trim().length > 0;
-                    const missingList = Array.isArray(candidate.fullAnalysis?.feature1?.summary?.missingKeywordsSkills)
-                      ? candidate.fullAnalysis.feature1.summary.missingKeywordsSkills.filter((k: any) => typeof k === 'string' && k.trim().length > 0)
+                    const rawMissing = candidate.fullAnalysis?.feature1?.summary?.missingKeywordsSkills;
+                    const isMissingArray = Array.isArray(rawMissing);
+                    const missingList = isMissingArray
+                      ? rawMissing.filter((k: any) => typeof k === 'string' && k.trim().length > 0)
                       : [];
                     const missingCount = missingList.length;
 
@@ -2110,13 +2145,17 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             <span className="text-slate-300">·</span>
                             <div className="flex items-center gap-1">
                               <span className="text-slate-500 font-normal">{isEn ? 'Missing JD Evidence:' : 'Thiếu bằng chứng JD:'}</span>
-                              {missingCount > 0 ? (
-                                <span className="font-bold px-1.5 py-0.5 rounded text-[10px] text-amber-800 bg-amber-50 border border-amber-200">
-                                  {missingCount}
-                                </span>
-                              ) : (
+                              {!isMissingArray ? (
                                 <span className="font-medium px-1.5 py-0.5 rounded text-[10px] text-slate-600 bg-slate-100 border border-slate-200/80">
                                   {isEn ? 'No data' : 'Chưa có dữ liệu'}
+                                </span>
+                              ) : missingCount === 0 ? (
+                                <span className="font-medium px-1.5 py-0.5 rounded text-[10px] text-slate-600 bg-slate-100 border border-slate-200/80">
+                                  {isEn ? 'None identified' : 'Không ghi nhận'}
+                                </span>
+                              ) : (
+                                <span className="font-bold px-1.5 py-0.5 rounded text-[10px] text-amber-800 bg-amber-50 border border-amber-200">
+                                  {missingCount}
                                 </span>
                               )}
                             </div>
@@ -2379,104 +2418,69 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       <div className="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-4 shadow-2xs">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                           <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80">
-                            {isEn ? 'C. Key Strengths & Critical Gaps' : 'C. Điểm Mạnh & Điểm Hạn Chế'}
+                            {isEn ? 'C. JD Match Evidence & Gaps' : 'C. Độ phù hợp JD & Khoảng trống'}
                           </span>
                         </div>
 
-                        {/* Key Strengths Group */}
                         <div className="space-y-3">
-                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <CheckCircle className="w-4 h-4 text-emerald-500" />
-                            {isEn ? 'Key Strengths' : 'Điểm mạnh'}
-                          </h4>
-
-                          <div className="space-y-2 pl-1">
-                            {/* 1. Điểm mạnh phù hợp JD */}
-                            <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-500/15 space-y-1">
-                              <span className="text-[11px] font-extrabold text-emerald-900 uppercase tracking-wider block">
-                                {isEn ? 'JD Match Strength:' : 'Điểm mạnh phù hợp JD'}
-                              </span>
-                              <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                                {selectedCandidate.fullAnalysis?.feature1?.summary?.biggestStrength || (
-                                  <span className="italic text-slate-400">{isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}</span>
-                                )}
-                              </p>
-                            </div>
-
-                            {/* 2. Điểm mạnh nổi bật khi đọc nhanh */}
-                            <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-500/15 space-y-1">
-                              <span className="text-[11px] font-extrabold text-emerald-900 uppercase tracking-wider block">
-                                {isEn ? '10s Quick Scan Strength:' : 'Điểm mạnh nổi bật khi đọc nhanh'}
-                              </span>
-                              <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                                {selectedCandidate.fullAnalysis?.feature3?.immediateStrength || (
-                                  <span className="italic text-slate-400">{isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}</span>
-                                )}
-                              </p>
-                            </div>
+                          {/* 1. Điểm mạnh phù hợp JD */}
+                          <div className="bg-emerald-50/40 p-3 rounded-xl border border-emerald-500/15 space-y-1">
+                            <span className="text-[11px] font-extrabold text-emerald-900 uppercase tracking-wider block">
+                              {isEn ? 'JD Match Strength' : 'Điểm mạnh phù hợp JD'}
+                            </span>
+                            <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                              {selectedCandidate.fullAnalysis?.feature1?.summary?.biggestStrength || (
+                                <span className="italic text-slate-400">{isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}</span>
+                              )}
+                            </p>
                           </div>
-                        </div>
 
-                        {/* Critical Gaps Group */}
-                        <div className="space-y-3 pt-3 border-t border-slate-100/80">
-                          <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                            {isEn ? 'Critical Gaps & Areas to Verify' : 'Điểm hạn chế & Cần xác minh'}
-                          </h4>
-
-                          <div className="space-y-2 pl-1">
-                            {/* 1. Nghi ngờ chính */}
-                            <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-500/15 space-y-1">
-                              <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider block">
-                                {isEn ? 'Main Recruiter Concern:' : 'Nghi ngờ chính'}
-                              </span>
-                              <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                                {selectedCandidate.fullAnalysis?.feature3?.biggestDoubt || (
-                                  <span className="italic text-slate-400">{isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}</span>
-                                )}
-                              </p>
-                            </div>
-
-                            {/* 2. Yếu tố làm mất điểm */}
-                            <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-500/15 space-y-1">
-                              <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider block">
-                                {isEn ? 'Fastest Point Loss Factor:' : 'Yếu tố làm mất điểm'}
-                              </span>
-                              <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                                {selectedCandidate.fullAnalysis?.feature3?.fastestPointLossSection || (
-                                  <span className="italic text-slate-400">{isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}</span>
-                                )}
-                              </p>
-                            </div>
-
-                            {/* 3. Yêu cầu JD chưa có bằng chứng */}
-                            <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-500/15 space-y-1.5">
-                              <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider block">
-                                {isEn ? 'Unproven JD Requirements:' : 'Yêu cầu JD chưa có bằng chứng'}
-                              </span>
-                              {(() => {
-                                const missingList = Array.isArray(selectedCandidate.fullAnalysis?.feature1?.summary?.missingKeywordsSkills)
-                                  ? selectedCandidate.fullAnalysis.feature1.summary.missingKeywordsSkills.filter((k: any) => typeof k === 'string' && k.trim().length > 0)
-                                  : [];
-                                if (missingList.length === 0) {
-                                  return (
-                                    <p className="text-xs text-slate-500 italic p-2 bg-slate-100/80 rounded-lg border border-slate-200/80">
-                                      {isEn ? 'No missing keywords or requirements detected' : 'Không có từ khóa thiếu'}
-                                    </p>
-                                  );
-                                }
+                          {/* 2. Yêu cầu JD chưa có bằng chứng */}
+                          <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-500/15 space-y-2">
+                            <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider block">
+                              {isEn ? 'Unproven JD Requirements' : 'Yêu cầu JD chưa có bằng chứng'}
+                            </span>
+                            {(() => {
+                              const rawMissing = selectedCandidate.fullAnalysis?.feature1?.summary?.missingKeywordsSkills;
+                              if (!Array.isArray(rawMissing)) {
                                 return (
-                                  <ul className="space-y-1.5 pl-1">
-                                    {missingList.map((item: string, i: number) => (
-                                      <li key={`missing-${i}`} className="text-xs text-slate-700 leading-relaxed flex items-start gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
-                                        <span>{item}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
+                                  <p className="text-xs text-slate-400 italic">
+                                    {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
+                                  </p>
                                 );
-                              })()}
-                            </div>
+                              }
+                              const missingList = rawMissing.filter((k: any) => typeof k === 'string' && k.trim().length > 0);
+                              if (missingList.length === 0) {
+                                return (
+                                  <p className="text-xs text-slate-500 italic">
+                                    {isEn ? 'No missing JD requirements identified' : 'Không ghi nhận yêu cầu JD còn thiếu'}
+                                  </p>
+                                );
+                              }
+                              const visibleList = expandedMissingSkills ? missingList : missingList.slice(0, 8);
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {visibleList.map((item: string, i: number) => (
+                                      <span key={`missing-tag-${i}`} className="px-2.5 py-1 bg-amber-100/70 border border-amber-200/80 text-amber-900 text-[11px] font-semibold rounded-lg">
+                                        {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  {missingList.length > 8 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedMissingSkills(!expandedMissingSkills)}
+                                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 underline transition-colors cursor-pointer"
+                                    >
+                                      {expandedMissingSkills
+                                        ? (isEn ? 'Show less' : 'Thu gọn')
+                                        : (isEn ? `Show ${missingList.length - 8} more` : `Xem thêm ${missingList.length - 8} yêu cầu`)}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -2497,7 +2501,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               <div className="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100/80 space-y-1.5 flex flex-col justify-between">
                                 <div className="flex items-center gap-1.5 text-xs font-black text-indigo-950">
                                   <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                  <span>{isEn ? '10-Second First Impression' : 'Ấn tượng trong 10 giây'}</span>
+                                  <span>{isEn ? '10-Second First Impression' : 'Ấn tượng 10s đầu tiên'}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
                                   "{quickScanData.firstImpression10s}"
@@ -2508,7 +2512,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100/80 space-y-1.5 flex flex-col justify-between">
                                 <div className="flex items-center gap-1.5 text-xs font-black text-emerald-950">
                                   <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                  <span>{isEn ? 'Immediate Strength' : 'Điểm mạnh nổi bật'}</span>
+                                  <span>{isEn ? '10s Quick Scan Strength' : 'Điểm mạnh nổi bật khi đọc nhanh'}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
                                   "{quickScanData.immediateStrength}"
@@ -2519,7 +2523,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               <div className="bg-amber-50/50 rounded-xl p-3 border border-amber-100/80 space-y-1.5 flex flex-col justify-between">
                                 <div className="flex items-center gap-1.5 text-xs font-black text-amber-950">
                                   <AlertOctagon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                  <span>{isEn ? 'Biggest Doubt' : 'Điểm cần xác minh'}</span>
+                                  <span>{isEn ? 'Main Recruiter Concern' : 'Nghi ngờ chính'}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
                                   "{quickScanData.biggestDoubt}"
@@ -2530,7 +2534,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               <div className="bg-rose-50/50 rounded-xl p-3 border border-rose-100/80 space-y-1.5 flex flex-col justify-between">
                                 <div className="flex items-center gap-1.5 text-xs font-black text-rose-950">
                                   <TrendingDown className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                                  <span>{isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm giảm điểm'}</span>
+                                  <span>{isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm mất điểm'}</span>
                                 </div>
                                 <p className="text-[11px] text-slate-700 leading-relaxed font-medium">
                                   "{quickScanData.fastestPointLossSection}"

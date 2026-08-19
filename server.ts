@@ -2871,52 +2871,17 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           else matchLevel = 'Low';
         }
 
-        // Collect topStrengths strictly from actual analysis data
-        const strengthsList: string[] = [];
-        if (typeof finalResult.feature1?.summary?.biggestStrength === 'string' && finalResult.feature1.summary.biggestStrength.trim()) {
-          strengthsList.push(finalResult.feature1.summary.biggestStrength.trim());
-        }
-        if (typeof finalResult.feature3?.immediateStrength === 'string' && finalResult.feature3.immediateStrength.trim()) {
-          const val = finalResult.feature3.immediateStrength.trim();
-          if (!strengthsList.includes(val)) {
-            strengthsList.push(val);
-          }
-        }
-        if (Array.isArray(finalResult.topStrengths)) {
-          for (const item of finalResult.topStrengths) {
-            if (typeof item === 'string' && item.trim() && !strengthsList.includes(item.trim())) {
-              strengthsList.push(item.trim());
-            }
-          }
-        }
-        const topStrengths = strengthsList;
+        // topStrengths strictly from feature1.summary.biggestStrength
+        const topStrengths: string[] = (typeof finalResult.feature1?.summary?.biggestStrength === 'string' && finalResult.feature1.summary.biggestStrength.trim())
+          ? [finalResult.feature1.summary.biggestStrength.trim()]
+          : [];
 
-        // Collect keyGaps strictly from actual analysis data
-        const gapsList: string[] = [];
-        if (typeof finalResult.feature3?.biggestDoubt === 'string' && finalResult.feature3.biggestDoubt.trim()) {
-          gapsList.push(finalResult.feature3.biggestDoubt.trim());
-        }
-        if (typeof finalResult.feature3?.fastestPointLossSection === 'string' && finalResult.feature3.fastestPointLossSection.trim()) {
-          const val = finalResult.feature3.fastestPointLossSection.trim();
-          if (!gapsList.includes(val)) {
-            gapsList.push(val);
-          }
-        }
-        if (Array.isArray(finalResult.feature1?.summary?.missingKeywordsSkills)) {
-          for (const item of finalResult.feature1.summary.missingKeywordsSkills) {
-            if (typeof item === 'string' && item.trim() && !gapsList.includes(item.trim())) {
-              gapsList.push(item.trim());
-            }
-          }
-        }
-        if (Array.isArray(finalResult.keyGaps)) {
-          for (const item of finalResult.keyGaps) {
-            if (typeof item === 'string' && item.trim() && !gapsList.includes(item.trim())) {
-              gapsList.push(item.trim());
-            }
-          }
-        }
-        const keyGaps = gapsList;
+        // keyGaps strictly from feature1.summary.missingKeywordsSkills
+        const keyGaps: string[] = Array.isArray(finalResult.feature1?.summary?.missingKeywordsSkills)
+          ? finalResult.feature1.summary.missingKeywordsSkills
+              .filter((item: any): item is string => typeof item === 'string' && item.trim().length > 0)
+              .map((item: string) => item.trim())
+          : [];
 
         // shortRecommendation strictly from real data
         const shortRecommendation = (typeof finalResult.feature3?.firstImpression10s === 'string' && finalResult.feature3.firstImpression10s.trim())

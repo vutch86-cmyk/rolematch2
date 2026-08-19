@@ -75,6 +75,20 @@ import {
 import { Language } from '../utils/i18n';
 import { fetchAllLogs, clearAllLogs } from '../utils/logger';
 
+function getRecordMissingSkills(record: AnalysisRecordItem): { skills: string[]; isLegacy: boolean } {
+  const fullAnalysisMissing = record.fullAnalysis?.feature1?.summary?.missingKeywordsSkills;
+  if (Array.isArray(fullAnalysisMissing)) {
+    const valid = fullAnalysisMissing.filter((k): k is string => typeof k === 'string' && k.trim().length > 0);
+    return { skills: valid, isLegacy: false };
+  }
+  // Fallback to record.missingSkills for legacy records
+  if (Array.isArray(record.missingSkills)) {
+    const valid = record.missingSkills.filter((k): k is string => typeof k === 'string' && k.trim().length > 0);
+    return { skills: valid, isLegacy: true };
+  }
+  return { skills: [], isLegacy: false };
+}
+
 interface AdminDashboardModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -743,7 +757,11 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         a.recruiterDecision,
         `"${a.engineUsed}"`,
         a.durationMs,
-        `"${(a.missingSkills || []).join('; ').replace(/"/g, '""')}"`,
+        (() => {
+          const { skills, isLegacy } = getRecordMissingSkills(a);
+          const formatted = skills.join('; ') + (isLegacy && skills.length > 0 ? ' (Legacy data)' : '');
+          return `"${formatted.replace(/"/g, '""')}"`;
+        })(),
       ]);
       const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
       const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -2459,21 +2477,39 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       : 'Top missing skills highlighted across all analyzed candidate CVs:'}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {Array.from(new Set(analyses.flatMap((a) => a.missingSkills || [])))
-                      .slice(0, 10)
-                      .map((skill, idx) => (
+                    {(() => {
+                      const skillCounts: Record<string, { count: number; isLegacy: boolean }> = {};
+                      for (const a of analyses) {
+                        const { skills, isLegacy } = getRecordMissingSkills(a);
+                        for (const skill of skills) {
+                          if (!skillCounts[skill]) {
+                            skillCounts[skill] = { count: 0, isLegacy };
+                          }
+                          skillCounts[skill].count += 1;
+                        }
+                      }
+                      const sortedGaps = Object.entries(skillCounts)
+                        .sort((a, b) => b[1].count - a[1].count)
+                        .slice(0, 10);
+
+                      if (sortedGaps.length === 0) {
+                        return (
+                          <span className="text-xs text-slate-500 italic">
+                            {lang === 'vi' ? 'Chưa ghi nhận từ khóa thiếu hụt nào.' : 'No skills gap recorded yet.'}
+                          </span>
+                        );
+                      }
+
+                      return sortedGaps.map(([skill, info], idx) => (
                         <span
                           key={`gap-sk-${idx}-${skill}`}
                           className="px-2.5 py-1 bg-purple-900/40 border border-purple-500/30 text-purple-200 rounded-xl text-[11px] font-semibold flex items-center gap-1"
                         >
                           <AlertTriangle className="w-3 h-3 text-amber-400" /> {skill}
+                          {info.isLegacy && <span className="text-[9px] text-amber-400/80 italic font-normal ml-0.5">(Legacy data)</span>}
                         </span>
-                      ))}
-                    {analyses.flatMap((a) => a.missingSkills || []).length === 0 && (
-                      <span className="text-xs text-slate-500 italic">
-                        {lang === 'vi' ? 'Chưa ghi nhận từ khóa thiếu hụt nào.' : 'No skills gap recorded yet.'}
-                      </span>
-                    )}
+                      ));
+                    })()}
                   </div>
                 </div>
 
@@ -2629,11 +2665,14 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                     ✓ {str}
                                   </span>
                                 ))}
-                                {item.missingSkills?.map((sk, mIdx) => (
-                                  <span key={`missing-${mIdx}-${sk}`} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] rounded-lg">
-                                    ✗ Thiếu {sk}
-                                  </span>
-                                ))}
+                                {(() => {
+                                  const { skills: itemSkills, isLegacy: itemLegacy } = getRecordMissingSkills(item);
+                                  return itemSkills.map((sk, mIdx) => (
+                                    <span key={`missing-${mIdx}-${sk}`} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] rounded-lg">
+                                      ✗ Thiếu {sk} {itemLegacy ? '(Legacy data)' : ''}
+                                    </span>
+                                  ));
+                                })()}
                               </div>
                             </div>
                           </div>
