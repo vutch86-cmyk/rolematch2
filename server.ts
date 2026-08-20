@@ -1018,6 +1018,22 @@ export interface CreateAnalysisRecordParams {
   errorMessage?: string;
 }
 
+export function getFirestoreDb() {
+  return db;
+}
+
+export function setFirestoreDb(newDb: any) {
+  db = newDb;
+}
+
+export function getAnalysisRecords(): AnalysisRecordItem[] {
+  return analysisRecords;
+}
+
+export function clearAnalysisRecordsForTesting() {
+  analysisRecords.length = 0;
+}
+
 export async function createAnalysisRecord(
   params: CreateAnalysisRecordParams
 ): Promise<{ success: boolean; recordId: string; error?: string; item?: AnalysisRecordItem }> {
@@ -1064,14 +1080,25 @@ export async function createAnalysisRecord(
     createdAt: timestamp,
   };
 
-  try {
-    // 1. Primary Firestore persistence (AWAITED and SANITIZED)
-    if (db) {
-      const sanitizedDoc = removeUndefinedDeep(item);
-      await setDoc(doc(db, 'analysis_records', recordId), sanitizedDoc);
-    }
+  // 1. Fail closed when Firestore is unavailable
+  if (!db) {
+    console.error(
+      `[Analysis Log Error] Failed to persist analysis record: requestId=${params.requestId}, file=${cvFile}, error=FIRESTORE_UNAVAILABLE`
+    );
+    return {
+      success: false,
+      recordId,
+      error: 'FIRESTORE_UNAVAILABLE',
+      item,
+    };
+  }
 
-    // 2. In-memory update with idempotency check
+  try {
+    // 2. Primary Firestore persistence (AWAITED and SANITIZED)
+    const sanitizedDoc = removeUndefinedDeep(item);
+    await setDoc(doc(db, 'analysis_records', recordId), sanitizedDoc);
+
+    // 3. Only after setDoc succeeds: update in-memory cache and local file cache
     const existingIndex = analysisRecords.findIndex((r) => r.id === recordId);
     if (existingIndex >= 0) {
       analysisRecords[existingIndex] = item;
@@ -1090,7 +1117,6 @@ export async function createAnalysisRecord(
       }
     }
 
-    // 3. Safe local filesystem cache write
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -1107,7 +1133,7 @@ export async function createAnalysisRecord(
     console.error(
       `[Analysis Log Error] Failed to persist analysis record: requestId=${params.requestId}, file=${cvFile}, error=${sanitizedErrMsg}`
     );
-    // Rollback in-memory cache if it was tentatively updated
+    // Ensure memory cache does not retain the failed record
     const failedIndex = analysisRecords.findIndex((r) => r.id === recordId);
     if (failedIndex >= 0) {
       analysisRecords.splice(failedIndex, 1);
@@ -1119,10 +1145,10 @@ export async function createAnalysisRecord(
 // Async helper for recording analysis record
 export async function recordAnalysisRecord(
   rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'> & { id?: string; timestamp?: string }
-): Promise<AnalysisRecordItem> {
+): Promise<{ success: boolean; recordId: string; error?: string; item?: AnalysisRecordItem }> {
   const requestId = rec.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const status = rec.status || (typeof rec.overallScore === 'number' && Number.isFinite(rec.overallScore) ? 'COMPLETED' : (rec.errorMessage ? 'FAILED' : 'NO_SCORE'));
-  const res = await createAnalysisRecord({
+  return await createAnalysisRecord({
     ...rec,
     source: rec.source || 'candidate',
     status,
@@ -1136,27 +1162,6 @@ export async function recordAnalysisRecord(
     cvTextLength: rec.cvTextLength || 0,
     jdTextLength: rec.jdTextLength || 0,
   });
-  return res.item || {
-    ...rec,
-    id: res.recordId,
-    recordId: res.recordId,
-    requestId,
-    timestamp: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-    source: rec.source || 'candidate',
-    status: rec.status || (rec.overallScore !== null ? 'COMPLETED' : 'NO_SCORE'),
-    matchLevel: rec.matchLevel || 'NOT_AVAILABLE',
-    topStrengths: Array.isArray(rec.topStrengths) ? rec.topStrengths : [],
-    missingSkills: Array.isArray(rec.missingSkills) ? rec.missingSkills : [],
-    engineUsed: rec.engineUsed || 'Gemini 2.0 Flash',
-    durationMs: rec.durationMs || 0,
-    cvTextLength: rec.cvTextLength || 0,
-    jdTextLength: rec.jdTextLength || 0,
-    userEmail: rec.userEmail || `${rec.actorUsername || 'user_guest'}@system.local`,
-    actorUsername: rec.actorUsername || 'user_guest',
-    candidateName: rec.candidateName || 'Candidate',
-    jobTitle: rec.jobTitle || 'Vị trí tuyển dụng',
-  };
 }
 
 // Helper to deeply remove undefined properties from objects/arrays before Firestore writes
@@ -2263,39 +2268,44 @@ app.get('/api/admin/analyses', async (req, res) => {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
   }
 
-  if (db) {
-    try {
-      const colRef = collection(db, 'analysis_records');
-      const snapshot = await getDocs(colRef);
-      const fetched: AnalysisRecordItem[] = [];
-      snapshot.forEach((docSnap) => {
-        fetched.push(docSnap.data() as AnalysisRecordItem);
-      });
-
-      // Sort descending by timestamp / createdAt
-      fetched.sort((a, b) => {
-        const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
-        const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
-        return timeB - timeA;
-      });
-
-      // Sync in-memory cache
-      analysisRecords.length = 0;
-      analysisRecords.push(...fetched);
-
-      return res.json({ success: true, analyses: fetched });
-    } catch (err: any) {
-      const rawErrMsg = err?.message || String(err);
-      const sanitized = rawErrMsg.replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
-      console.error('[Admin Analyses API Error] Failed to read from Firestore:', sanitized);
-      return res.status(503).json({
-        success: false,
-        error: 'Dịch vụ lưu trữ nhật ký phân tích (Firestore) tạm thời không khả dụng. Vui lòng thử lại sau.'
-      });
-    }
+  if (!db) {
+    return res.status(503).json({
+      success: false,
+      code: 'FIRESTORE_UNAVAILABLE',
+      error: 'Analysis log storage is temporarily unavailable.'
+    });
   }
 
-  return res.json({ success: true, analyses: analysisRecords });
+  try {
+    const colRef = collection(db, 'analysis_records');
+    const snapshot = await getDocs(colRef);
+    const fetched: AnalysisRecordItem[] = [];
+    snapshot.forEach((docSnap) => {
+      fetched.push(docSnap.data() as AnalysisRecordItem);
+    });
+
+    // Sort descending by timestamp / createdAt
+    fetched.sort((a, b) => {
+      const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+      const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    // Sync in-memory cache
+    analysisRecords.length = 0;
+    analysisRecords.push(...fetched);
+
+    return res.json({ success: true, analyses: fetched });
+  } catch (err: any) {
+    const rawErrMsg = err?.message || String(err);
+    const sanitized = rawErrMsg.replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+    console.error('[Admin Analyses API Error] Failed to read from Firestore:', sanitized);
+    return res.status(503).json({
+      success: false,
+      code: 'FIRESTORE_UNAVAILABLE',
+      error: 'Analysis log storage is temporarily unavailable.'
+    });
+  }
 });
 
 // 7h. Admin: Delete Single Analysis Record
@@ -5889,4 +5899,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VITEST) {
+  startServer();
+}

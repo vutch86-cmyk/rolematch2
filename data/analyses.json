@@ -1,0 +1,31 @@
+[
+  {
+    "id": "anl_req_cand_regression_005_0pgr8",
+    "recordId": "anl_req_cand_regression_005_0pgr8",
+    "requestId": "req_cand_regression_005",
+    "source": "candidate",
+    "candidateName": "Applicant One",
+    "fileName": "ApplicantCV.pdf",
+    "cvFileName": "ApplicantCV.pdf",
+    "jobTitle": "Fullstack Engineer - Applicant One",
+    "actorUsername": "applicant",
+    "createdBy": "applicant",
+    "userEmail": "applicant@example.com",
+    "status": "COMPLETED",
+    "overallScore": 90,
+    "keywordScore": 92,
+    "experienceScore": 88,
+    "skillsScore": 90,
+    "matchLevel": "XUAT_SAC",
+    "topStrengths": [
+      "Fullstack leadership"
+    ],
+    "missingSkills": [],
+    "engineUsed": "Gemini 2.0 Flash Sequential Pipeline",
+    "durationMs": 35000,
+    "cvTextLength": 1800,
+    "jdTextLength": 1100,
+    "timestamp": "2026-08-20T06:17:19.264Z",
+    "createdAt": "2026-08-20T06:17:19.264Z"
+  }
+]
