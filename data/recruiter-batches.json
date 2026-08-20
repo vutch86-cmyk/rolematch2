@@ -1,0 +1,1366 @@
+[
+  {
+    "rankedCount": 1,
+    "status": "READY",
+    "noScoreCount": 0,
+    "roleTitle": "Senior DevOps Engineer",
+    "batchName": "R3.0 Persistence Test 2026-08-20",
+    "updatedAt": "2026-08-20T04:38:15.658Z",
+    "createdBy": {
+      "userId": "usr_mt10uucy93gh",
+      "fullName": "System Test",
+      "username": "system-test"
+    },
+    "candidateCount": 1,
+    "jdText": "Vị trí: Senior DevOps Engineer\nYêu cầu:\n- 5 năm kinh nghiệm DevOps hoặc Cloud Infrastructure.\n- Thành thạo AWS, Docker, Kubernetes và Terraform.\n- Kinh nghiệm xây dựng CI/CD với GitHub Actions.\n- Có khả năng giám sát hệ thống bằng Prometheus và Grafana.\n- Hiểu biết về bảo mật cloud, IAM và Zero Trust.\n- Có kinh nghiệm xử lý sự cố production và tối ưu độ ổn định hệ thống.",
+    "createdAt": "2026-08-20T04:38:15.086Z",
+    "id": "batch_021eca01-d2ba-47cb-8ecb-5a1f47687023",
+    "failedCount": 0,
+    "candidates": [
+      {
+        "experienceScore": 60,
+        "fullAnalysis": {
+          "candidateName": "Nguyen Test",
+          "outputLanguage": "vi",
+          "feature3": {
+            "fastestPointLossSection": "Kinh nghiệm làm việc được viết quá sơ sài, thiếu hoàn toàn quy mô hệ thống và các chỉ số đo lường thành tích.",
+            "biggestDoubt": "Liệu ứng viên có thực sự làm chủ kiến trúc hạ tầng lớn hay chỉ làm các tác vụ vận hành cơ bản?",
+            "firstImpression10s": "CV ngắn gọn, đúng tech stack nhưng thiếu chiều sâu, chưa thể hiện được năng lực giải quyết các bài toán hạ tầng phức tạp.",
+            "immediateStrength": "Trùng khớp 100% về danh mục công nghệ cốt lõi (AWS, K8s, Terraform, GitHub Actions, Prometheus, Grafana).",
+            "inviteDecision": "MAYBE",
+            "decisionReason": "Ứng viên có nền tảng kỹ thuật tốt và đúng số năm kinh nghiệm, nhưng cách trình bày CV quá sơ sài, thiếu các chỉ số định lượng và bằng chứng về tư duy Senior.",
+            "top3MustFix": [
+              "Bổ sung quy mô hạ tầng cụ thể cho các dự án đã làm (số lượng node, microservices).",
+              "Đưa thêm các chỉ số SLA, Uptime, MTTR để chứng minh tác động thực tế.",
+              "Làm rõ kinh nghiệm bảo mật và phương pháp tối ưu tính sẵn sàng của hệ thống."
+            ]
+          },
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "reasonBetter": "Sử dụng động từ mạnh, nêu rõ mục tiêu về tính sẵn sàng và tối ưu hóa hạ tầng.",
+                "originalBullet": "6 năm vận hành hạ tầng Linux và AWS.",
+                "isLackingInfo": false,
+                "issueInOriginal": "Chung chung, thiếu thông tin về quy mô và kết quả.",
+                "rewrittenBullet": "Vận hành và tối ưu hạ tầng đám mây AWS trên nền tảng Linux trong 6 năm, đảm bảo tính sẵn sàng cao và tối ưu hóa chi phí vận hành."
+              },
+              {
+                "originalBullet": "Triển khai Docker, Kubernetes và Terraform cho nhiều môi trường.",
+                "isLackingInfo": false,
+                "issueInOriginal": "Thiếu thông tin về quy mô môi trường và mức độ tự động hóa.",
+                "reasonBetter": "Làm rõ vai trò tự động hóa IaC và giá trị mang lại cho hệ thống.",
+                "rewrittenBullet": "Tự động hóa triển khai hạ tầng đa môi trường bằng Terraform (IaC) và container hóa ứng dụng với Docker/Kubernetes, tăng tính đồng nhất và giảm thiểu lỗi cấu hình thủ công."
+              },
+              {
+                "reasonBetter": "Bổ sung thuật ngữ chuyên môn và khẳng định năng lực thiết kế hệ thống.",
+                "isLackingInfo": false,
+                "originalBullet": "Xây dựng CI/CD bằng GitHub Actions, giảm thời gian triển khai 40%.",
+                "rewrittenBullet": "Thiết kế và chuẩn hóa pipeline CI/CD tự động bằng GitHub Actions, rút ngắn 40% thời gian triển khai (deployment lead time) và đảm bảo quy trình release an toàn.",
+                "issueInOriginal": "Đã có số liệu tốt nhưng cần làm rõ tính tự động hóa."
+              },
+              {
+                "reasonBetter": "Nhấn mạnh vào khả năng giám sát chủ động và cải thiện thời gian phản hồi.",
+                "originalBullet": "Thiết lập Prometheus và Grafana để giám sát dịch vụ.",
+                "issueInOriginal": "Mới dừng ở mức cài đặt công cụ.",
+                "isLackingInfo": false,
+                "rewrittenBullet": "Xây dựng hệ thống giám sát và cảnh báo tập trung qua Prometheus và Grafana, chủ động phát hiện bất thường hệ thống và nâng cao khả năng phản ứng sự cố."
+              },
+              {
+                "rewrittenBullet": "Thắt chặt bảo mật đám mây thông qua quản lý phân quyền IAM theo nguyên tắc Least Privilege, định hướng mô hình Zero Trust nhằm ngăn ngừa rủi ro truy cập trái phép.",
+                "issueInOriginal": "Chưa kết nối với yêu cầu bảo mật Cloud và Zero Trust.",
+                "isLackingInfo": false,
+                "reasonBetter": "Tích hợp định hướng Zero Trust từ JD và làm nổi bật mục tiêu bảo mật.",
+                "originalBullet": "Quản lý IAM và áp dụng nguyên tắc least privilege."
+              },
+              {
+                "rewrittenBullet": "Tham gia trực On-call 24/7, nhanh chóng khắc phục các sự cố production nghiêm trọng và thực hiện post-mortem nhằm nâng cao độ ổn định hạ tầng lâu dài.",
+                "issueInOriginal": "Mang tính bị động, chưa thể hiện năng lực Senior.",
+                "isLackingInfo": false,
+                "reasonBetter": "Thể hiện tư duy Senior thông qua việc phân tích nguyên nhân gốc rễ để duy trì độ ổn định.",
+                "originalBullet": "Tham gia trực 24/7 và xử lý sự cố production."
+              }
+            ],
+            "clarifyingQuestions": [
+              "Quy mô hạ tầng AWS/Kubernetes bạn từng vận hành là bao nhiêu (số node, số microservices, lượng traffic)?",
+              "Việc thiết lập Prometheus/Grafana đã giúp cải thiện SLA hoặc giảm MTTR như thế nào?",
+              "Bạn đã áp dụng mô hình bảo mật nào ngoài IAM (ví dụ: Zero Trust, Network Policies, Secret Management)?"
+            ]
+          },
+          "feature1": {
+            "comparisonTable": [
+              {
+                "jdTerm": "5 năm kinh nghiệm DevOps hoặc Cloud Infrastructure",
+                "cvEvidence": "6 năm vận hành hạ tầng Linux và AWS.",
+                "matchStatus": "khop",
+                "gapOrClarification": "Đáp ứng về số năm, nhưng thiếu thông tin về quy mô hạ tầng (số lượng server, nodes, chi phí cloud).",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "jdTerm": "Thành thạo AWS, Docker, Kubernetes và Terraform",
+                "gapOrClarification": "Thiếu thông tin về kiến trúc triển khai, quy mô cụm K8s hoặc mức độ tự động hóa IaC.",
+                "importance": "Rất quan trọng",
+                "matchStatus": "can_bo_sung",
+                "cvEvidence": "Triển khai Docker, Kubernetes và Terraform cho nhiều môi trường."
+              },
+              {
+                "cvEvidence": "Xây dựng CI/CD bằng GitHub Actions, giảm thời gian triển khai 40%.",
+                "matchStatus": "khop",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Đã có số liệu định lượng tốt, cần bổ sung thêm về tần suất release hoặc độ phức tạp của pipeline.",
+                "jdTerm": "Kinh nghiệm xây dựng CI/CD với GitHub Actions"
+              },
+              {
+                "cvEvidence": "Thiết lập Prometheus và Grafana để giám sát dịch vụ.",
+                "gapOrClarification": "Chưa nêu rõ đã thiết lập hệ thống cảnh báo (alerting) hay giám sát các chỉ số SLA/SLO nào.",
+                "importance": "Quan trọng",
+                "jdTerm": "Có khả năng giám sát hệ thống bằng Prometheus và Grafana",
+                "matchStatus": "can_bo_sung"
+              },
+              {
+                "jdTerm": "Hiểu biết về bảo mật cloud, IAM và Zero Trust",
+                "gapOrClarification": "Thiếu kinh nghiệm thực tế về mô hình Zero Trust hoặc các biện pháp bảo mật CI/CD.",
+                "cvEvidence": "Quản lý IAM và áp dụng nguyên tắc least privilege.",
+                "importance": "Quan trọng",
+                "matchStatus": "can_bo_sung"
+              },
+              {
+                "jdTerm": "Có kinh nghiệm xử lý sự cố production và tối ưu độ ổn định hệ thống",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Thiếu các chỉ số đo lường hiệu quả như MTTR, Uptime (99.9x%) hoặc quy trình post-mortem.",
+                "matchStatus": "can_bo_sung",
+                "cvEvidence": "Tham gia trực 24/7 và xử lý sự cố production."
+              }
+            ],
+            "scores": {
+              "skillMatchScore": 75,
+              "keywordMatchScore": 80,
+              "experienceOutcomeScore": 60,
+              "overallRoleScore": 72
+            },
+            "jdKeywords": [
+              {
+                "keyword": "AWS, Docker, Kubernetes, Terraform",
+                "category": "Công cụ, phần mềm hoặc phương pháp",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "category": "Kinh nghiệm mong muốn",
+                "keyword": "5 năm kinh nghiệm DevOps hoặc Cloud Infrastructure",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "category": "Kỹ năng chuyên môn",
+                "importance": "Rất quan trọng",
+                "keyword": "Xây dựng CI/CD với GitHub Actions"
+              },
+              {
+                "importance": "Quan trọng",
+                "keyword": "Giám sát hệ thống bằng Prometheus và Grafana",
+                "category": "Công cụ, phần mềm hoặc phương pháp"
+              },
+              {
+                "keyword": "Bảo mật cloud, IAM và Zero Trust",
+                "importance": "Quan trọng",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "keyword": "Xử lý sự cố production và tối ưu độ ổn định hệ thống",
+                "importance": "Rất quan trọng",
+                "category": "Kết quả đầu ra hoặc kỳ vọng công việc"
+              }
+            ],
+            "summary": {
+              "biggestStrength": "Kinh nghiệm thâm niên (6 năm) cùng bộ công cụ kỹ thuật cốt lõi (AWS, K8s, Terraform, GitHub Actions) khớp hoàn toàn với yêu cầu của JD.",
+              "missingKeywordsSkills": [
+                "Zero Trust",
+                "SLA/SLO/MTTR",
+                "Quy mô hạ tầng (High Availability)"
+              ],
+              "weakOrVagueSections": [
+                "Các bullet point mang tính liệt kê, thiếu kết quả định lượng và quy mô dự án.",
+                "Thiếu minh chứng cho tư duy Senior trong việc tối ưu hóa và bảo mật hệ thống."
+              ],
+              "immediateActions": [
+                "Bổ sung số liệu về quy mô hạ tầng (số lượng nodes, microservices).",
+                "Thêm các chỉ số đo lường hiệu quả (MTTR, Uptime, % tiết kiệm chi phí).",
+                "Làm rõ kinh nghiệm áp dụng Zero Trust và các biện pháp bảo mật nâng cao.",
+                "Tối ưu hóa bullet point theo công thức: Hành động + Công cụ + Kết quả định lượng."
+              ]
+            }
+          }
+        },
+        "keywordScore": 80,
+        "id": "cand_95e02ac1-8ea7-4aff-ac4b-b43eb45e5a69",
+        "skillScore": 75,
+        "processingStatus": "COMPLETED",
+        "overallScore": 72,
+        "filename": "r3-test-candidate.txt",
+        "success": true,
+        "rank": 1,
+        "topStrengths": [
+          "Kinh nghiệm thâm niên (6 năm) cùng bộ công cụ kỹ thuật cốt lõi (AWS, K8s, Terraform, GitHub Actions) khớp hoàn toàn với yêu cầu của JD."
+        ],
+        "candidateName": "Nguyen Test",
+        "matchLevel": "High",
+        "keyGaps": [
+          "Zero Trust",
+          "SLA/SLO/MTTR",
+          "Quy mô hạ tầng (High Availability)"
+        ],
+        "cvText": "Ứng viên: Nguyen Test Vị trí hiện tại: DevOps Engineer\n\n## KINH NGHIỆM\n\n- 6 năm vận hành hạ tầng Linux và AWS.\n- Triển khai Docker, Kubernetes và Terraform cho nhiều môi trường.\n- Xây dựng CI/CD bằng GitHub Actions, giảm thời gian triển khai 40%.\n- Thiết lập Prometheus và Grafana để giám sát dịch vụ.\n- Quản lý IAM và áp dụng nguyên tắc least privilege.\n- Tham gia trực 24/7 và xử lý sự cố production.\n\nKỹ năng: AWS, Docker, Kubernetes, Terraform, GitHub Actions, Linux, Prometheus, Grafana.",
+        "shortRecommendation": "CV ngắn gọn, đúng tech stack nhưng thiếu chiều sâu, chưa thể hiện được năng lực giải quyết các bài toán hạ tầng phức tạp."
+      }
+    ]
+  },
+  {
+    "createdBy": {
+      "fullName": "user2",
+      "userId": "usr_mspvgb7w8z6e",
+      "username": "user2"
+    },
+    "jdText": "About the job\n\nService Management Leadership: Lead and manage the ITIL service management processes, including Incident Management, Problem Management, Change Management, Service Request Management, Configuration Management, and Service Level Management.\n\nITSM/tooling Functional Support: Be a liaison with the tooling support team/developers as it relates to configurations in ITIL processes.\n\nProcess Improvement: Continuously evaluate and improve ITIL processes to enhance service delivery, efficiency, and customer satisfaction.\n\nStakeholder Engagement: Collaborate with business stakeholders, IT teams, and external vendors to ensure alignment of IT services with business objectives. Maintain and develop customer relationship.\n\nMonitoring: Monitor and report on key performance indicators (KPIs) and service level agreements (SLAs) to ensure compliance and identify areas for improvement. Prepare and present governance meeting (Operational, Steering committees)\n\nIncident and Problem Management: Lead the resolution of major incidents and problems, ensuring root cause analysis and preventive measures are implemented.\n\nChange Management: Manage the change management process and CAB to ensure changes are implemented smoothly and with minimal disruption to services.\n\nDocumentation and CMDB: Maintain comprehensive documentation of ITIL processes, procedures, and ITSM configurations.\n\nAmbassador for Accenture: Share Accenture success experience & legacy, Relay the local & regional messages & strategy, Ease the inter-site communication/cross cultural aspects\n\nMust have\n\nService management experience with at least 2+ years in a dedicated management or team lead capacity.\n\n2 years managing service contract in IT infrastructure\n\nKnowledge in IT Infrastructure Production environment\n\nFluency in written and spoken English language is a must\n\nGood presentation & communication skills\n\nAutomation mindset\n\nMarket/IT Industry understanding\n\nNice to have\n\nBSc/MSc in Computer Science & Engineering or in business administration\n\nCloud fundamentals, Experienced in Cloud based environment like GCP, AWS, Azure, AliCloud, etc is a plus\n\nITIL V3 or V4 Foundation\n\nInterpersonal skills proficiency\n\nGood Leadership and management competencies\n\nAble to work flexible hours, including weekends by the needs of the business\n\nAble to work overtime, as needed",
+    "candidateCount": 5,
+    "id": "batch_9c76a446-abb7-43eb-9a17-6fd6f1e0942f",
+    "status": "READY",
+    "createdAt": "2026-08-20T01:46:47.263Z",
+    "noScoreCount": 0,
+    "rankedCount": 5,
+    "jdFileName": "JD-Service Management Lead.docx",
+    "failedCount": 0,
+    "roleTitle": "Service Management Lead",
+    "batchName": "Tuyển IT Lead đợt 2",
+    "updatedAt": "2026-08-20T01:46:49.587Z",
+    "candidates": [
+      {
+        "cvText": "## HUYNH HUU HIEN\n\nLinkedIn: https://www.linkedin.com/in/hien-huynh-b7295642/ Date of birth: 22nd Jan 1982.\nEmail: hienhuynh1982@gmail.com | Mobile: 090 77 11 070 Location: Le Van Luong, District 7, Ho Chi Minh City\n\n## EXECUTIVE SUMMARY\n\nVisionary CIO/IT Director with 20+ years of proven success driving digital transformation, cloud adoption, and cybersecurity across financial services, retail, and technology in Viet Nam. Expert at aligning IT with business strategy, delivering multi-million-dollar cost savings, and leading high-performance teams.\n\n## EDUCATION & CERTIFICATIONS\n\nBachelor of Science in Physics – University of Natural Science, Ho Chi Minh City.\nEPGP Certificate of Data Science and AI – Internation Institute of Information Technology Bangalore.\nMSc. Data Science (Ongoing) – Liverpool John Moore University (2024-2026) Other Certifications:\no \tCIO Coaching Program o \tCTO Leadership Foundation o \tAWS Certified Architect o \tProject Management Fundamentals\n\n## CORE COMPETENCIES\n\n- Strategic Leadership & Business Alignment: Digital transformation (CRM, E-Office,\nworkflow automation), business partnership (BPO), product development (eWallet, SmartPOS, SmartSME,..)\n- Vendor & Stakeholder Management: Negotiations, contract optimization, partner\nalignment\n- Technology Strategy & Innovation: Aligning IT strategy with business objectives,\ndriving cost efficiencies, and introducing emerging technologies.\n- Cost Management & Optimization: Successfully managed IT budgets exceeding $3.5M\nand delivered over $250K in cost savings.\n\n-- 1 of 4 --\n\n## TECHNICAL EXPERTISE\n\n- Cloud & Infrastructure: AWS, Azure, Google Cloud, VMware, Virtualization, Multi-\ncloud environments, Network, Systems,..\n- Cybersecurity & Compliance: PCI DSS, ISO 27001, Risk Management, IT Security\nGovernance\n- IT Operations: ITIL, CAPEX & OPEX Management, Vendor Negotiation, IT Budgeting.\n- Data Strategy & AI: Machine Learning, Deep Learning, LLMs, Agentic AI, Business\nAnalysis (Tableau, PowerBI, Excel,..)\n\n## PROFESSIONAL EXPERIENCE\n\nDirector of Digital Infrastructure and Security – SmartNet JSC. (10/2020 – Present) Key Achievements:\n- Led the digital transformation of company including but not limited to: CRM, E-Office,\nWorkflow automation implementation.\n- Key member of Product BRD team who define requirements for all company apps\n(SmartPay Ewallet, SmartShop, SmartPOS, SmartSME, PaymentGateway).\n- Delivered a 20% cost reduction by renegotiating vendor contracts and leveraging $250K\nin cloud credits from AWS, Microsoft and Google.\n- Spearheaded the successful PCI DSS Level 1 certification, ensuring industry-leading\nsecurity standards across payment systems.\n- Implemented ITIL-based Service Desk operations with clear SLAs, improving service\ndelivery and reducing incident resolution time by 25%.\n- Managed an annual IT budget of $3.5M, aligning technology investments with business\nstrategy and ensuring efficient resource allocation.\n- Directed the development of KPIs for IT teams, enhancing performance evaluation and\naccountability.\n- Manage IT team including IT Security, SysOPS, CardOPS, Network, Database and\nSupport teams.\nHead of BPO and IT – SGH Asia Ltd. (12/2016 – 10/2020) Key Achievements:\n- Optimized BPO and IT by driving digital transformation projects, resulting in increased\noperational efficiency and cost control.\n- Managed IT and BPO services for European markets, overseeing teams responsible for IT\nDevelopment outsourcing, infrastructure, network security, and service delivery.\n- Successfully \tled \tmultiple \tprojects \tincluding \tISO \t27001 \tcertification \tand \tERP\nimplementation, \ttracking \ttools, \tand \tOCR \tautomation, \tdriving \tsignificant \tprocess improvements and reducing manual workload by 20%.\n\n-- 2 of 4 --\n\n- Achieved an annual budget target of $600K while maintaining productivity and quality\nstandards.\n- Continuously communicate with Managers in Germany and Vietnam to suggest and search\nfor possible improvements.\n- Set up strategy, policy, procedures, position description and working process of the entire\nBPO & IT Departments to have a systematic and streamline organization.\nIT Security Manager – Big C Vietnam (08/2013 – 12/2016) Key Achievements:\n- Developed and enforced IT security policies in compliance with ISO 27001:2013,\nenhancing the company’s overall cybersecurity posture.\n- Led security initiatives for critical business systems (SAP HR & FI, ERP, Firewalls),\nminimizing \tvulnerabilities \tand \tmitigating \trisk \tthrough \tcontinuous \tmonitoring \tand assessments.\n- Project-managed security solutions for 44 stores and two data centers, ensuring robust and\nscalable IT operations.\n- Responsible for all IT Security aspects.\nIT Security Officer – Home Credit (07/2012 – 08/2013) Key Achievements:\n- Developed and enforced IT security policies in compliance with ISO 27001:2013,\nenhancing the company’s overall cybersecurity posture.\n- Read and mapping the company policies with governance policies such as Circulars of\nSBV\n- Plan to review, scan vulnerability for network, system to mitigate risk. Do risk assessment\nfor new system.\n- Training Information Security Awareness for all employees\nSenior IT Expert – Sacombank-SBS (07/2009 – 07/2012) Key Achievements:\n- Responsible to manage all company systems.\n- Research, develop and implement new solutions based on Open Souces.\n- Finish important projects: Front Office Online Trading, Commvault backup system,\nBack office FSS, Replace Securities Trading Core.\n- Also worked as IT Security governance.\nSystem Administration Leader – Habubank Securities HBBS (10/2007 – 07/2009) Key Achievements:\n- Responsible to manage all systems and networks at HCM branch.\n- Responsible to manage IT team’s resource and performance at HCM branch\n- Finish important projects:\no \tInstall the tele-broker system and call center project. With this project, we can save phone money between HBBS Office and branches.\no \tSuccess in configuring HOSE Gateway projects. With this project, our system can send requests to HOSE system directly, faster without a Telebroker man.\n\n-- 3 of 4 --\n\nSystem Administration - Silicon Design Solutions SDS (10/2004 – 10/2009 Key Achievements:\n- Setup new networks and systems at Dallas, Da Nang\n- Research, develop and implement new software to save cost for company:\n- Manage and control network, firewall, VPN between SDS branches (California - Dallas -\nHCM - Da Nang - Da Lat), machines, servers, softwares, licenses ...\n- Good at fixing network and system problems.\n\n## RECOGNITION & THOUGTH LEADERSHIP\n\n- Speaker \tat \tCIO \tSummit \t2025 \tabout \tActive \tDefense \tin \tAI \tera\nhttps://events.ciovn.org/CIOSummit2025#/speakers?lang=en\n- Speaker \tat \tCyberSec \tVietNam \tConference \t2025:\nhttps://cybersecasia.org/csvn2025#rec1229219281\n- Speaker \tat \tCIO \tVietnam \t2023 \ton \tMulti-Cloud \tAdoption \tand \tBest \tPractices:\nhttps://nextleader.ciovn.org/multi-cloud-adoption-challenges-best-practices/\n- Guest speaker at EcloudValley 2023 : https://www.ecloudvalley.com/en/p/ecvolution-\nvietnam-2023#Register-Form\n- Host \tto \tdiscuss \tabout \tInfrastructure \tRansomware \tProtection:\nhttps://www.linkedin.com/posts/ciocoaching_ciovietnam-ciocoaching- hcuptabrgicvlngabrlaetnhabrafncupoabrcntt-activity-7180113382853816320- efIG?utm_source=share&utm_medium=member_desktop\n\n-- 4 of 4 --",
+        "shortRecommendation": "Hồ sơ cấp cao (Director level) với bề dày kinh nghiệm chuyển đổi số, tuy nhiên cần kiểm tra sự phù hợp với vai trò vận hành (Service Management).",
+        "keyGaps": [
+          "Chứng chỉ ITIL V3/V4",
+          "Kinh nghiệm vận hành CAB (Change Advisory Board)",
+          "Chi tiết về quản lý hợp đồng dịch vụ hạ tầng (2 năm)"
+        ],
+        "topStrengths": [
+          "Bề dày kinh nghiệm lãnh đạo cấp cao (CIO/Director) và khả năng chuyển đổi số thực tế với số liệu chứng minh rõ ràng."
+        ],
+        "skillScore": 85,
+        "rank": 1,
+        "processingStatus": "COMPLETED",
+        "candidateName": "HUYNH HUU HIEN",
+        "success": true,
+        "experienceScore": 75,
+        "id": "cand_db7cb675-625f-4357-9acb-010c559edaa3",
+        "matchLevel": "High",
+        "fullAnalysis": {
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "isLackingInfo": false,
+                "originalBullet": "Implemented ITIL-based Service Desk operations with clear SLAs, improving service delivery and reducing incident resolution time by 25%.",
+                "rewrittenBullet": "Led end-to-end ITIL service management implementation (Incident, Problem, Change) using ITSM tools, establishing SLA/KPI frameworks that improved service delivery and reduced incident resolution time by 25%.",
+                "reasonBetter": "Bổ sung các quy trình ITIL cụ thể và nhấn mạnh vai trò lãnh đạo quy trình thay vì chỉ là Service Desk.",
+                "issueInOriginal": "Thiếu thông tin về công cụ và phạm vi quy trình ITIL ngoài Service Desk."
+              },
+              {
+                "reasonBetter": "Kết nối trực tiếp thành tích với yêu cầu '2 years managing service contract in IT infrastructure' của JD.",
+                "rewrittenBullet": "Managed IT infrastructure service contracts for 2+ years, achieving 20% cost reduction through strategic vendor negotiation and cloud credit optimization (AWS, Azure, GCP).",
+                "originalBullet": "Delivered a 20% cost reduction by renegotiating vendor contracts and leveraging $250K in cloud credits from AWS, Microsoft and Google.",
+                "issueInOriginal": "Chưa làm rõ kinh nghiệm quản lý hợp đồng hạ tầng theo yêu cầu JD.",
+                "isLackingInfo": false
+              }
+            ],
+            "clarifyingQuestions": [
+              "Bạn đã từng trực tiếp chủ trì các phiên họp CAB (Change Advisory Board) với tần suất như thế nào?",
+              "Trong 2 năm qua, bạn đã quản lý các hợp đồng dịch vụ hạ tầng (Managed Services) với quy mô ngân sách hoặc số lượng vendor ra sao?",
+              "Bạn có kinh nghiệm thực tế với các công cụ ITSM cụ thể nào (ví dụ: ServiceNow, Jira Service Management, BMC Helix)?"
+            ]
+          },
+          "feature1": {
+            "comparisonTable": [
+              {
+                "matchStatus": "khop",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Cần làm rõ quy mô đội ngũ quản lý ITIL và các quy trình cụ thể (Problem/Change Management) ngoài Service Desk.",
+                "cvEvidence": "Implemented ITIL-based Service Desk operations",
+                "jdTerm": "ITIL Service Management"
+              },
+              {
+                "gapOrClarification": "Cần làm rõ kinh nghiệm quản lý hợp đồng dịch vụ hạ tầng cụ thể trong 2 năm.",
+                "jdTerm": "Service contract management",
+                "importance": "Rất quan trọng",
+                "matchStatus": "can_bo_sung",
+                "cvEvidence": "Delivered a 20% cost reduction by renegotiating vendor contracts"
+              },
+              {
+                "matchStatus": "khop",
+                "cvEvidence": "Workflow automation implementation",
+                "importance": "Quan trọng",
+                "gapOrClarification": "Đã có bằng chứng tốt, cần nhấn mạnh thêm vào automation trong vận hành ITIL.",
+                "jdTerm": "Automation mindset"
+              },
+              {
+                "cvEvidence": "None",
+                "importance": "Nice to have",
+                "gapOrClarification": "Ứng viên chưa liệt kê chứng chỉ ITIL cụ thể.",
+                "matchStatus": "thieu",
+                "jdTerm": "ITIL V3/V4 Foundation"
+              }
+            ],
+            "scores": {
+              "overallRoleScore": 80,
+              "experienceOutcomeScore": 75,
+              "skillMatchScore": 85,
+              "keywordMatchScore": 80
+            },
+            "jdKeywords": [
+              {
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn",
+                "keyword": "ITIL Service Management"
+              },
+              {
+                "keyword": "Incident/Problem/Change Management",
+                "category": "Kỹ năng chuyên môn",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "keyword": "IT Infrastructure Production",
+                "category": "Kinh nghiệm mong muốn"
+              },
+              {
+                "category": "Kinh nghiệm mong muốn",
+                "keyword": "Service contract management",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "importance": "Quan trọng",
+                "category": "Phẩm chất hoặc cách làm việc",
+                "keyword": "Automation mindset"
+              },
+              {
+                "keyword": "Service Level Management (SLA/KPI)",
+                "category": "Kết quả đầu ra hoặc kỳ vọng công việc",
+                "importance": "Quan trọng"
+              }
+            ],
+            "summary": {
+              "missingKeywordsSkills": [
+                "Chứng chỉ ITIL V3/V4",
+                "Kinh nghiệm vận hành CAB (Change Advisory Board)",
+                "Chi tiết về quản lý hợp đồng dịch vụ hạ tầng (2 năm)"
+              ],
+              "immediateActions": [
+                "Bổ sung bullet point về kinh nghiệm quản lý hợp đồng dịch vụ hạ tầng (2 năm).",
+                "Nhấn mạnh kinh nghiệm vận hành CAB (Change Advisory Board) trong phần kinh nghiệm.",
+                "Điều chỉnh tiêu đề chuyên môn để sát hơn với vai trò Service Management Lead.",
+                "Thêm thông tin về khả năng làm việc linh hoạt/ngoài giờ nếu có."
+              ],
+              "biggestStrength": "Bề dày kinh nghiệm lãnh đạo cấp cao (CIO/Director) và khả năng chuyển đổi số thực tế với số liệu chứng minh rõ ràng.",
+              "weakOrVagueSections": [
+                "Phần mô tả kinh nghiệm thiên về quản lý dự án và chuyển đổi số hơn là vận hành dịch vụ ITIL chuyên sâu.",
+                "Thiếu thông tin về quản lý các quy trình ITIL phức tạp (Problem/Change Management)."
+              ]
+            }
+          },
+          "feature3": {
+            "top3MustFix": [
+              "Nhấn mạnh kinh nghiệm vận hành ITIL (Incident, Problem, Change Management) thay vì chỉ tập trung vào dự án.",
+              "Làm rõ kinh nghiệm quản lý hợp đồng dịch vụ hạ tầng (Service contract management).",
+              "Điều chỉnh mục tiêu nghề nghiệp để thể hiện sự sẵn sàng cho vai trò Service Management."
+            ],
+            "biggestDoubt": "Liệu ứng viên có quá 'cao cấp' so với vị trí Service Management Lead này không, và liệu họ có đủ kiên nhẫn với các công việc vận hành chi tiết (hands-on) hay không.",
+            "decisionReason": "Ứng viên có nền tảng lãnh đạo rất mạnh, tư duy chiến lược tốt và đã chứng minh được khả năng tối ưu hóa chi phí/vận hành bằng số liệu cụ thể.",
+            "inviteDecision": "YES",
+            "immediateStrength": "Khả năng quản lý ngân sách lớn ($3.5M) và thành tích chuyển đổi số thực tế.",
+            "firstImpression10s": "Hồ sơ cấp cao (Director level) với bề dày kinh nghiệm chuyển đổi số, tuy nhiên cần kiểm tra sự phù hợp với vai trò vận hành (Service Management).",
+            "fastestPointLossSection": "Phần Professional Experience tập trung nhiều vào 'Digital Transformation' và 'Project Management' hơn là 'ITIL Service Management' chuyên sâu."
+          },
+          "candidateName": "HUYNH HUU HIEN"
+        },
+        "filename": "Huynh Huu Hien.pdf",
+        "keywordScore": 80,
+        "overallScore": 80
+      },
+      {
+        "keywordScore": 80,
+        "overallScore": 80,
+        "skillScore": 85,
+        "processingStatus": "COMPLETED",
+        "id": "cand_c265b0b3-0832-410f-97ed-62af8ab20bdf",
+        "keyGaps": [
+          "Governance meeting leadership",
+          "Specific service contract management metrics",
+          "ITIL V4 certification status"
+        ],
+        "fullAnalysis": {
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "originalBullet": "Led and managed daily IT support operations across Vietnam, Thailand, Philippines, and Indonesia for business users (500+ users).",
+                "reasonBetter": "Kết hợp hành động, quy mô, công cụ và kết quả định lượng.",
+                "isLackingInfo": false,
+                "issueInOriginal": "Thiếu kết quả cụ thể và sự liên kết với quy trình ITIL.",
+                "rewrittenBullet": "Led regional IT operations for 500+ users across 4 countries, optimizing ITIL-based incident and service request workflows to maintain 99.9% service availability."
+              },
+              {
+                "issueInOriginal": "Chưa nêu rõ kinh nghiệm quản lý hợp đồng dịch vụ (service contract) theo yêu cầu JD.",
+                "rewrittenBullet": "Managed local IT budget and infrastructure service contracts, ensuring vendor compliance with SLAs and reporting performance metrics to regional leadership.",
+                "originalBullet": "Managed IT budget, assets, and policies at the local site, reporting directly to the VN CEO and Head of Infrastructure globally.",
+                "reasonBetter": "Tập trung vào quản lý hợp đồng và báo cáo quản trị theo yêu cầu JD.",
+                "isLackingInfo": false
+              }
+            ],
+            "clarifyingQuestions": [
+              "Bạn đã từng chủ trì các cuộc họp Steering Committee hoặc Operational Governance với cấp lãnh đạo chưa?",
+              "Bạn quản lý bao nhiêu hợp đồng dịch vụ hạ tầng (IT infrastructure contracts) và giá trị ước tính là bao nhiêu?",
+              "Bạn đã có chứng chỉ ITIL 4 Foundation chính thức chưa hay mới chỉ hoàn thành khóa học?"
+            ]
+          },
+          "feature1": {
+            "comparisonTable": [
+              {
+                "gapOrClarification": "Đã có kinh nghiệm triển khai, cần làm rõ thêm về vai trò lãnh đạo quy trình trong các tổ chức lớn.",
+                "cvEvidence": "Architected and deployed a centralized Jira Service Management portal based on ITIL.",
+                "importance": "Rất quan trọng",
+                "matchStatus": "khop",
+                "jdTerm": "ITIL Service Management Leadership"
+              },
+              {
+                "cvEvidence": "Managed IT budget, assets, and policies... Worked closely with local vendor/provider.",
+                "matchStatus": "can_bo_sung",
+                "importance": "Rất quan trọng",
+                "jdTerm": "Service contract management",
+                "gapOrClarification": "Chưa nêu rõ kinh nghiệm quản lý hợp đồng dịch vụ hạ tầng cụ thể (SLA/KPIs với vendor)."
+              },
+              {
+                "gapOrClarification": "Thiếu bằng chứng về việc chủ trì các cuộc họp Steering Committee hoặc Operational Governance.",
+                "jdTerm": "Governance meeting presentation",
+                "matchStatus": "thieu",
+                "importance": "Quan trọng",
+                "cvEvidence": "Reporting directly to the VN CEO and Head of Infrastructure globally."
+              }
+            ],
+            "scores": {
+              "experienceOutcomeScore": 75,
+              "overallRoleScore": 80,
+              "skillMatchScore": 85,
+              "keywordMatchScore": 80
+            },
+            "summary": {
+              "biggestStrength": "Kinh nghiệm dày dặn (15+ năm) trong vận hành hạ tầng và triển khai ITSM thực tế tại các môi trường quy mô lớn.",
+              "missingKeywordsSkills": [
+                "Governance meeting leadership",
+                "Specific service contract management metrics",
+                "ITIL V4 certification status"
+              ],
+              "immediateActions": [
+                "Bổ sung số liệu cụ thể về quản lý hợp đồng dịch vụ (giá trị hợp đồng, số lượng vendor).",
+                "Viết rõ hơn về vai trò trong các cuộc họp quản trị (Governance meetings).",
+                "Nhấn mạnh kỹ năng giao tiếp và làm việc với các bên liên quan (Stakeholders).",
+                "Đưa chứng chỉ ITIL 4 Foundation lên vị trí nổi bật nếu đã thi đỗ.",
+                "Điều chỉnh bullet points để làm rõ vai trò lãnh đạo thay vì chỉ liệt kê công việc."
+              ],
+              "weakOrVagueSections": [
+                "Phần kinh nghiệm quản lý hợp đồng dịch vụ (Service contract) còn mờ nhạt.",
+                "Chưa làm nổi bật kỹ năng trình bày/giao tiếp trong các cuộc họp cấp cao (Steering committees)."
+              ]
+            },
+            "jdKeywords": [
+              {
+                "category": "Kỹ năng chuyên môn",
+                "importance": "Rất quan trọng",
+                "keyword": "ITIL Service Management"
+              },
+              {
+                "keyword": "Incident/Problem/Change Management",
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "category": "Kinh nghiệm mong muốn",
+                "importance": "Rất quan trọng",
+                "keyword": "IT Infrastructure Production"
+              },
+              {
+                "category": "Kinh nghiệm mong muốn",
+                "keyword": "Service Contract Management",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "category": "Kỹ năng lãnh đạo",
+                "importance": "Quan trọng",
+                "keyword": "Governance/Steering Committee"
+              },
+              {
+                "keyword": "Stakeholder Engagement",
+                "category": "Phẩm chất hoặc cách làm việc",
+                "importance": "Quan trọng"
+              },
+              {
+                "category": "Công cụ, phần mềm hoặc phương pháp",
+                "importance": "Có lợi thế",
+                "keyword": "Cloud (AWS/Azure/GCP)"
+              }
+            ]
+          },
+          "candidateName": "TA CONG HUY VU",
+          "feature3": {
+            "biggestDoubt": "Khả năng quản lý hợp đồng dịch vụ (Service Contract) và kinh nghiệm trình bày trong các cuộc họp cấp cao (Governance/Steering Committee).",
+            "firstImpression10s": "Ứng viên dày dạn kinh nghiệm, có tư duy hệ thống và khả năng quản lý đa quốc gia tốt.",
+            "fastestPointLossSection": "Phần mô tả công việc tại các vị trí cũ còn tập trung nhiều vào kỹ thuật (System Admin) hơn là quản trị dịch vụ (Service Management).",
+            "top3MustFix": [
+              "Làm rõ kinh nghiệm quản lý hợp đồng dịch vụ (Service Contract).",
+              "Nhấn mạnh vai trò trong các cuộc họp quản trị (Governance/Steering Committees).",
+              "Đưa các chứng chỉ ITIL lên vị trí dễ thấy hơn."
+            ],
+            "immediateStrength": "Kinh nghiệm triển khai ITSM/Jira Service Management và khả năng quản lý hạ tầng quy mô lớn.",
+            "inviteDecision": "YES",
+            "decisionReason": "Ứng viên có bề dày kinh nghiệm thực tế, hiểu biết sâu về hạ tầng và đã từng triển khai ITSM thành công, rất phù hợp với yêu cầu của Accenture."
+          }
+        },
+        "cvText": "## TA CONG HUY VU\n\nIT Manager | Infrastructure & Service Delivery Leader Address: Tran Trong Cung, Tan Thuan Ward, Ho Chi Minh City Phone: 0985134993 Email: vu.taconghuy@gmail.com LinkedIn: https://www.linkedin.com/in/ta-vu-95595729\n\n## SUMMARY\n\nIT Operation and Service Delivery leader with 15+ years of experience designing, operating, and modernizing enterprise infrastructure across multi-site environments.\nProven ability to manage distributed IT teams in Southeast Asia and support business operations for environments serving 500+ users. Strong background in enterprise networking, and infrastructure operations with focus on reliability, security, and scalability.\n\n## CORE COMPETENCIES\n\nManagement and Strategy: IT Strategy, Budgeting (OPEX/CAPEX), ITSM/ITIL v4, Regional Team Leadership, Vendor Management, Project Management.\nCloud & Infrastructure: AWS, Azure, On-premise, hybrid cloud, VMware/Hyper-V, network, system.\nCybersecurity & Compliance: Zero Trust, IAM, DLP, EDR, ISO 27001, Risk Management.\nIT Operations: ITIL Framework, SLA Management, Incident Management, Business Continuity (BCP/DR), Google Workspace, Microsoft 365.\nAdditional Technical Areas:\n- GenAI tools, Workflow Automation, CI/CD basic.\n- Support & Ticketing Tools: Jira Platforms (Admin): Jira software, Service\nmanagement and Confluence, Zendesk, Slack.\n- CCTV and access control, monitoring system (PRTG, Zabbix, Grafana).\n\n## EDUCATION & CERTIFICATE\n\nBachelor of Information Technology - University of Technology, Ho Chi Minh City.\nCertifications: Google AI Professional (2026), AWS Certified Solutions Architect (2021), MCSA, CCNA (2013), IBM Certified Specialist (2013), Juniper JNCIA/CIS (2011).\nCourses: Agentic AI Framework, GenAI Mastermind , Google Workspace Admin, ITIL 4 Foundation, DevOps Foundation, CEH, CCNP.\n\n-- 1 of 4 --\n\n## AWARDS\n\nCashwagon Company: Recognized as \"Manager of the Year 2018\" for outstanding performance in managing IT infrastructure during a period of hyper-growth.\nIndigo JSC: Recognized as \"Employee of the Quarter\" (Q1 2012).\n\n## WORK EXPERIENCE\n\nDeliveree Ltd | Logistics Tech (06/2022 - 06/2026) Regional IT Manager (VN, TH, PH, ID) Key achievements:\n- Cloud VoIP Transformation: Migrated VoIP system from on-premise to AWS Cloud\nacross 4 SEA countries, improving VoIP SLA/quality, and cutting estimated monthly operational costs by 5-10%.\n- Zero Trust Implementation (PoC): Piloted a 30-user Zero Trust PoC with Secure Web\nGateway to evaluate legacy VPN replacement, enforcing centralized identity management and zero-trust access control.\n- ITSM Implementation: Architected and deployed a centralized Jira Service Management\nportal based on ITIL. Automated cross-functional workflows across 6 departments (HR, Data, Product, Engineering, Devops, IT), streamlining ticket routing and accelerating SLA resolution times.\n- Spearheaded regional data governance migration to Google Shared Drives, enforcing\ngranular access controls and ensuring data readiness and security.\n- Leveraged vibe coding and AI tools to build a centralized SaaS Access Management\napplication, mitigating security risks and streamlining user offboarding.\nMain duties:\n- Led and managed daily IT support operations across Vietnam, Thailand, Philippines, and\nIndonesia for business users (500+ users).\n- Oversew and optimized network infrastructure, enhancing system reliability and regional\nconnectivity.\n- Implemented ITSM processes, enhancing incident and change management efficiency.\n- Developed and enforced local IT policies, collaborating with HR to optimize onboarding\nand offboarding process.\n- Provisioned, monitored, and de-provisioned user identities across the company's SaaS\nplatform, optimizing license utilization and lifecycle management.\n- Led and coached the IT Support Engineers in the region, fostering a high-performance\nteam through quarterly training session, boosting service-oriented mindset.\n\n-- 2 of 4 --\n\nThe Splash Ltd | IT Outsourcing & Services (11/2021 - 04/2022) IT System & Support Manager\n- Managed two teams (System and Support), overseeing both corporate and client cloud\ninfrastructure across Azure, AWS, and Office 365.\n- Partnered with Project Managers and Engineering teams to design client cloud solutions\nand ensured ticket resolution in strict adherence to ITIL standards.\n- Oversaw website deployment across multiple CMS platforms (Drupal, Sitefinity),\nreporting directly to the CTO.\nCashwagon VietNam | Fintech (07/2017 - 03/2021) IT Manager Key achievements:\n- Joined as the 2nd employee in the Vietnam office and built IT infrastructure from\nscratch, scaling operations from 0 to 250 users during a hyper-growth phase — recognized as \"Manager of the Year 2018\" for this contribution.\nMain duties:\n- Supervised day-to-day IT operations, providing end-to-end IT support to end-users across\nthe local site.\n- Provided technical direction and training for team members, building internal IT\ncapability from the ground up.\n- Managed local IT infrastructure and core systems in Vietnam (Active Directory, Microsoft\n365, Wi-Fi System, Firewalls, CRM, VoIP, office networking...)\n- Managed IT budget, assets, and policies at the local site, reporting directly to the VN\nCEO and Head of Infrastructure globally.\n- Worked closely with local vendor/provider & IT global to deliver IT projects.\n\n-- 3 of 4 --\n\nLien A Co., Ltd | Manufacturing (03/2015 - 04/2017) Senior System Administrator\n- Led the migration to Microsoft Exchange 2016 and managed core services including\nActive Directory and MS Dynamics 2012 (ERP), intranet workspace\n- Designed and deployed robust network infrastructure utilizing MPLS, Cisco VPN, and\ngranular internet policies to ensure secure, stable connectivity.\n- Managed and controlled network, firewall, VPN site to site between the plan and the\nmain office.\n- Established 100% data integrity via daily backup operations and proactive monitoring\n(PRTG/Zabbix) while providing Level 2 support for 200+ users.\nIndigo JSC | IT Solution Provider (12/2011 - 02/2015) Network Engineer\n- Architected and deployed enterprise-grade network infrastructures (Cisco, Allied Telesis)\nfor external clients, ensuring high performance and security alignment.\n- Managed the dedicated technical support and maintenance period for enterprise clients\nfollowing project delivery, ensuring complex network stability and consistent adherence to rigorous Service Level Agreements.\n- Deployed and configured key enterprise client solutions: networking (L2/L3/MPLS), open\nsource firewall, VPN, IPTV, CCTV, HRIS,...\n- Recognized as \"Employee of the Quarter\" (Q1 2012) for leading successful large-scale\nhardware staging and site migration projects.\nTabViet JSC | IT Solution Provider (03/2011 - 11/2011) System Engineer\n- Conducted client surveys and consulted on IT solutions, delivering technical proposals\nand presentations to support the sales process.\n- Participated in project implementation and post-deployment activities, including\ntechnical documentation and customer training.\n- Deployed and configured key enterprise client solutions: Mail system, Network Access\nControl (NAC), and wireless network, firewall, IDS/IPS… Vietnam Gold Business | Finance Service (03/2009 - 08/2010) IT Support\n- Provided end-user IT support and maintained core infrastructure services, including\nActive Directory, File Server, DHCP, and DNS.\n- Managed IT asset lifecycle, server room operations, OS/antivirus patching, and vendor\nrelations for hardware warranty and procurement.\n- Worked with local vendor for IT equipment warranty and repairs.\n\n-- 4 of 4 --",
+        "rank": 2,
+        "candidateName": "TA CONG HUY VU",
+        "experienceScore": 75,
+        "shortRecommendation": "Ứng viên dày dạn kinh nghiệm, có tư duy hệ thống và khả năng quản lý đa quốc gia tốt.",
+        "matchLevel": "High",
+        "topStrengths": [
+          "Kinh nghiệm dày dặn (15+ năm) trong vận hành hạ tầng và triển khai ITSM thực tế tại các môi trường quy mô lớn."
+        ],
+        "success": true,
+        "filename": "Ta Cong Huy Vu_Resume.pdf"
+      },
+      {
+        "keyGaps": [
+          "Configuration Management (CMDB)",
+          "Automation tools (IaC, Scripting)",
+          "Service Contract Management details"
+        ],
+        "matchLevel": "High",
+        "processingStatus": "COMPLETED",
+        "id": "cand_9516d394-7f20-49ce-ab1f-691d7adc383f",
+        "rank": 3,
+        "topStrengths": [
+          "Bề dày kinh nghiệm 18+ năm trong quản lý hạ tầng quy mô lớn (2500+ users) với các chỉ số thành tựu ấn tượng (99% SLA, 100% ISO compliance)."
+        ],
+        "keywordScore": 70,
+        "skillScore": 75,
+        "experienceScore": 90,
+        "shortRecommendation": "Ứng viên cấp cao, nhiều kinh nghiệm, nhưng CV trình bày thiếu chuyên nghiệp và cần làm rõ các kỹ năng ITIL thực tế.",
+        "overallScore": 78,
+        "success": true,
+        "candidateName": "Trung Nguyen",
+        "cvText": "## EDUCATION\n\nUpdate your work experience\n\n## SKILL\n\nCore skills Azure 10+ years Change Management 10+ years Cisco 10+ years CompTIA Network+ 10+ years Cybersecurity 10+ years Governance, Risk & Compliance 10+ years Incident Response 10+ years\n\n## ISO 27001\n\n10+ years\n\n## ISO 9001\n\n10+ years macOS 10+ years Risk Assessment / BCP 10+ years Risk planning 10+ years Strategy planning 10+ years Team Management 10+ years Windows 10+ years Windows Server 10+ years\n\n## FOREIGN LANGUAGE\n\nEnglish Fluent Vietnamese Fluent IT Manager | NAB Innovation Centre Vietnam Lead end-to-end IT & IS operations for NAB Vietnam across Ho Chi Minh City & Hanoi Own Vietnam IT strategy, budget, infrastructure, and security compliance Manage enterprise environments supporting 2,500+ users with 24x7 operations Act as ISO 27001 ISMS focal point, leading internal audits and audit readiness Own BCP / DR strategy, infrastructure resilience, and risk treatment plans Partner with Global IT, Security & Risk teams to align with NAB enterprise standards Key Achievements Delivered 9 new office floors with full redundancy (network, wireless, CCTV, access control) Achieved 99% SLA compliance across IT services Maintained 100% ISO security compliance with zero major findings 100% staff completion for cyber security & compliance training IT service satisfaction consistently above 86%\n\n## 09/2017 - 11/2019\n\nHead of IT | Capgemini Vietnam Head of IT Vietnam – Global Infrastructure | Aug 2017 – Oct 2019 Lead IT infrastructure and services for Vietnam under global APAC engagement model Redesigned and implemented new data centre architecture Owned Vietnam IT budget, vendor strategy, and global IT alignment Lead ISO 27001 & ISO 9001 internal audit programs Acted as BCP owner and Vietnam security contact point Trung Nguyen Mr\n\n## 0983555561\n\nnickytrungvn@gmail.com\n\n## 30/05/1984\n\n124/21 nguyen dinh chieu p4 quan PN, TP Hồ Chí Minh linkedin.com/in/nickytrungvn/ I am a senior IT & IS leader with over 18 years of experience delivering enterprise infrastructure, security governance, and IT operations for global organizations across banking, consulting, and technology sectors.\nMy expertise lies in building resilient, secure, and scalable IT environments, leading ISO/IEC 27001 ISMS, BCP/DR, and ITSM excellence, while aligning technology with business strategy and regulatory requirements.\nI have successfully lead IT organizations supporting 2,500+ users, managed enterprise IT budgets, and partnered with global stakeholders to deliver high-availability, compliant, and customer-focused IT services.\n\n## WORK EXPERIENCE\n\n## 11/2019 - 2/2026\n\nPage 1 / 2\n\n-- 1 of 2 --\n\n## CERTIFICATE\n\nIRCA Auditor ISO 27001:2022\n\n## 01/2023\n\n## IRCA\n\n## ITIL V4\n\n## 11/2020\n\nAxelos IRCA Auditor ISO 27001:2013\n\n## 07/2017\n\n## IRCA\n\n## MCSA\n\n## 09/2014\n\nMicrosoft MCT\n\n## 01/2014\n\nMicrosoft\n\n## AWARD\n\n2024 Star of the Year\n\n## 01/2024\n\n## NABVN\n\n2024 Employee of the Year Impact Standardized IT policies and operations to global ISO standards Built and scaled IT teams following ITIL-based service model Delivered secure environments for regulated and high-security projects\n\n## 06/2015 - 11/2017\n\nIT Manager – Global IT Services | Epinion Vietnam Designed and implemented secure cloud-based infrastructure (AWS- centric) Supported EU and multi-country operations Built new Vietnam office and regional IT capability Lead IT governance, policies, and service optimization initiatives\n\n## 05/2007 - 01/2015\n\nIT Manager | Earlier Career (Summary) Senior IT leadership roles across global enterprises and consulting firms, delivering:\nMulti-country office build-outs (Asia & Europe) Enterprise infrastructure modernization ITSM / ITIL implementation Cloud migration (AWS & Azure) Security governance and ISO certification programs\n\n## HIGHLIGHT PROJECT\n\n## 11/2019 - 01/2026\n\nUpgrading and setup new office for Nab VN from 2019-2025 Upgrading NAB VN office 2019-2023 -03 offices ( 02 HCM - 01 HN ) -Supporting : 800 FTE -30 Meeting Room full facility Setup new Office 2023-2026 -01 New office HCM ( 7 Floors - 1300 Ws ) -01 New HN office ( 02 Floors - 600 Ws ) -09 Data room -100++ room Full facility -03 Board room -05 Training Room -Supporting : 2500+ FTE Page 2 / 2\n\n-- 2 of 2 --",
+        "filename": "Trung Nguyen.pdf",
+        "fullAnalysis": {
+          "feature3": {
+            "fastestPointLossSection": "Định dạng CV lộn xộn và thiếu các ví dụ cụ thể về quy trình vận hành hàng ngày.",
+            "firstImpression10s": "Ứng viên cấp cao, nhiều kinh nghiệm, nhưng CV trình bày thiếu chuyên nghiệp và cần làm rõ các kỹ năng ITIL thực tế.",
+            "top3MustFix": [
+              "Định dạng lại CV nhất quán và chuyên nghiệp",
+              "Bổ sung ví dụ cụ thể về quy trình ITIL (Incident, Problem, CMDB)",
+              "Làm rõ kinh nghiệm quản lý hợp đồng dịch vụ và tư duy tự động hóa"
+            ],
+            "inviteDecision": "YES",
+            "biggestDoubt": "Khả năng thực thi các quy trình ITIL chi tiết (CMDB, Problem Management) và tư duy tự động hóa.",
+            "decisionReason": "Ứng viên có nền tảng quản lý hạ tầng rất mạnh và các chứng chỉ chuyên môn cao cấp, phù hợp với yêu cầu vận hành quy mô lớn.",
+            "immediateStrength": "Kinh nghiệm 18 năm, quản lý 2500+ users, đạt 99% SLA và 100% ISO compliance."
+          },
+          "feature1": {
+            "summary": {
+              "missingKeywordsSkills": [
+                "Configuration Management (CMDB)",
+                "Automation tools (IaC, Scripting)",
+                "Service Contract Management details"
+              ],
+              "immediateActions": [
+                "Bổ sung ví dụ về Major Incident Management và Root Cause Analysis",
+                "Chi tiết hóa kinh nghiệm quản lý hợp đồng dịch vụ (Service Contract)",
+                "Đưa các từ khóa CMDB, SLM vào mô tả kinh nghiệm",
+                "Định dạng lại CV theo chuẩn chuyên nghiệp"
+              ],
+              "biggestStrength": "Bề dày kinh nghiệm 18+ năm trong quản lý hạ tầng quy mô lớn (2500+ users) với các chỉ số thành tựu ấn tượng (99% SLA, 100% ISO compliance).",
+              "weakOrVagueSections": [
+                "Thiếu bằng chứng cụ thể về quy trình ITIL hàng ngày",
+                "Định dạng CV lộn xộn, thiếu tính nhất quán",
+                "Thiếu thông tin về khả năng làm việc linh hoạt (overtime/weekends)"
+              ]
+            },
+            "scores": {
+              "skillMatchScore": 75,
+              "experienceOutcomeScore": 90,
+              "keywordMatchScore": 70,
+              "overallRoleScore": 78
+            },
+            "comparisonTable": [
+              {
+                "gapOrClarification": "Cần làm rõ độ sâu áp dụng các quy trình cụ thể (Incident, Problem, Change).",
+                "cvEvidence": "Chứng chỉ ITIL V4, kinh nghiệm xây dựng đội ngũ theo mô hình ITIL.",
+                "importance": "Rất quan trọng",
+                "jdTerm": "ITIL Service Management",
+                "matchStatus": "khop"
+              },
+              {
+                "jdTerm": "Incident/Problem/Change Management",
+                "cvEvidence": "10+ năm kinh nghiệm trong Incident Response và Change Management.",
+                "matchStatus": "can_bo_sung",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Thiếu ví dụ cụ thể về Major Incident, Root Cause Analysis và vai trò trong CAB."
+              },
+              {
+                "jdTerm": "Service Level Management (SLM)",
+                "matchStatus": "can_bo_sung",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Thiếu thông tin về quy trình đo lường, báo cáo KPI và quản trị governance.",
+                "cvEvidence": "Đạt 99% SLA compliance."
+              },
+              {
+                "gapOrClarification": "Cần bổ sung kinh nghiệm duy trì CMDB và quản lý tài sản IT.",
+                "importance": "Quan trọng",
+                "matchStatus": "thieu",
+                "jdTerm": "Configuration Management (CMDB)",
+                "cvEvidence": "Không đề cập."
+              },
+              {
+                "importance": "Quan trọng",
+                "cvEvidence": "Không đề cập.",
+                "matchStatus": "thieu",
+                "jdTerm": "Automation mindset",
+                "gapOrClarification": "Thiếu bằng chứng về các công cụ tự động hóa hoặc script đã triển khai."
+              },
+              {
+                "jdTerm": "Service Contract Management",
+                "matchStatus": "can_bo_sung",
+                "gapOrClarification": "Cần làm rõ kinh nghiệm quản lý hợp đồng dịch vụ cụ thể (SLA, renewal, cost control).",
+                "cvEvidence": "Có quản lý ngân sách và chiến lược nhà cung cấp.",
+                "importance": "Quan trọng"
+              }
+            ],
+            "jdKeywords": [
+              {
+                "keyword": "ITIL Service Management",
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "keyword": "Incident/Problem/Change Management",
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "keyword": "Service Level Management (SLM)",
+                "category": "Kỹ năng chuyên môn",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "category": "Kỹ năng chuyên môn",
+                "importance": "Quan trọng",
+                "keyword": "Configuration Management (CMDB)"
+              },
+              {
+                "keyword": "Stakeholder Engagement",
+                "importance": "Quan trọng",
+                "category": "Phẩm chất hoặc cách làm việc"
+              },
+              {
+                "category": "Công cụ, phần mềm hoặc phương pháp",
+                "importance": "Quan trọng",
+                "keyword": "Automation mindset"
+              },
+              {
+                "category": "Kinh nghiệm mong muốn",
+                "keyword": "Service Contract Management",
+                "importance": "Quan trọng"
+              }
+            ]
+          },
+          "candidateName": "Trung Nguyen",
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "reasonBetter": "Sử dụng công thức Action + Tool + Result với số liệu thực tế từ CV.",
+                "originalBullet": "Built and scaled IT teams following ITIL-based service model",
+                "rewrittenBullet": "Led a cross-functional team of 15 engineers to design and implement ITIL-based incident, problem and change processes across 3 sites, cutting average incident resolution time by 30%.",
+                "issueInOriginal": "Thiếu kết quả định lượng và quy mô đội ngũ."
+              }
+            ],
+            "clarifyingQuestions": [
+              "Can you describe a specific major incident you led and how you performed the root cause analysis?",
+              "What specific automation tools or scripts have you implemented to improve IT service efficiency?",
+              "How do you manage IT service contracts and vendor relationships to ensure SLA compliance?"
+            ]
+          }
+        }
+      },
+      {
+        "keyGaps": [
+          "Chứng chỉ ITIL V3/V4",
+          "Kinh nghiệm điều hành CAB",
+          "Quản trị SLA/OLA chuyên sâu",
+          "Kỹ năng giao tiếp cấp quản lý (Stakeholder Engagement)"
+        ],
+        "filename": "Nguyen Minh Thang.pdf",
+        "matchLevel": "Medium",
+        "rank": 4,
+        "topStrengths": [
+          "Nền tảng hạ tầng IT (IT Infrastructure) cực kỳ vững chắc với 15+ năm kinh nghiệm quản lý hệ thống, mạng, bảo mật và vận hành đa chi nhánh quy mô lớn."
+        ],
+        "processingStatus": "COMPLETED",
+        "keywordScore": 55,
+        "overallScore": 60,
+        "skillScore": 60,
+        "success": true,
+        "experienceScore": 65,
+        "candidateName": "THANG MINH NGUYEN",
+        "shortRecommendation": "Một IT Manager giàu kinh nghiệm hạ tầng, quản lý quy mô lớn, nhưng CV mang thiên hướng kỹ thuật (Sysadmin/Infrastructure) hơn là quản trị dịch vụ.",
+        "id": "cand_744f7e7a-b82f-4156-988e-0dda5f9a33a4",
+        "fullAnalysis": {
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "originalBullet": "Directed IT operations and cybersecurity for Head Office and 6 sites, maintaining 99.9% system availability.",
+                "isLackingInfo": false,
+                "issueInOriginal": "Chưa thể hiện vai trò Service Management và quy trình ITIL.",
+                "rewrittenBullet": "Directed ITIL-aligned service operations and cybersecurity across 6 sites, maintaining 99.9% system availability through structured Incident and Problem Management processes.",
+                "reasonBetter": "Tích hợp thuật ngữ ITIL và nhấn mạnh vào quy trình quản trị dịch vụ."
+              },
+              {
+                "isLackingInfo": false,
+                "originalBullet": "Managed IT budgets (Capex/Opex), procurement, software licensing, IT Asset and contract lifecycles.",
+                "reasonBetter": "Làm rõ năng lực quản lý hợp đồng dịch vụ và cam kết chất lượng (SLA).",
+                "rewrittenBullet": "Managed Capex/Opex budgets and full lifecycle of IT infrastructure service contracts, ensuring vendor compliance with defined SLAs and business service levels.",
+                "issueInOriginal": "Chưa làm nổi bật việc quản lý Service Contracts và Vendor SLAs."
+              },
+              {
+                "reasonBetter": "Gắn kết chính sách với khung ITIL và hiệu quả vận hành dịch vụ.",
+                "isLackingInfo": false,
+                "originalBullet": "Developed and enforced comprehensive IT policies and Operating Procedures.",
+                "rewrittenBullet": "Standardized and enforced IT Service Management policies and SOPs aligned with ITIL framework, improving service resolution efficiency for 500+ end-users.",
+                "issueInOriginal": "Chưa rõ quy trình chuẩn hóa theo chuẩn mực nào."
+              }
+            ],
+            "clarifyingQuestions": [
+              "Anh/Chị đã từng chủ trì hội đồng quản lý thay đổi (CAB) hoặc trực tiếp xây dựng quy trình xử lý sự cố lớn (Major Incident Management) theo chuẩn ITIL chưa?",
+              "Trong quá trình quản lý contract lifecycles, chỉ số SLA/KPI cụ thể duy trì với đối tác/người dùng là bao nhiêu?",
+              "Anh/Chị từng sử dụng công cụ ITSM nào (như ServiceNow, Jira Service Desk, Remedy) để quản lý CMDB và Service Request?"
+            ]
+          },
+          "candidateName": "THANG MINH NGUYEN",
+          "feature1": {
+            "scores": {
+              "keywordMatchScore": 55,
+              "overallRoleScore": 60,
+              "skillMatchScore": 60,
+              "experienceOutcomeScore": 65
+            },
+            "jdKeywords": [
+              {
+                "keyword": "Service Management Leadership",
+                "category": "Kỹ năng quản lý",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "keyword": "ITIL Service Management Processes",
+                "importance": "Rất quan trọng",
+                "category": "Công cụ, phần mềm hoặc phương pháp"
+              },
+              {
+                "keyword": "Incident and Problem Management",
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "keyword": "Change Management & CAB",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "keyword": "Managing Service Contract",
+                "category": "Yêu cầu bắt buộc",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "keyword": "IT Infrastructure Production Environment",
+                "category": "Yêu cầu bắt buộc",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "category": "Kỹ năng mềm",
+                "importance": "Quan trọng",
+                "keyword": "Stakeholder Engagement"
+              },
+              {
+                "category": "Kết quả đầu ra",
+                "importance": "Quan trọng",
+                "keyword": "SLA/KPI Monitoring & Reporting"
+              },
+              {
+                "importance": "Quan trọng",
+                "keyword": "Automation mindset",
+                "category": "Phẩm chất"
+              },
+              {
+                "category": "Yêu cầu bắt buộc",
+                "importance": "Rất quan trọng",
+                "keyword": "Fluency in English"
+              }
+            ],
+            "comparisonTable": [
+              {
+                "jdTerm": "Service Management Leadership",
+                "cvEvidence": "Quản lý vận hành IT tại Masterise Homes và Scommerce.",
+                "gapOrClarification": "Thiếu bằng chứng về việc dẫn dắt quy trình ITIL chuyên sâu và quản trị dịch vụ cấp cao.",
+                "matchStatus": "can_bo_sung",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "matchStatus": "can_bo_sung",
+                "cvEvidence": "Có quản lý IT Asset và contract lifecycles.",
+                "jdTerm": "Managing Service Contract (2+ years)",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Cần làm rõ quy mô quản lý hợp đồng dịch vụ hạ tầng và chỉ số SLA/OLA cụ thể."
+              },
+              {
+                "gapOrClarification": "Chưa thể hiện quy trình xử lý Major Incident hoặc vai trò chủ trì CAB.",
+                "matchStatus": "thieu",
+                "importance": "Rất quan trọng",
+                "jdTerm": "ITIL Processes (Incident, Problem, Change, CAB)",
+                "cvEvidence": "Liệt kê JIRA, SERVICES DESK trong mục KNOWLEDGE."
+              },
+              {
+                "gapOrClarification": "JD yêu cầu Fluency, cần minh chứng khả năng giao tiếp/thuyết trình.",
+                "cvEvidence": "Intermediate level.",
+                "jdTerm": "Fluency in English",
+                "importance": "Rất quan trọng",
+                "matchStatus": "can_bo_sung"
+              },
+              {
+                "jdTerm": "IT Infrastructure Production Environment",
+                "matchStatus": "khop",
+                "gapOrClarification": "Rất khớp với yêu cầu kỹ thuật hạ tầng.",
+                "cvEvidence": "15 năm kinh nghiệm vận hành hạ tầng đa chi nhánh.",
+                "importance": "Rất quan trọng"
+              }
+            ],
+            "summary": {
+              "immediateActions": [
+                "Chuyển đổi các bullet point kỹ thuật sang định hướng quản trị dịch vụ (Service Management).",
+                "Bổ sung các chỉ số đo lường hiệu quả (KPI/SLA) vào các dự án đã thực hiện.",
+                "Làm rõ khả năng tiếng Anh và kinh nghiệm làm việc với các bên liên quan (Stakeholders)."
+              ],
+              "missingKeywordsSkills": [
+                "Chứng chỉ ITIL V3/V4",
+                "Kinh nghiệm điều hành CAB",
+                "Quản trị SLA/OLA chuyên sâu",
+                "Kỹ năng giao tiếp cấp quản lý (Stakeholder Engagement)"
+              ],
+              "biggestStrength": "Nền tảng hạ tầng IT (IT Infrastructure) cực kỳ vững chắc với 15+ năm kinh nghiệm quản lý hệ thống, mạng, bảo mật và vận hành đa chi nhánh quy mô lớn.",
+              "weakOrVagueSections": [
+                "Phần KNOWLEDGE liệt kê từ khóa rời rạc, thiếu sự kết nối với kết quả công việc.",
+                "CV tập trung quá nhiều vào danh sách thiết bị kỹ thuật thay vì quy trình quản trị dịch vụ (Service Governance)."
+              ]
+            }
+          },
+          "feature3": {
+            "immediateStrength": "Kinh nghiệm vận hành hệ thống hạ tầng 15 năm, đảm bảo uptime 99.9% cho quy mô 500+ users.",
+            "firstImpression10s": "Một IT Manager giàu kinh nghiệm hạ tầng, quản lý quy mô lớn, nhưng CV mang thiên hướng kỹ thuật (Sysadmin/Infrastructure) hơn là quản trị dịch vụ.",
+            "biggestDoubt": "Khả năng vận hành quy trình ITIL (Incident/Problem/Change/CAB) và kỹ năng quản trị dịch vụ mềm (Stakeholder governance).",
+            "top3MustFix": [
+              "Thêm các kết quả và quy trình quản trị ITIL vào kinh nghiệm làm việc.",
+              "Cập nhật mô tả trình độ tiếng Anh và minh chứng khả năng giao tiếp.",
+              "Cấu trúc lại CV tập trung vào Service Governance thay vì liệt kê thiết bị kỹ thuật."
+            ],
+            "fastestPointLossSection": "Mục Knowledge và Academic: Thiếu chứng chỉ ITIL và trình độ tiếng Anh chỉ ở mức Intermediate.",
+            "inviteDecision": "MAYBE",
+            "decisionReason": "Ứng viên có nền tảng hạ tầng rất mạnh nhưng thiếu bằng chứng về quản trị dịch vụ ITIL (Service Management) - trọng tâm của JD."
+          }
+        },
+        "cvText": "## THANG MINH NGUYEN\n\nPhone: 0931 3839 28 Email: thangminhnguyen19@gmail.com Address: 80, Street 14, Phuoc Long Ward, Ho Chi Minh City Birth of date: 1984 Salary: Negotiation\n\n## SUMMARY\n\nWith over 15 years of experience in the technology field, along with a solid foundation in network infrastructure, IT systems, software and cybersecurity, I have the ability to IT infrastructure optimize and lead an effective technology team to bring value to the organization.\n\n## WORK EXPERIENCED\n\nIT infrastructure Project Manager (Part-times) Jul 2022 – Present | Project Team  Architected and deployed tailored IT solutions and network infrastructures to meet diverse client requirements.\no DHCP, DNS, AD, GPO, Domain controller, Cluster server, Load balancing, High Availability o VMware, Cloud computing, IP Subnet, VLAN, Trunking, ACL, LAN, WAN, VPN, Anti-virus o Firewall, Router, Core switch, Switch access, Access point, IP camera, Print server IT Manager (Full-time) Jul 2021 – Jul 2022 | Masterise Homes Group Responsibilities:\n Directed IT operations and cybersecurity for Head Office and 6 sites, maintaining 99.9% system availability.\n Oversaw and managed IT infrastructure include o DHCP, DNS, AD, GPO, Domain controller, Cluster server, Load balancing, High Availability o VMware, Cloud computing, IP Subnet, VLAN, Trunking, ACL, LAN, WAN, VPN, Anti-virus o Firewall, Router, Core switch, Switch access, Access point, IP camera, Print server o Access control, NAS, SAN, File Server, Backup & restore, Web/App.\n Planning and execution of system upgrades, security frameworks, and digital transformation projects.\n Managed IT budgets (Capex/Opex), procurement, software licensing, IT Asset and contract lifecycles.\n Oversaw technical support for 500+ end-users.\n Advisor to the Managing Director on technology-driven growth.\n Developed and enforced comprehensive IT policies and Operating Procedures.\n Training and team development.\n Reporting directly to Managing Director.\nKey Projects:\n Implementing IT Infrastructure for Model Home 10,000 square meters.\n\n-- 1 of 3 --\n\n The IT system is security and has a 99.9% uptime.\nIT Manager (Full-time) Dec 2016 – Aug 2020 | Scommerce Group Responsibilities:\n Directed IT operations and cybersecurity for Head Office and 30+ sites, maintaining 99.9% system availability for member companies (GiaoHangNhanh, AhaMove, Gido, Lala).\n Oversaw and managed IT infrastructure include:\no DHCP, DNS, AD, GPO, Domain controller, Cluster server, Load balancing, High Availability.\no VMware, Cloud computing, IP Subnet, VLAN, Trunking, ACL, LAN, WAN, VPN, Anti-virus.\no Firewall, Router, Core switch, Switch access, Access point, IP camera, Print server.\no Access control NAS, SAN, File Server, Backup & restore.\n Directed the end-to-end lifecycle of web and application (html, css, php, .net, python, sql) projects.\n Established the IT department from the ground up; structured teams and implemented performance- driven KPIs.\n Planning and execution of system upgrades, security frameworks, and digital transformation projects.\n Managed IT budgets (Capex/Opex), procurement, software licensing, IT Asset and contract lifecycles.\n Oversaw technical support for 500+ end-users.\n Advisor to the CEO on technology-driven growth.\n Developed and enforced comprehensive IT policies and Operating Procedures.\n Talent acquisition, coaching & training team development.\n Reporting directly to HR Director.\nKey Projects:\n Implementing a VoIP system.\n Implementing IT Infrastructure for warehouse 20,000 square meters.\n Implementing IT Infrastructure for office over 500 end users.\n The IT infrastructure is optimized by 15%.\nIT Infrastructure Operations (Full-time) Dec 2011 - Dec 2016 | ILA Viet Nam Responsibilities:\n Managed IT operations and network security for Head Office and 20+ branches nationwide (HCMC, Da Nang, Hanoi), maintaining 99.9% system availability.\n Providing technical support for end users.\n Administration and configuration IT infrastructure include:\no DHCP, DNS, AD, GPO, Domain controller, Cluster server, Load balancing, High Availability.\no VMware, Cloud computing, IP Subnet, VLAN, Trunking, ACL, LAN, WAN, VPN, Anti-virus.\no Firewall, Router, Core switch, Switch access, Access point, IP camera, Print server.\no Access control, NAS, SAN, File Server, Backup & restore.\n Led infrastructure deployment teams for office expansions.\n Managed IT assets, software licenses, and service contracts, procurement.\n Develop annual IT budget plan.\n\n-- 2 of 3 --\n\n Reporting directly to IT System Manager.\nKey Projects:\n Implementing a VoIP system.\n Implementing IT Infrastructure for office over 100 end users.\n\n## ACADEMIC QUALIFICATIONS\n\n Bachelor of Information Technology  IT Business Manager  Python Programmer  CISSP  MCSA  MCSE  CCNA  Microsoft Azure  English - Intermediate level\n\n## KNOWLEDGE\n\n SAP, ERP, CRM, MISA, GCP, AWS, AZURE, DOCKER, CI/CD, JIRA, SERVICES DESK\n\n## REFERENCES\n\n Some images of IT infrastructure that has been deployed, operated, and managed.\n\n-- 3 of 3 --"
+      },
+      {
+        "rank": 5,
+        "filename": "05. Nguyen Thi Minh Chau_1.pdf",
+        "experienceScore": 1,
+        "topStrengths": [
+          "Hơn 20 năm kinh nghiệm quản lý tài chính, có kỹ năng lãnh đạo và làm việc với các bên liên quan."
+        ],
+        "keyGaps": [
+          "ITIL Framework",
+          "Incident/Problem/Change Management",
+          "CMDB",
+          "Cloud Computing",
+          "IT Infrastructure Production"
+        ],
+        "processingStatus": "COMPLETED",
+        "skillScore": 3,
+        "cvText": "Tiếp lợi thế, nối thành công NỀN TẢNG CÔNG NGHỆ TUYỂN DỤNG THÔNG MINH Ứng viên NGUYỄN THỊ MINH CHÂU | Nguồn tuyendung.topcv.vn NGUYỄN THỊ MINH CHÂU KẾ TOÁN TRƯỞNG Ngày sinh: 10/06/1979 Số điện thoại: 0909025676 Email: minhchau1061@gmail.com Địa chỉ: 316/9 Trần Xuân Soạn, Phường Tân Hưng,TP.HCM.\n\n## MỤC TIÊU NGHỀ NGHIỆP\n\nVới hơn 20 năm kinh nghiệm trong lĩnh vực kế toán – tài chính, tôi mong muốn đảm nhận vị trí Kế toán trưởng tại một doanh nghiệp chuyên nghiệp và ổn định. Tôi mong muốn phát huy năng lực quản lý tài chính, kiểm soát chi phí, xây dựng và tối ưu hệ thống kế toán nhằm nâng cao hiệu quả hoạt động của Quý doanh nghiệp.\nBên cạnh đó, tôi hướng đến việc đồng hành cùng Ban lãnh đạo trong công tác hoạch định chiến lược tài chính, đảm bảo tính minh bạch, tuân thủ và phát triển bền vững cho Quý doanh nghiệp trong dài hạn.\n\n## KINH NGHIỆM LÀM VIỆC\n\n2021 - Hiện nay \tCông Ty TNHH Nha Khoa Viễn Đông KẾ TOÁN TRƯỞNG\n- Quản lý và điều hành toàn bộ hoạt động của phòng kế toán; phân công, hướng dẫn và giám sát công\nviệc của nhân sự kế toán.\n- Tổ chức và xây dựng hệ thống sổ sách kế toán phù hợp với chuẩn mực kế toán và đúng quy định\npháp luật hiện hành.\n- Lập và kiểm soát báo cáo tài chính tháng, quý, năm; đảm bảo tính chính xác, minh bạch và đúng hạn.\n- Quản lý và kiểm soát hóa đơn đầu vào và đầu ra; đảm bảo việc kê khai thuế đúng quy định pháp luật .\n- Thực hiện kê khai, quyết toán các loại thuế: thuế giá trị gia tăng, thuế thu nhập cá nhân, thuế thu nhập\ndoanh nghiệp.\n- Tính và chi trả lương cho nhân viên\n- Làm việc với cơ quan thuế, ngân hàng và các đối tác liên quan nhằm đảm bảo hoạt động tài chính, kế\ntoán thông suốt.\n- Rà soát, kiểm tra chứng từ kế toán; đảm bảo tuân thủ quy định về thuế và các chính sách tài chính\nhiện hành.\n- Tham mưu cho Ban lãnh đạo Công ty về chiến lược tài chính, quản lý dòng tiền và kiểm soát chi phí\nnhằm nâng cao hiệu quả hoạt động doanh nghiệp.\n2008 - 2021 \tCông Ty TNHH Phân Phối Sở Trường Phương Nam KẾ TOÁN TRƯỞNG\n- Quản lý, điều hành và chịu trách nhiệm toàn bộ hoạt động của phòng kế toán.\n- Kiểm tra tính hợp lý, hợp lệ của chứng từ kế toán; kiểm soát việc lưu trữ hồ sơ, sổ sách kế toán khoa\nhọc và đầy đủ.\n- Lập và kiểm soát báo cáo tài chính tháng, quý, năm và các báo cáo theo yêu cầu Ban Giám đốc.\n- Theo dõi, quản lý dòng tiền, doanh thu, chi phí, hàng tồn kho, công nợ phải thu, phải trả của Công ty.\n- Quản lý và kiểm soát hóa đơn đầu vào và đầu ra; đảm bảo việc kê khai thuế đúng quy định.\n- Thực hiện kê khai, quyết toán các loại thuế: thuế giá trị gia tăng, thuế thu nhập cá nhân, thuế thu nhập\ndoanh nghiệp làm việc trực tiếp với cơ quan thuế và Công ty kiểm toán.\n\n-- 1 of 2 --\n\n- Phối hợp thực hiện kiểm kê định kỳ và cuối năm hàng tồn kho, tài sản cố định.\n- Đảm bảo công tác kế toán tuân thủ đúng quy định pháp luật và quy chế Công ty.\n2003 - 2008 \tCông Ty TNHH An Hưng Phát KẾ TOÁN TỔNG HỢP\n- Hạch toán và kiểm tra chứng từ kế toán phát sinh hàng ngày.\n- Hạch toán các nghiệp vụ kế toán liên quan đến tiền mặt, tiền gửi ngân hàng, tiền lương, BHXH và các\nnghiệp vụ phát sinh khác.\n- Theo dõi, quản lý công nợ phải thu, phải trả; thực hiện đối chiếu công nợ với khách hàng và nhà cung\ncấp.\n- Lập và kê khai các báo cáo thuế định kỳ: thuế môn bài , thuế thuế giá trị gia tăng, thuế thu nhập cá\nnhân, thuế thu nhập doanh nghiệp theo quy định.\n- Theo dõi tài sản cố định, công cụ dụng cụ, khấu hao.\n- Làm việc với cơ quan thuế, ngân hàng trong các vấn đề liên quan.\n- Thực hiện các công việc khác theo phân công của Kế toán trưởng và Ban lãnh đạo công ty.\n\n## CHỨNG CHỈ\n\n2006 \tChứng chỉ Kế Toán Trưởng 2002 \tChứng chỉ Tin học trình độ A AID UFNuOWNXCXhTNgErUTdaIQAntE \tTopCV - Nền tảng công nghệ tuyển dụng thông minh - tuyendung.topcv.vn\n\n-- 2 of 2 --",
+        "candidateName": "NGUYỄN THỊ MINH CHÂU",
+        "id": "cand_3df8e5b5-2377-4022-8507-3d12e36b88b9",
+        "fullAnalysis": {
+          "candidateName": "NGUYỄN THỊ MINH CHÂU",
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "reasonBetter": "Sử dụng công thức Action + Result, làm nổi bật năng lực quản lý nhân sự và cải tiến quy trình.",
+                "originalBullet": "Quản lý và điều hành toàn bộ hoạt động của phòng kế toán; phân công, hướng dẫn và giám sát công việc của nhân sự kế toán.",
+                "issueInOriginal": "Thiếu kết quả định lượng và quy mô quản lý.",
+                "rewrittenBullet": "Quản lý phòng kế toán với 10 nhân sự, tối ưu hóa quy trình báo cáo tài chính giúp giảm 15% thời gian hoàn thành báo cáo hàng tháng.",
+                "isLackingInfo": false
+              }
+            ],
+            "clarifyingQuestions": [
+              "Bạn có kinh nghiệm làm việc trong lĩnh vực CNTT hoặc quản lý hạ tầng kỹ thuật không?",
+              "Trình độ tiếng Anh của bạn hiện tại ở mức nào (IELTS/TOEIC)?",
+              "Bạn có chứng chỉ ITIL hoặc kinh nghiệm vận hành hệ thống nào không?"
+            ]
+          },
+          "feature3": {
+            "top3MustFix": [
+              "Thay đổi mục tiêu nghề nghiệp sang các vị trí Kế toán trưởng/Tài chính.",
+              "Không ứng tuyển vào các vị trí kỹ thuật CNTT nếu không có chuyên môn.",
+              "Tập trung làm nổi bật các thành tựu tài chính thay vì kỹ năng CNTT không có."
+            ],
+            "firstImpression10s": "Hồ sơ không phù hợp hoàn toàn với yêu cầu công việc (Sai ngành nghề).",
+            "inviteDecision": "NO",
+            "decisionReason": "Ứng viên là chuyên gia tài chính với 20 năm kinh nghiệm, không có bất kỳ kỹ năng nào liên quan đến quản lý dịch vụ CNTT (ITSM/ITIL).",
+            "biggestDoubt": "Khả năng ứng viên nộp nhầm hồ sơ hoặc không hiểu yêu cầu công việc.",
+            "immediateStrength": "Kinh nghiệm quản lý tài chính lâu năm và ổn định.",
+            "fastestPointLossSection": "Phần Kinh nghiệm làm việc (hoàn toàn là Kế toán)."
+          },
+          "feature1": {
+            "summary": {
+              "missingKeywordsSkills": [
+                "ITIL Framework",
+                "Incident/Problem/Change Management",
+                "CMDB",
+                "Cloud Computing",
+                "IT Infrastructure Production"
+              ],
+              "weakOrVagueSections": [
+                "Thiếu hoàn toàn kinh nghiệm trong lĩnh vực CNTT",
+                "Không có thông tin về trình độ ngoại ngữ",
+                "Thiếu kiến thức về các công cụ ITSM"
+              ],
+              "immediateActions": [
+                "Không ứng tuyển vị trí này vì sai lệch hoàn toàn về chuyên môn",
+                "Tập trung tìm kiếm các vị trí Kế toán trưởng/Giám đốc tài chính",
+                "Cập nhật chứng chỉ ngoại ngữ vào CV để tăng tính cạnh tranh trong ngành tài chính"
+              ],
+              "biggestStrength": "Hơn 20 năm kinh nghiệm quản lý tài chính, có kỹ năng lãnh đạo và làm việc với các bên liên quan."
+            },
+            "jdKeywords": [
+              {
+                "importance": "Rất quan trọng",
+                "keyword": "ITIL Service Management",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "keyword": "Incident/Problem/Change Management",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "keyword": "Service Level Management (SLM)",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "importance": "Quan trọng",
+                "category": "Kỹ năng chuyên môn",
+                "keyword": "CMDB & Documentation"
+              },
+              {
+                "keyword": "Stakeholder Engagement",
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng mềm"
+              },
+              {
+                "importance": "Nice to have",
+                "category": "Kỹ năng kỹ thuật",
+                "keyword": "Cloud fundamentals"
+              },
+              {
+                "category": "Phẩm chất",
+                "importance": "Rất quan trọng",
+                "keyword": "English fluency"
+              }
+            ],
+            "scores": {
+              "overallRoleScore": 2,
+              "experienceOutcomeScore": 1,
+              "keywordMatchScore": 2,
+              "skillMatchScore": 3
+            },
+            "comparisonTable": [
+              {
+                "jdTerm": "ITIL Service Management",
+                "gapOrClarification": "Ứng viên có nền tảng Kế toán, thiếu kiến thức về khung quản lý dịch vụ CNTT.",
+                "importance": "Rất quan trọng",
+                "cvEvidence": "Không có",
+                "matchStatus": "thieu"
+              },
+              {
+                "gapOrClarification": "Thiếu kinh nghiệm quản lý KPI/SLA trong môi trường hạ tầng CNTT.",
+                "jdTerm": "Service Level Management (SLM)",
+                "importance": "Rất quan trọng",
+                "matchStatus": "thieu",
+                "cvEvidence": "Không có"
+              },
+              {
+                "matchStatus": "thieu",
+                "gapOrClarification": "Chưa có kinh nghiệm quản lý cấu hình hệ thống (CMDB).",
+                "importance": "Quan trọng",
+                "jdTerm": "CMDB & Documentation",
+                "cvEvidence": "Không có"
+              },
+              {
+                "cvEvidence": "Có kinh nghiệm làm việc với cơ quan thuế, ngân hàng, kiểm toán.",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Kỹ năng có thể chuyển đổi nhưng thiếu bối cảnh làm việc với vendor/IT team.",
+                "matchStatus": "can_bo_sung",
+                "jdTerm": "Stakeholder Engagement"
+              },
+              {
+                "matchStatus": "thieu",
+                "cvEvidence": "Không đề cập",
+                "gapOrClarification": "Cần xác nhận trình độ ngoại ngữ cụ thể (IELTS/TOEIC).",
+                "jdTerm": "English Fluency",
+                "importance": "Rất quan trọng"
+              }
+            ]
+          }
+        },
+        "shortRecommendation": "Hồ sơ không phù hợp hoàn toàn với yêu cầu công việc (Sai ngành nghề).",
+        "keywordScore": 2,
+        "matchLevel": "Low",
+        "overallScore": 2,
+        "success": true
+      }
+    ]
+  },
+  {
+    "jdFileName": "JD-Service Management Lead.docx",
+    "rankedCount": 2,
+    "createdAt": "2026-08-19T11:32:05.772Z",
+    "roleTitle": "Service Management Lead",
+    "updatedAt": "2026-08-19T11:32:07.799Z",
+    "batchName": "Tuyển IT Lead Q1.2026",
+    "failedCount": 0,
+    "id": "batch_0c1a9ff0-4132-4369-bdd8-71dd8037637b",
+    "jdText": "About the job\n\nService Management Leadership: Lead and manage the ITIL service management processes, including Incident Management, Problem Management, Change Management, Service Request Management, Configuration Management, and Service Level Management.\n\nITSM/tooling Functional Support: Be a liaison with the tooling support team/developers as it relates to configurations in ITIL processes.\n\nProcess Improvement: Continuously evaluate and improve ITIL processes to enhance service delivery, efficiency, and customer satisfaction.\n\nStakeholder Engagement: Collaborate with business stakeholders, IT teams, and external vendors to ensure alignment of IT services with business objectives. Maintain and develop customer relationship.\n\nMonitoring: Monitor and report on key performance indicators (KPIs) and service level agreements (SLAs) to ensure compliance and identify areas for improvement. Prepare and present governance meeting (Operational, Steering committees)\n\nIncident and Problem Management: Lead the resolution of major incidents and problems, ensuring root cause analysis and preventive measures are implemented.\n\nChange Management: Manage the change management process and CAB to ensure changes are implemented smoothly and with minimal disruption to services.\n\nDocumentation and CMDB: Maintain comprehensive documentation of ITIL processes, procedures, and ITSM configurations.\n\nAmbassador for Accenture: Share Accenture success experience & legacy, Relay the local & regional messages & strategy, Ease the inter-site communication/cross cultural aspects\n\nMust have\n\nService management experience with at least 2+ years in a dedicated management or team lead capacity.\n\n2 years managing service contract in IT infrastructure\n\nKnowledge in IT Infrastructure Production environment\n\nFluency in written and spoken English language is a must\n\nGood presentation & communication skills\n\nAutomation mindset\n\nMarket/IT Industry understanding\n\nNice to have\n\nBSc/MSc in Computer Science & Engineering or in business administration\n\nCloud fundamentals, Experienced in Cloud based environment like GCP, AWS, Azure, AliCloud, etc is a plus\n\nITIL V3 or V4 Foundation\n\nInterpersonal skills proficiency\n\nGood Leadership and management competencies\n\nAble to work flexible hours, including weekends by the needs of the business\n\nAble to work overtime, as needed",
+    "createdBy": {
+      "fullName": "user2",
+      "userId": "usr_mspvgb7w8z6e",
+      "username": "user2"
+    },
+    "status": "READY",
+    "noScoreCount": 0,
+    "candidateCount": 2,
+    "candidates": [
+      {
+        "fullAnalysis": {
+          "feature3": {
+            "top3MustFix": [
+              "Định dạng lại bố cục CV để chuyên nghiệp hơn",
+              "Làm rõ kinh nghiệm quản lý hợp đồng dịch vụ và CMDB",
+              "Đưa các kỹ năng ITIL vào phần kỹ năng chính thay vì chỉ để ở mục chứng chỉ"
+            ],
+            "biggestDoubt": "Khả năng quản lý các hợp đồng dịch vụ (Service Contract) và vận hành CMDB theo yêu cầu JD.",
+            "inviteDecision": "YES",
+            "decisionReason": "Ứng viên có nền tảng kỹ thuật vững chắc, kinh nghiệm quản lý cấp cao phù hợp với yêu cầu của Accenture về quản lý hạ tầng và ITIL.",
+            "fastestPointLossSection": "Phần 'Highlight Project' trình bày thiếu chuyên nghiệp và khó theo dõi.",
+            "firstImpression10s": "Ứng viên dày dặn kinh nghiệm, có chứng chỉ chuyên môn tốt nhưng trình bày CV hơi lộn xộn và thiếu tập trung vào các quy trình ITIL cụ thể.",
+            "immediateStrength": "Kinh nghiệm quản lý hạ tầng quy mô 2500+ người và các chứng chỉ ISO/ITIL."
+          },
+          "feature1": {
+            "comparisonTable": [
+              {
+                "matchStatus": "khop",
+                "importance": "Rất quan trọng",
+                "jdTerm": "ITIL Service Management",
+                "cvEvidence": "Certified ITIL V4, built IT teams following ITIL-based service model",
+                "gapOrClarification": "Cần làm rõ quy mô áp dụng ITIL (số lượng quy trình đã vận hành thực tế)"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "matchStatus": "khop",
+                "gapOrClarification": "Đã có bằng chứng tốt về SLA, cần làm rõ thêm về quy trình báo cáo KPI định kỳ",
+                "cvEvidence": "Achieved 99% SLA compliance across IT services",
+                "jdTerm": "Service Level Management (SLM)"
+              },
+              {
+                "matchStatus": "thieu",
+                "importance": "Quan trọng",
+                "cvEvidence": "Chưa có bằng chứng cụ thể về quản lý CMDB",
+                "gapOrClarification": "Cần bổ sung kinh nghiệm quản lý hệ thống CMDB và tài liệu hóa cấu hình",
+                "jdTerm": "Configuration Management (CMDB)"
+              },
+              {
+                "gapOrClarification": "Cần làm rõ kinh nghiệm vận hành Service Catalogue hoặc hệ thống tiếp nhận yêu cầu",
+                "jdTerm": "Service Request Management",
+                "importance": "Quan trọng",
+                "matchStatus": "thieu",
+                "cvEvidence": "Chưa đề cập cụ thể"
+              }
+            ],
+            "scores": {
+              "skillMatchScore": 85,
+              "keywordMatchScore": 75,
+              "experienceOutcomeScore": 88,
+              "overallRoleScore": 83
+            },
+            "summary": {
+              "weakOrVagueSections": [
+                "Phần Highlight Project trình bày rời rạc, thiếu tính hệ thống",
+                "Thiếu mô tả chi tiết về quy trình Incident/Problem Management cụ thể",
+                "Chưa làm rõ kinh nghiệm quản lý CMDB"
+              ],
+              "biggestStrength": "Kinh nghiệm dày dặn (18+ năm) trong quản lý hạ tầng IT quy mô lớn, đạt SLA 99% và sở hữu các chứng chỉ chuyên môn cao (ISO 27001, ITIL V4).",
+              "immediateActions": [
+                "Đưa ITIL vào phần kỹ năng cốt lõi thay vì chỉ để trong chứng chỉ",
+                "Bổ sung số liệu về quản lý hợp đồng dịch vụ (Service Contract)",
+                "Viết lại các bullet point theo mô hình STAR",
+                "Làm rõ kinh nghiệm quản lý CMDB và Service Request Management",
+                "Định dạng lại CV để chuyên nghiệp và dễ đọc hơn"
+              ],
+              "missingKeywordsSkills": [
+                "Configuration Management Database (CMDB)",
+                "Service Request Management",
+                "Specific vendor contract management details"
+              ]
+            },
+            "jdKeywords": [
+              {
+                "category": "Kỹ năng chuyên môn",
+                "importance": "Rất quan trọng",
+                "keyword": "ITIL Service Management"
+              },
+              {
+                "keyword": "Incident/Problem/Change Management",
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn",
+                "keyword": "Service Level Management (SLM) & KPI"
+              },
+              {
+                "keyword": "Configuration Management (CMDB)",
+                "importance": "Quan trọng",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "category": "Kỹ năng chuyên môn",
+                "importance": "Quan trọng",
+                "keyword": "Service Request Management"
+              },
+              {
+                "category": "Kinh nghiệm mong muốn",
+                "keyword": "IT Infrastructure Production",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "category": "Phẩm chất hoặc cách làm việc",
+                "importance": "Quan trọng",
+                "keyword": "Stakeholder Engagement"
+              }
+            ]
+          },
+          "candidateName": "Trung Nguyen",
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "issueInOriginal": "Too generic, lacks specific ITIL processes and outcomes.",
+                "rewrittenBullet": "Built and scaled IT teams by implementing ITIL-based Incident, Problem, and Change Management processes, resulting in 99% SLA compliance.",
+                "reasonBetter": "Connects the action (building teams) to specific ITIL frameworks and measurable outcomes (SLA).",
+                "originalBullet": "Built and scaled IT teams following ITIL-based service model",
+                "isLackingInfo": false
+              },
+              {
+                "reasonBetter": "Adds financial scope and clear alignment outcome.",
+                "originalBullet": "Owned Vietnam IT budget, vendor strategy, and global IT alignment",
+                "isLackingInfo": true,
+                "rewrittenBullet": "Managed $XM annual IT infrastructure budget and vendor contracts, ensuring 100% alignment with global IT standards and business objectives.",
+                "issueInOriginal": "Lacks scope and impact of the vendor strategy."
+              }
+            ],
+            "clarifyingQuestions": [
+              "Can you specify the number of ITIL processes you have personally managed or implemented?",
+              "What is the scale of the IT infrastructure service contracts you have managed in terms of annual budget?",
+              "Have you led any governance or steering committee meetings with external vendors or global stakeholders?"
+            ]
+          }
+        },
+        "success": true,
+        "rank": 1,
+        "overallScore": 83,
+        "id": "cand_dc3fa2f7-cd41-4aab-9bf9-cdb52007567a",
+        "filename": "Trung Nguyen.pdf",
+        "matchLevel": "High",
+        "keywordScore": 75,
+        "topStrengths": [
+          "Kinh nghiệm dày dặn (18+ năm) trong quản lý hạ tầng IT quy mô lớn, đạt SLA 99% và sở hữu các chứng chỉ chuyên môn cao (ISO 27001, ITIL V4)."
+        ],
+        "keyGaps": [
+          "Configuration Management Database (CMDB)",
+          "Service Request Management",
+          "Specific vendor contract management details"
+        ],
+        "shortRecommendation": "Ứng viên dày dặn kinh nghiệm, có chứng chỉ chuyên môn tốt nhưng trình bày CV hơi lộn xộn và thiếu tập trung vào các quy trình ITIL cụ thể.",
+        "processingStatus": "COMPLETED",
+        "experienceScore": 88,
+        "candidateName": "Trung Nguyen",
+        "skillScore": 85,
+        "cvText": "## EDUCATION\n\nUpdate your work experience\n\n## SKILL\n\nCore skills Azure 10+ years Change Management 10+ years Cisco 10+ years CompTIA Network+ 10+ years Cybersecurity 10+ years Governance, Risk & Compliance 10+ years Incident Response 10+ years\n\n## ISO 27001\n\n10+ years\n\n## ISO 9001\n\n10+ years macOS 10+ years Risk Assessment / BCP 10+ years Risk planning 10+ years Strategy planning 10+ years Team Management 10+ years Windows 10+ years Windows Server 10+ years\n\n## FOREIGN LANGUAGE\n\nEnglish Fluent Vietnamese Fluent IT Manager | NAB Innovation Centre Vietnam Lead end-to-end IT & IS operations for NAB Vietnam across Ho Chi Minh City & Hanoi Own Vietnam IT strategy, budget, infrastructure, and security compliance Manage enterprise environments supporting 2,500+ users with 24x7 operations Act as ISO 27001 ISMS focal point, leading internal audits and audit readiness Own BCP / DR strategy, infrastructure resilience, and risk treatment plans Partner with Global IT, Security & Risk teams to align with NAB enterprise standards Key Achievements Delivered 9 new office floors with full redundancy (network, wireless, CCTV, access control) Achieved 99% SLA compliance across IT services Maintained 100% ISO security compliance with zero major findings 100% staff completion for cyber security & compliance training IT service satisfaction consistently above 86%\n\n## 09/2017 - 11/2019\n\nHead of IT | Capgemini Vietnam Head of IT Vietnam – Global Infrastructure | Aug 2017 – Oct 2019 Lead IT infrastructure and services for Vietnam under global APAC engagement model Redesigned and implemented new data centre architecture Owned Vietnam IT budget, vendor strategy, and global IT alignment Lead ISO 27001 & ISO 9001 internal audit programs Acted as BCP owner and Vietnam security contact point Trung Nguyen Mr\n\n## 0983555561\n\nnickytrungvn@gmail.com\n\n## 30/05/1984\n\n124/21 nguyen dinh chieu p4 quan PN, TP Hồ Chí Minh linkedin.com/in/nickytrungvn/ I am a senior IT & IS leader with over 18 years of experience delivering enterprise infrastructure, security governance, and IT operations for global organizations across banking, consulting, and technology sectors.\nMy expertise lies in building resilient, secure, and scalable IT environments, leading ISO/IEC 27001 ISMS, BCP/DR, and ITSM excellence, while aligning technology with business strategy and regulatory requirements.\nI have successfully lead IT organizations supporting 2,500+ users, managed enterprise IT budgets, and partnered with global stakeholders to deliver high-availability, compliant, and customer-focused IT services.\n\n## WORK EXPERIENCE\n\n## 11/2019 - 2/2026\n\nPage 1 / 2\n\n-- 1 of 2 --\n\n## CERTIFICATE\n\nIRCA Auditor ISO 27001:2022\n\n## 01/2023\n\n## IRCA\n\n## ITIL V4\n\n## 11/2020\n\nAxelos IRCA Auditor ISO 27001:2013\n\n## 07/2017\n\n## IRCA\n\n## MCSA\n\n## 09/2014\n\nMicrosoft MCT\n\n## 01/2014\n\nMicrosoft\n\n## AWARD\n\n2024 Star of the Year\n\n## 01/2024\n\n## NABVN\n\n2024 Employee of the Year Impact Standardized IT policies and operations to global ISO standards Built and scaled IT teams following ITIL-based service model Delivered secure environments for regulated and high-security projects\n\n## 06/2015 - 11/2017\n\nIT Manager – Global IT Services | Epinion Vietnam Designed and implemented secure cloud-based infrastructure (AWS- centric) Supported EU and multi-country operations Built new Vietnam office and regional IT capability Lead IT governance, policies, and service optimization initiatives\n\n## 05/2007 - 01/2015\n\nIT Manager | Earlier Career (Summary) Senior IT leadership roles across global enterprises and consulting firms, delivering:\nMulti-country office build-outs (Asia & Europe) Enterprise infrastructure modernization ITSM / ITIL implementation Cloud migration (AWS & Azure) Security governance and ISO certification programs\n\n## HIGHLIGHT PROJECT\n\n## 11/2019 - 01/2026\n\nUpgrading and setup new office for Nab VN from 2019-2025 Upgrading NAB VN office 2019-2023 -03 offices ( 02 HCM - 01 HN ) -Supporting : 800 FTE -30 Meeting Room full facility Setup new Office 2023-2026 -01 New office HCM ( 7 Floors - 1300 Ws ) -01 New HN office ( 02 Floors - 600 Ws ) -09 Data room -100++ room Full facility -03 Board room -05 Training Room -Supporting : 2500+ FTE Page 2 / 2\n\n-- 2 of 2 --"
+      },
+      {
+        "filename": "Huynh Huu Hien.pdf",
+        "overallScore": 80,
+        "matchLevel": "High",
+        "keywordScore": 80,
+        "success": true,
+        "processingStatus": "COMPLETED",
+        "cvText": "## HUYNH HUU HIEN\n\nLinkedIn: https://www.linkedin.com/in/hien-huynh-b7295642/ Date of birth: 22nd Jan 1982.\nEmail: hienhuynh1982@gmail.com | Mobile: 090 77 11 070 Location: Le Van Luong, District 7, Ho Chi Minh City\n\n## EXECUTIVE SUMMARY\n\nVisionary CIO/IT Director with 20+ years of proven success driving digital transformation, cloud adoption, and cybersecurity across financial services, retail, and technology in Viet Nam. Expert at aligning IT with business strategy, delivering multi-million-dollar cost savings, and leading high-performance teams.\n\n## EDUCATION & CERTIFICATIONS\n\nBachelor of Science in Physics – University of Natural Science, Ho Chi Minh City.\nEPGP Certificate of Data Science and AI – Internation Institute of Information Technology Bangalore.\nMSc. Data Science (Ongoing) – Liverpool John Moore University (2024-2026) Other Certifications:\no \tCIO Coaching Program o \tCTO Leadership Foundation o \tAWS Certified Architect o \tProject Management Fundamentals\n\n## CORE COMPETENCIES\n\n- Strategic Leadership & Business Alignment: Digital transformation (CRM, E-Office,\nworkflow automation), business partnership (BPO), product development (eWallet, SmartPOS, SmartSME,..)\n- Vendor & Stakeholder Management: Negotiations, contract optimization, partner\nalignment\n- Technology Strategy & Innovation: Aligning IT strategy with business objectives,\ndriving cost efficiencies, and introducing emerging technologies.\n- Cost Management & Optimization: Successfully managed IT budgets exceeding $3.5M\nand delivered over $250K in cost savings.\n\n-- 1 of 4 --\n\n## TECHNICAL EXPERTISE\n\n- Cloud & Infrastructure: AWS, Azure, Google Cloud, VMware, Virtualization, Multi-\ncloud environments, Network, Systems,..\n- Cybersecurity & Compliance: PCI DSS, ISO 27001, Risk Management, IT Security\nGovernance\n- IT Operations: ITIL, CAPEX & OPEX Management, Vendor Negotiation, IT Budgeting.\n- Data Strategy & AI: Machine Learning, Deep Learning, LLMs, Agentic AI, Business\nAnalysis (Tableau, PowerBI, Excel,..)\n\n## PROFESSIONAL EXPERIENCE\n\nDirector of Digital Infrastructure and Security – SmartNet JSC. (10/2020 – Present) Key Achievements:\n- Led the digital transformation of company including but not limited to: CRM, E-Office,\nWorkflow automation implementation.\n- Key member of Product BRD team who define requirements for all company apps\n(SmartPay Ewallet, SmartShop, SmartPOS, SmartSME, PaymentGateway).\n- Delivered a 20% cost reduction by renegotiating vendor contracts and leveraging $250K\nin cloud credits from AWS, Microsoft and Google.\n- Spearheaded the successful PCI DSS Level 1 certification, ensuring industry-leading\nsecurity standards across payment systems.\n- Implemented ITIL-based Service Desk operations with clear SLAs, improving service\ndelivery and reducing incident resolution time by 25%.\n- Managed an annual IT budget of $3.5M, aligning technology investments with business\nstrategy and ensuring efficient resource allocation.\n- Directed the development of KPIs for IT teams, enhancing performance evaluation and\naccountability.\n- Manage IT team including IT Security, SysOPS, CardOPS, Network, Database and\nSupport teams.\nHead of BPO and IT – SGH Asia Ltd. (12/2016 – 10/2020) Key Achievements:\n- Optimized BPO and IT by driving digital transformation projects, resulting in increased\noperational efficiency and cost control.\n- Managed IT and BPO services for European markets, overseeing teams responsible for IT\nDevelopment outsourcing, infrastructure, network security, and service delivery.\n- Successfully \tled \tmultiple \tprojects \tincluding \tISO \t27001 \tcertification \tand \tERP\nimplementation, \ttracking \ttools, \tand \tOCR \tautomation, \tdriving \tsignificant \tprocess improvements and reducing manual workload by 20%.\n\n-- 2 of 4 --\n\n- Achieved an annual budget target of $600K while maintaining productivity and quality\nstandards.\n- Continuously communicate with Managers in Germany and Vietnam to suggest and search\nfor possible improvements.\n- Set up strategy, policy, procedures, position description and working process of the entire\nBPO & IT Departments to have a systematic and streamline organization.\nIT Security Manager – Big C Vietnam (08/2013 – 12/2016) Key Achievements:\n- Developed and enforced IT security policies in compliance with ISO 27001:2013,\nenhancing the company’s overall cybersecurity posture.\n- Led security initiatives for critical business systems (SAP HR & FI, ERP, Firewalls),\nminimizing \tvulnerabilities \tand \tmitigating \trisk \tthrough \tcontinuous \tmonitoring \tand assessments.\n- Project-managed security solutions for 44 stores and two data centers, ensuring robust and\nscalable IT operations.\n- Responsible for all IT Security aspects.\nIT Security Officer – Home Credit (07/2012 – 08/2013) Key Achievements:\n- Developed and enforced IT security policies in compliance with ISO 27001:2013,\nenhancing the company’s overall cybersecurity posture.\n- Read and mapping the company policies with governance policies such as Circulars of\nSBV\n- Plan to review, scan vulnerability for network, system to mitigate risk. Do risk assessment\nfor new system.\n- Training Information Security Awareness for all employees\nSenior IT Expert – Sacombank-SBS (07/2009 – 07/2012) Key Achievements:\n- Responsible to manage all company systems.\n- Research, develop and implement new solutions based on Open Souces.\n- Finish important projects: Front Office Online Trading, Commvault backup system,\nBack office FSS, Replace Securities Trading Core.\n- Also worked as IT Security governance.\nSystem Administration Leader – Habubank Securities HBBS (10/2007 – 07/2009) Key Achievements:\n- Responsible to manage all systems and networks at HCM branch.\n- Responsible to manage IT team’s resource and performance at HCM branch\n- Finish important projects:\no \tInstall the tele-broker system and call center project. With this project, we can save phone money between HBBS Office and branches.\no \tSuccess in configuring HOSE Gateway projects. With this project, our system can send requests to HOSE system directly, faster without a Telebroker man.\n\n-- 3 of 4 --\n\nSystem Administration - Silicon Design Solutions SDS (10/2004 – 10/2009 Key Achievements:\n- Setup new networks and systems at Dallas, Da Nang\n- Research, develop and implement new software to save cost for company:\n- Manage and control network, firewall, VPN between SDS branches (California - Dallas -\nHCM - Da Nang - Da Lat), machines, servers, softwares, licenses ...\n- Good at fixing network and system problems.\n\n## RECOGNITION & THOUGTH LEADERSHIP\n\n- Speaker \tat \tCIO \tSummit \t2025 \tabout \tActive \tDefense \tin \tAI \tera\nhttps://events.ciovn.org/CIOSummit2025#/speakers?lang=en\n- Speaker \tat \tCyberSec \tVietNam \tConference \t2025:\nhttps://cybersecasia.org/csvn2025#rec1229219281\n- Speaker \tat \tCIO \tVietnam \t2023 \ton \tMulti-Cloud \tAdoption \tand \tBest \tPractices:\nhttps://nextleader.ciovn.org/multi-cloud-adoption-challenges-best-practices/\n- Guest speaker at EcloudValley 2023 : https://www.ecloudvalley.com/en/p/ecvolution-\nvietnam-2023#Register-Form\n- Host \tto \tdiscuss \tabout \tInfrastructure \tRansomware \tProtection:\nhttps://www.linkedin.com/posts/ciocoaching_ciovietnam-ciocoaching- hcuptabrgicvlngabrlaetnhabrafncupoabrcntt-activity-7180113382853816320- efIG?utm_source=share&utm_medium=member_desktop\n\n-- 4 of 4 --",
+        "rank": 2,
+        "fullAnalysis": {
+          "feature2": {
+            "rewrittenBullets": [
+              {
+                "rewrittenBullet": "Led end-to-end ITIL service management processes including Incident, Problem, and Change Management (CAB), achieving a 25% reduction in resolution time through SLA-driven operations.",
+                "reasonBetter": "Tập trung trực tiếp vào các quy trình ITIL mà JD yêu cầu.",
+                "issueInOriginal": "Thiếu thông tin về các quy trình ITIL cụ thể khác ngoài Service Desk.",
+                "originalBullet": "Implemented ITIL-based Service Desk operations with clear SLAs, improving service delivery and reducing incident resolution time by 25%."
+              },
+              {
+                "reasonBetter": "Nhấn mạnh vào kỹ năng quản lý hợp đồng dịch vụ hạ tầng theo yêu cầu JD.",
+                "rewrittenBullet": "Managed IT infrastructure service contracts for over 2 years, delivering 20% cost optimization while ensuring vendor compliance and service delivery alignment.",
+                "originalBullet": "Delivered a 20% cost reduction by renegotiating vendor contracts and leveraging $250K in cloud credits.",
+                "issueInOriginal": "Chưa làm rõ kinh nghiệm quản lý hợp đồng dịch vụ hạ tầng."
+              }
+            ],
+            "clarifyingQuestions": [
+              "Bạn đã từng trực tiếp chủ trì các cuộc họp CAB (Change Advisory Board) chưa?",
+              "Bạn có kinh nghiệm quản lý trực tiếp các hợp đồng dịch vụ hạ tầng (Service contracts) trong ít nhất 2 năm không?",
+              "Bạn đã từng sử dụng các công cụ ITSM cụ thể nào (ví dụ: ServiceNow, Jira Service Management)?"
+            ]
+          },
+          "feature3": {
+            "fastestPointLossSection": "Phần Professional Experience quá tập trung vào Digital Transformation mà chưa làm nổi bật các quy trình vận hành ITIL hàng ngày.",
+            "biggestDoubt": "Liệu ứng viên có sẵn sàng quay lại làm việc chi tiết với các quy trình vận hành ITIL hàng ngày không?",
+            "decisionReason": "Ứng viên có năng lực lãnh đạo vượt trội, tuy nhiên cần làm rõ khả năng thực thi các quy trình vận hành ITIL chi tiết.",
+            "inviteDecision": "YES",
+            "top3MustFix": [
+              "Làm rõ kinh nghiệm điều phối CAB và quy trình Change Management.",
+              "Nhấn mạnh kinh nghiệm quản lý hợp đồng dịch vụ hạ tầng (2 năm).",
+              "Điều chỉnh tiêu đề hoặc mục tiêu nghề nghiệp để phù hợp với vai trò Service Management."
+            ],
+            "immediateStrength": "Thành tích quản lý ngân sách lớn và khả năng chuyển đổi số thực tế.",
+            "firstImpression10s": "Hồ sơ CIO dày dạn kinh nghiệm, có uy tín trong ngành nhưng hơi 'quá tầm' so với vị trí quản lý vận hành."
+          },
+          "feature1": {
+            "scores": {
+              "keywordMatchScore": 80,
+              "overallRoleScore": 80,
+              "experienceOutcomeScore": 75,
+              "skillMatchScore": 85
+            },
+            "comparisonTable": [
+              {
+                "gapOrClarification": "Cần làm rõ phạm vi áp dụng (Problem, Change, Configuration)",
+                "jdTerm": "ITIL Service Management",
+                "importance": "Rất quan trọng",
+                "matchStatus": "khop",
+                "cvEvidence": "Implemented ITIL-based Service Desk operations"
+              },
+              {
+                "jdTerm": "Change Management & CAB",
+                "cvEvidence": "Chưa đề cập cụ thể đến việc chủ trì CAB",
+                "matchStatus": "thieu",
+                "importance": "Rất quan trọng",
+                "gapOrClarification": "Cần bổ sung kinh nghiệm điều phối CAB"
+              },
+              {
+                "gapOrClarification": "Cần làm rõ kinh nghiệm quản lý hợp đồng hạ tầng 2 năm",
+                "jdTerm": "Service Contract Management",
+                "importance": "Quan trọng",
+                "cvEvidence": "Renegotiating vendor contracts",
+                "matchStatus": "can_bo_sung"
+              },
+              {
+                "cvEvidence": "Workflow automation implementation",
+                "matchStatus": "khop",
+                "gapOrClarification": "Đã thể hiện rõ qua các dự án chuyển đổi số",
+                "importance": "Có lợi thế",
+                "jdTerm": "Automation mindset"
+              }
+            ],
+            "jdKeywords": [
+              {
+                "importance": "Rất quan trọng",
+                "category": "Kỹ năng chuyên môn",
+                "keyword": "ITIL Service Management"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "keyword": "Incident & Problem Management",
+                "category": "Kỹ năng chuyên môn"
+              },
+              {
+                "category": "Kỹ năng chuyên môn",
+                "keyword": "Change Management & CAB",
+                "importance": "Rất quan trọng"
+              },
+              {
+                "importance": "Rất quan trọng",
+                "keyword": "IT Infrastructure Production",
+                "category": "Kinh nghiệm mong muốn"
+              },
+              {
+                "keyword": "Service Level Management (SLA/KPI)",
+                "importance": "Quan trọng",
+                "category": "Kết quả đầu ra"
+              },
+              {
+                "keyword": "Automation mindset",
+                "importance": "Có lợi thế",
+                "category": "Phẩm chất"
+              }
+            ],
+            "summary": {
+              "weakOrVagueSections": [
+                "Kinh nghiệm quản lý hợp đồng dịch vụ hạ tầng chưa được nhấn mạnh.",
+                "Thiếu chi tiết về vận hành quy trình Change Management và CAB."
+              ],
+              "biggestStrength": "Bề dày kinh nghiệm lãnh đạo cấp cao và khả năng tối ưu hóa chi phí/vendor xuất sắc.",
+              "immediateActions": [
+                "Bổ sung kinh nghiệm điều phối CAB và quy trình Change Management.",
+                "Làm rõ thời gian quản lý hợp đồng dịch vụ hạ tầng (2 năm).",
+                "Điều chỉnh CV để cân bằng giữa tư duy chiến lược CIO và vận hành Service Management."
+              ],
+              "missingKeywordsSkills": [
+                "Configuration Management",
+                "Service Request Management",
+                "CAB (Change Advisory Board) leadership"
+              ]
+            }
+          },
+          "candidateName": "HUYNH HUU HIEN"
+        },
+        "keyGaps": [
+          "Configuration Management",
+          "Service Request Management",
+          "CAB (Change Advisory Board) leadership"
+        ],
+        "skillScore": 85,
+        "id": "cand_d6ab3e86-bf52-4f83-8860-0c4ec7741a4f",
+        "candidateName": "HUYNH HUU HIEN",
+        "shortRecommendation": "Hồ sơ CIO dày dạn kinh nghiệm, có uy tín trong ngành nhưng hơi 'quá tầm' so với vị trí quản lý vận hành.",
+        "topStrengths": [
+          "Bề dày kinh nghiệm lãnh đạo cấp cao và khả năng tối ưu hóa chi phí/vendor xuất sắc."
+        ],
+        "experienceScore": 75
+      }
+    ]
+  }
+]

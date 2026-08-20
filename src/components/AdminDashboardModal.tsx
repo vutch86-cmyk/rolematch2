@@ -304,16 +304,86 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
 
+  const formatAdminError = (err: any, defaultMsg: string): string => {
+    let msg = typeof err === 'string' ? err : err?.message || defaultMsg;
+    if (
+      msg.includes('Unexpected token') ||
+      msg.includes('is not valid JSON') ||
+      msg.includes('<!doctype') ||
+      msg.includes('<!DOCTYPE') ||
+      msg.includes('<html')
+    ) {
+      return lang === 'vi'
+        ? 'Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại sau.'
+        : 'Invalid response from server. Please try again later.';
+    }
+    return msg;
+  };
+
+  const safeAdminFetch = async (
+    url: string,
+    options: RequestInit = {}
+  ): Promise<{ ok: boolean; status: number; data: any }> => {
+    try {
+      const headers = new Headers(options.headers || {});
+      if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      const res = await fetch(url, { ...options, headers });
+      const contentType = res.headers.get('content-type') || '';
+      const text = await res.text();
+      let data: any = {};
+      const trimmed = text.trim();
+      if (contentType.includes('json') || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = {
+            error:
+              lang === 'vi'
+                ? 'Lỗi định dạng dữ liệu phản hồi.'
+                : 'Response data parsing error.',
+          };
+        }
+      } else {
+        if (!res.ok) {
+          data = {
+            error:
+              lang === 'vi'
+                ? `Máy chủ phản hồi mã lỗi ${res.status}. Vui lòng thử lại.`
+                : `Server returned status code ${res.status}. Please try again.`,
+          };
+        } else {
+          data = {
+            error:
+              lang === 'vi'
+                ? 'Phản hồi từ máy chủ không đúng định dạng JSON.'
+                : 'Server response is not valid JSON.',
+          };
+        }
+      }
+      return { ok: res.ok && data.success !== false, status: res.status, data };
+    } catch (err: any) {
+      return {
+        ok: false,
+        status: 0,
+        data: {
+          error:
+            lang === 'vi'
+              ? 'Lỗi kết nối máy chủ hoặc mạng gián đoạn.'
+              : 'Network or server connection error.',
+        },
+      };
+    }
+  };
+
   // 1. Fetch Stats
   const fetchStats = async () => {
     if (!token) return;
     setIsStatsLoading(true);
     try {
-      const res = await fetch('/api/admin/stats', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const { ok, data } = await safeAdminFetch('/api/admin/stats');
+      if (ok && data.success) {
         setStats(data.stats);
         if (data.stats?.appSettings) {
           setLimitEnabled(data.stats.appSettings.limitEnabled);
@@ -333,19 +403,15 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const res = await fetch('/api/admin/settings', {
+      const { ok, data } = await safeAdminFetch('/api/admin/settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           limitEnabled: enabled,
           dailyLimit: limit,
         }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         setSuccessMsg(data.message || 'Cập nhật giới hạn thành công!');
         if (data.appSettings) {
           setLimitEnabled(data.appSettings.limitEnabled);
@@ -353,10 +419,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         }
         fetchStats();
       } else {
-        setErrorMsg(data.error || 'Lỗi khi cập nhật cấu hình.');
+        setErrorMsg(formatAdminError(data.error, 'Lỗi khi cập nhật cấu hình.'));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi kết nối.');
+      setErrorMsg(formatAdminError(err, 'Lỗi kết nối.'));
     }
   };
 
@@ -366,22 +432,18 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const res = await fetch(`/api/admin/users/${userId}/reset-limit`, {
+      const { ok, data } = await safeAdminFetch(`/api/admin/users/${userId}/reset-limit`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         setSuccessMsg(data.message || 'Đã đặt lại giới hạn thành công!');
         fetchUsers();
         fetchStats();
       } else {
-        setErrorMsg(data.error || 'Lỗi khi đặt lại giới hạn.');
+        setErrorMsg(formatAdminError(data.error, 'Lỗi khi đặt lại giới hạn.'));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi kết nối.');
+      setErrorMsg(formatAdminError(err, 'Lỗi kết nối.'));
     }
   };
 
@@ -392,15 +454,11 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const res = await fetch('/api/admin/ping-ai', {
+      const { ok, data } = await safeAdminFetch('/api/admin/ping-ai', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         setPingResults(data.results);
         setLastPingTime(new Date().toLocaleTimeString());
         setSuccessMsg(
@@ -409,10 +467,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
             : 'AI Real-time Ping test completed successfully!'
         );
       } else {
-        setErrorMsg(data.error || 'Lỗi khi kiểm tra kết nối AI API.');
+        setErrorMsg(formatAdminError(data.error, 'Lỗi khi kiểm tra kết nối AI API.'));
       }
     } catch (err: any) {
-      setErrorMsg('Không thể kết nối tới server để kiểm tra AI: ' + (err.message || String(err)));
+      setErrorMsg(formatAdminError(err, 'Không thể kết nối tới server để kiểm tra AI.'));
     } finally {
       setIsPingTesting(false);
     }
@@ -423,15 +481,14 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (!token) return;
     setIsUsersLoading(true);
     try {
-      const res = await fetch('/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const { ok, data } = await safeAdminFetch('/api/admin/users');
+      if (ok && data.success) {
         setUsers(data.users || []);
+      } else if (!ok && data.error) {
+        setErrorMsg(formatAdminError(data.error, 'Lỗi khi lấy danh sách người dùng.'));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi lấy danh sách người dùng.');
+      setErrorMsg(formatAdminError(err, 'Lỗi khi lấy danh sách người dùng.'));
     } finally {
       setIsUsersLoading(false);
     }
@@ -455,11 +512,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (!token) return;
     setIsAuditLoading(true);
     try {
-      const res = await fetch('/api/admin/audit-logs', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const { ok, data } = await safeAdminFetch('/api/admin/audit-logs');
+      if (ok && data.success) {
         setAuditLogs(data.auditLogs || []);
       }
     } catch (err: any) {
@@ -482,17 +536,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     }
     if (!token) return;
     try {
-      const res = await fetch('/api/admin/audit-logs', {
+      const { ok, data } = await safeAdminFetch('/api/admin/audit-logs', {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         setSuccessMsg(lang === 'vi' ? 'Đã xóa toàn bộ nhật ký Audit Log.' : 'Audit logs cleared successfully.');
         fetchAuditLogs();
+      } else {
+        setErrorMsg(formatAdminError(data.error, 'Lỗi khi xóa audit log.'));
       }
     } catch (err: any) {
-      setErrorMsg('Lỗi khi xóa audit log: ' + (err.message || String(err)));
+      setErrorMsg(formatAdminError(err, 'Lỗi khi xóa audit log.'));
     }
   };
 
@@ -539,11 +593,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (!token) return;
     setIsDocsLoading(true);
     try {
-      const res = await fetch('/api/admin/documents', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const { ok, data } = await safeAdminFetch('/api/admin/documents');
+      if (ok && data.success) {
         setDocuments(data.documents || []);
       }
     } catch (err: any) {
@@ -566,17 +617,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     }
     if (!token) return;
     try {
-      const res = await fetch(`/api/admin/documents/${id}`, {
+      const { ok, data } = await safeAdminFetch(`/api/admin/documents/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         setSuccessMsg(lang === 'vi' ? 'Đã xóa tệp tài liệu.' : 'Document deleted.');
         fetchDocuments();
+      } else {
+        setErrorMsg(formatAdminError(data.error, 'Lỗi khi xóa tệp tài liệu.'));
       }
     } catch (err: any) {
-      setErrorMsg('Lỗi khi xóa tệp: ' + (err.message || String(err)));
+      setErrorMsg(formatAdminError(err, 'Lỗi khi xóa tệp.'));
     }
   };
 
@@ -593,17 +644,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     }
     if (!token) return;
     try {
-      const res = await fetch('/api/admin/documents', {
+      const { ok, data } = await safeAdminFetch('/api/admin/documents', {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccessMsg(data.message || 'Cleared all documents.');
+      if (ok && data.success) {
+        setSuccessMsg(data.message || (lang === 'vi' ? 'Đã xóa toàn bộ tệp tài liệu.' : 'Cleared all documents.'));
         fetchDocuments();
+      } else {
+        setErrorMsg(formatAdminError(data.error, 'Lỗi dọn dẹp tệp.'));
       }
     } catch (err: any) {
-      setErrorMsg('Lỗi dọn dẹp tệp: ' + (err.message || String(err)));
+      setErrorMsg(formatAdminError(err, 'Lỗi dọn dẹp tệp.'));
     }
   };
 
@@ -667,11 +718,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (!token) return;
     setIsAnalysesLoading(true);
     try {
-      const res = await fetch('/api/admin/analyses', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const { ok, data } = await safeAdminFetch('/api/admin/analyses');
+      if (ok && data.success) {
         setAnalyses(data.analyses || []);
       }
     } catch (err: any) {
@@ -694,17 +742,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     }
     if (!token) return;
     try {
-      const res = await fetch(`/api/admin/analyses/${id}`, {
+      const { ok, data } = await safeAdminFetch(`/api/admin/analyses/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         setSuccessMsg(lang === 'vi' ? 'Đã xóa bản ghi phân tích.' : 'Analysis record deleted.');
         fetchAnalyses();
+      } else {
+        setErrorMsg(formatAdminError(data.error, 'Lỗi khi xóa bản ghi phân tích.'));
       }
     } catch (err: any) {
-      setErrorMsg('Lỗi khi xóa phân tích: ' + (err.message || String(err)));
+      setErrorMsg(formatAdminError(err, 'Lỗi khi xóa phân tích.'));
     }
   };
 
@@ -721,17 +769,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     }
     if (!token) return;
     try {
-      const res = await fetch('/api/admin/analyses', {
+      const { ok, data } = await safeAdminFetch('/api/admin/analyses', {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccessMsg(data.message || 'Cleared all analyses.');
+      if (ok && data.success) {
+        setSuccessMsg(data.message || (lang === 'vi' ? 'Đã xóa toàn bộ lịch sử phân tích.' : 'Cleared all analyses.'));
         fetchAnalyses();
+      } else {
+        setErrorMsg(formatAdminError(data.error, 'Lỗi dọn dẹp lịch sử phân tích.'));
       }
     } catch (err: any) {
-      setErrorMsg('Lỗi dọn dẹp lịch sử phân tích: ' + (err.message || String(err)));
+      setErrorMsg(formatAdminError(err, 'Lỗi dọn dẹp lịch sử phân tích.'));
     }
   };
 
@@ -812,20 +860,20 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const handleClearSystemCache = async () => {
     if (!token) return;
     try {
-      const res = await fetch('/api/admin/clear-cache', {
+      const { ok, data } = await safeAdminFetch('/api/admin/clear-cache', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (ok && data.success) {
         setSuccessMsg(
           lang === 'vi'
             ? 'Đã dọn dẹp và giải phóng bộ nhớ đệm Cache LRU thành công!'
             : 'LRU Cache cleared successfully!'
         );
+      } else {
+        setErrorMsg(formatAdminError(data.error, 'Lỗi giải phóng cache.'));
       }
     } catch (err: any) {
-      setErrorMsg('Lỗi giải phóng cache: ' + (err.message || String(err)));
+      setErrorMsg(formatAdminError(err, 'Lỗi giải phóng cache.'));
     }
   };
 
@@ -858,17 +906,15 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         isLocked,
       };
 
-      const res = await fetch('/api/admin/users', {
+      const { ok, data } = await safeAdminFetch('/api/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Không thể lưu người dùng.');
       }
 
@@ -893,7 +939,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       fetchUsers();
       fetchStats();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi lưu tài khoản.');
+      setErrorMsg(formatAdminError(err, 'Lỗi lưu tài khoản.'));
     }
   };
 
@@ -911,19 +957,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     }
 
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
+      const { ok, data } = await safeAdminFetch(`/api/admin/users/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Không thể xóa tài khoản.');
       }
       setSuccessMsg(lang === 'vi' ? 'Đã xóa tài khoản thành công!' : 'User deleted successfully!');
       fetchUsers();
       fetchStats();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi xóa người dùng.');
+      setErrorMsg(formatAdminError(err, 'Lỗi khi xóa người dùng.'));
     }
   };
 
@@ -941,12 +985,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     }
 
     try {
-      const res = await fetch(`/api/admin/users/${id}/lock`, {
+      const { ok, data } = await safeAdminFetch(`/api/admin/users/${id}/lock`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Không thể khóa tài khoản.');
       }
       setSuccessMsg(
@@ -954,7 +996,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       );
       fetchUsers();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi khóa người dùng.');
+      setErrorMsg(formatAdminError(err, 'Lỗi khi khóa người dùng.'));
     }
   };
 
@@ -962,12 +1004,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const handleUnlockUser = async (id: string, username: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/admin/users/${id}/unlock`, {
+      const { ok, data } = await safeAdminFetch(`/api/admin/users/${id}/unlock`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Không thể mở khóa tài khoản.');
       }
       setSuccessMsg(
@@ -975,7 +1015,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       );
       fetchUsers();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi mở khóa người dùng.');
+      setErrorMsg(formatAdminError(err, 'Lỗi khi mở khóa người dùng.'));
     }
   };
 
@@ -992,19 +1032,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       return;
     }
     try {
-      const res = await fetch(`/api/admin/users/${id}/terminate-session`, {
+      const { ok, data } = await safeAdminFetch(`/api/admin/users/${id}/terminate-session`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Không thể hủy phiên đăng nhập.');
       }
       setSuccessMsg(data.message || `Đã hủy phiên đăng nhập của "${username}"`);
       fetchUsers();
       fetchStats();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi hủy phiên đăng nhập.');
+      setErrorMsg(formatAdminError(err, 'Lỗi khi hủy phiên đăng nhập.'));
     }
   };
 

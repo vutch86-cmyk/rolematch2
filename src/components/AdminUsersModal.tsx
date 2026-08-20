@@ -32,21 +32,67 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
   const [fullName, setFullName] = useState<string>('');
   const [role, setRole] = useState<UserRole>('normal');
 
+  const formatError = (err: any, defaultMsg: string): string => {
+    let msg = typeof err === 'string' ? err : err?.message || defaultMsg;
+    if (
+      msg.includes('Unexpected token') ||
+      msg.includes('is not valid JSON') ||
+      msg.includes('<!doctype') ||
+      msg.includes('<!DOCTYPE') ||
+      msg.includes('<html')
+    ) {
+      return lang === 'vi'
+        ? 'Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại sau.'
+        : 'Invalid response from server. Please try again later.';
+    }
+    return msg;
+  };
+
+  const safeFetch = async (
+    url: string,
+    options: RequestInit = {}
+  ): Promise<{ ok: boolean; data: any }> => {
+    try {
+      const headers = new Headers(options.headers || {});
+      if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      const res = await fetch(url, { ...options, headers });
+      const contentType = res.headers.get('content-type') || '';
+      const text = await res.text();
+      let data: any = {};
+      const trimmed = text.trim();
+      if (contentType.includes('json') || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: 'Lỗi định dạng dữ liệu phản hồi.' };
+        }
+      } else {
+        if (!res.ok) {
+          data = { error: `Máy chủ phản hồi mã lỗi ${res.status}. Vui lòng thử lại.` };
+        } else {
+          data = { error: 'Phản hồi từ máy chủ không đúng định dạng JSON.' };
+        }
+      }
+      return { ok: res.ok && data.success !== false, data };
+    } catch (err: any) {
+      return { ok: false, data: { error: err.message || 'Lỗi kết nối máy chủ.' } };
+    }
+  };
+
   const fetchUsers = async () => {
     if (!token) return;
     setIsLoading(true);
     setErrorMsg('');
     try {
-      const res = await fetch('/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const { ok, data } = await safeFetch('/api/admin/users');
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Failed to fetch users.');
       }
       setUsers(data.users || []);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi tải danh sách người dùng.');
+      setErrorMsg(formatError(err, 'Lỗi khi tải danh sách người dùng.'));
     } finally {
       setIsLoading(false);
     }
@@ -72,17 +118,15 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
         role,
       };
 
-      const res = await fetch('/api/admin/users', {
+      const { ok, data } = await safeFetch('/api/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Failed to save user.');
       }
 
@@ -96,7 +140,7 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
 
       fetchUsers();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi lưu thông tin người dùng.');
+      setErrorMsg(formatError(err, 'Lỗi khi lưu thông tin người dùng.'));
     }
   };
 
@@ -113,17 +157,15 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
     }
 
     try {
-      const res = await fetch(`/api/admin/users/${id}`, {
+      const { ok, data } = await safeFetch(`/api/admin/users/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Failed to delete user.');
       }
       fetchUsers();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi xóa tài khoản.');
+      setErrorMsg(formatError(err, 'Lỗi khi xóa tài khoản.'));
     }
   };
 
@@ -140,34 +182,30 @@ export const AdminUsersModal: React.FC<AdminUsersModalProps> = ({
     }
 
     try {
-      const res = await fetch(`/api/admin/users/${id}/lock`, {
+      const { ok, data } = await safeFetch(`/api/admin/users/${id}/lock`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Lỗi khi khóa tài khoản.');
       }
       fetchUsers();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi khóa tài khoản.');
+      setErrorMsg(formatError(err, 'Lỗi khi khóa tài khoản.'));
     }
   };
 
   const handleUnlockUser = async (id: string, username: string) => {
     if (!token) return;
     try {
-      const res = await fetch(`/api/admin/users/${id}/unlock`, {
+      const { ok, data } = await safeFetch(`/api/admin/users/${id}/unlock`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!ok || !data.success) {
         throw new Error(data.error || 'Lỗi khi mở khóa tài khoản.');
       }
       fetchUsers();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Lỗi khi mở khóa tài khoản.');
+      setErrorMsg(formatError(err, 'Lỗi khi mở khóa tài khoản.'));
     }
   };
 

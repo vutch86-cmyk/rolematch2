@@ -1,5 +1,7 @@
 import { doc, getDoc, setDoc, runTransaction } from 'firebase/firestore';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 export interface QuotaReservationResult {
   allowed: boolean;
@@ -12,6 +14,80 @@ export interface QuotaReservationResult {
   remaining: number;
   resetAt: string;
   code?: 'DAILY_AI_LIMIT_EXCEEDED' | 'QUOTA_SERVICE_UNAVAILABLE';
+}
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const LOCAL_SETTINGS_FILE = path.join(DATA_DIR, 'app_settings.json');
+const LOCAL_USAGE_FILE = path.join(DATA_DIR, 'ai_usage.json');
+
+function ensureDataDir(): void {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function getLocalSettings(): { limitEnabled: boolean; dailyLimit: number; timezone: string } {
+  try {
+    ensureDataDir();
+    if (fs.existsSync(LOCAL_SETTINGS_FILE)) {
+      const raw = fs.readFileSync(LOCAL_SETTINGS_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      return {
+        limitEnabled: typeof data?.limitEnabled === 'boolean' ? data.limitEnabled : true,
+        dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
+        timezone: data?.timezone || 'Asia/Ho_Chi_Minh'
+      };
+    }
+  } catch (e) {
+    console.warn('Error reading local app settings:', e);
+  }
+  return {
+    limitEnabled: true,
+    dailyLimit: 10,
+    timezone: 'Asia/Ho_Chi_Minh'
+  };
+}
+
+function saveLocalSettings(settings: { limitEnabled: boolean; dailyLimit: number; timezone?: string }): void {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(LOCAL_SETTINGS_FILE, JSON.stringify({
+      limitEnabled: settings.limitEnabled,
+      dailyLimit: settings.dailyLimit,
+      timezone: settings.timezone || 'Asia/Ho_Chi_Minh',
+      updatedAt: new Date().toISOString()
+    }, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error saving local app settings:', e);
+  }
+}
+
+function getLocalUsageMap(): Record<string, any> {
+  try {
+    ensureDataDir();
+    if (fs.existsSync(LOCAL_USAGE_FILE)) {
+      const raw = fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8');
+      return JSON.parse(raw) || {};
+    }
+  } catch (e) {
+    console.warn('Error reading local ai usage file:', e);
+  }
+  return {};
+}
+
+function saveLocalUsageRecord(usageDocId: string, usageData: any): void {
+  try {
+    ensureDataDir();
+    const map = getLocalUsageMap();
+    map[usageDocId] = usageData;
+    fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(map, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error saving local ai usage record:', e);
+  }
 }
 
 export function getDateKey(date: Date = new Date()): string {
@@ -77,48 +153,32 @@ export function getQuotaHealth(usage: any): 'HEALTHY' | 'NORMALIZED' | 'ERROR' {
 }
 
 export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boolean; dailyLimit: number; timezone: string }> {
-  if (!db) {
-    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
-  }
-  try {
-    const settingsRef = doc(db, 'system_settings', 'ai_quota');
-    const snap = await getDoc(settingsRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      return {
-        limitEnabled: typeof data?.limitEnabled === 'boolean' ? data.limitEnabled : true,
-        dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
-        timezone: data?.timezone || 'Asia/Ho_Chi_Minh'
-      };
+  if (db) {
+    try {
+      const settingsRef = doc(db, 'system_settings', 'ai_quota');
+      const snap = await getDoc(settingsRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        const res = {
+          limitEnabled: typeof data?.limitEnabled === 'boolean' ? data.limitEnabled : true,
+          dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
+          timezone: data?.timezone || 'Asia/Ho_Chi_Minh'
+        };
+        saveLocalSettings(res);
+        return res;
+      }
+    } catch (err: any) {
+      console.warn('Firestore settings fetch not available, falling back to local settings file:', err?.message);
     }
-  } catch (err: any) {
-    console.error('Error fetching ai quota settings from system_settings:', err);
-    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
 
-  // Default settings if document doesn't exist yet: fail-closed default with limitEnabled = true
-  const defaultSettings = {
-    limitEnabled: true,
-    dailyLimit: 10,
-    timezone: 'Asia/Ho_Chi_Minh'
-  };
-
-  try {
-    const settingsRef = doc(db, 'system_settings', 'ai_quota');
-    await setDoc(settingsRef, {
-      ...defaultSettings,
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system'
-    });
-    return defaultSettings;
-  } catch (err: any) {
-    console.error('Failed to create default ai quota settings in system_settings:', err);
-    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
-  }
+  return getLocalSettings();
 }
 
-export async function updateAiQuotaSettings(db: any, { limitEnabled, dailyLimit, userEmail }: { limitEnabled?: boolean; dailyLimit?: number; userEmail?: string }) {
-  if (!db) throw new Error('QUOTA_SERVICE_UNAVAILABLE');
+export async function updateAiQuotaSettings(
+  db: any,
+  { limitEnabled, dailyLimit, userEmail }: { limitEnabled?: boolean; dailyLimit?: number; userEmail?: string }
+): Promise<{ limitEnabled: boolean; dailyLimit: number; timezone: string }> {
   const current = await getAiQuotaSettings(db);
   const updated = {
     ...current,
@@ -128,12 +188,15 @@ export async function updateAiQuotaSettings(db: any, { limitEnabled, dailyLimit,
     updatedBy: userEmail || 'admin'
   };
 
-  try {
-    const settingsRef = doc(db, 'system_settings', 'ai_quota');
-    await setDoc(settingsRef, updated);
-  } catch (err: any) {
-    console.error('Error updating ai quota settings in system_settings:', err);
-    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
+  saveLocalSettings(updated);
+
+  if (db) {
+    try {
+      const settingsRef = doc(db, 'system_settings', 'ai_quota');
+      await setDoc(settingsRef, updated);
+    } catch (err: any) {
+      console.warn('Unable to sync updated quota settings to Firestore:', err?.message);
+    }
   }
 
   return updated;
@@ -143,10 +206,6 @@ export async function reserveAiQuota(
   db: any,
   { user, units, source, requestId }: { user: any; units: number; source: 'candidate' | 'recruiter_batch'; requestId: string }
 ): Promise<QuotaReservationResult> {
-  if (!db) {
-    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
-  }
-
   if (!user || user.id === undefined || user.id === null) {
     throw new Error('AUTH_REQUIRED');
   }
@@ -183,148 +242,193 @@ export async function reserveAiQuota(
   const usageDocId = getUsageDocId(userId, dateKey);
   const requestIdHash = hashRequestId(userId, dateKey, requestId);
 
-  const settingsRef = doc(db, 'system_settings', 'ai_quota');
-  const usageRef = doc(db, 'ai_usage', usageDocId);
-  const reservationRef = doc(db, 'ai_reservations', requestIdHash);
+  // Try Firestore transaction if db is available
+  if (db) {
+    try {
+      const settingsRef = doc(db, 'system_settings', 'ai_quota');
+      const usageRef = doc(db, 'ai_usage', usageDocId);
+      const reservationRef = doc(db, 'ai_reservations', requestIdHash);
 
-  try {
-    return await runTransaction(db, async (transaction) => {
-      // 1. ALL READS FIRST (MANDATORY ORDER)
-      const reservationDoc = await transaction.get(reservationRef);
-      const settingsDoc = await transaction.get(settingsRef);
-      const usageDoc = await transaction.get(usageRef);
+      return await runTransaction(db, async (transaction) => {
+        const reservationDoc = await transaction.get(reservationRef);
+        const settingsDoc = await transaction.get(settingsRef);
+        const usageDoc = await transaction.get(usageRef);
 
-      // 2. CHECK EXISTING RESERVATION (Idempotency)
-      if (reservationDoc.exists()) {
-        const resData = reservationDoc.data();
-        if (resData && resData.result && typeof resData.result === 'object' && typeof resData.result.allowed === 'boolean') {
-          return resData.result as QuotaReservationResult;
+        if (reservationDoc.exists()) {
+          const resData = reservationDoc.data();
+          if (resData && resData.result && typeof resData.result === 'object' && typeof resData.result.allowed === 'boolean') {
+            return resData.result as QuotaReservationResult;
+          }
         }
-      }
 
-      // 3. NORMALIZE SETTINGS
-      let settings: any;
-      let needWriteSettings = false;
-      if (!settingsDoc.exists()) {
-        settings = {
-          limitEnabled: true,
-          dailyLimit: 10,
+        let settings: any;
+        let needWriteSettings = false;
+        if (!settingsDoc.exists()) {
+          settings = getLocalSettings();
+          needWriteSettings = true;
+        } else {
+          settings = settingsDoc.data();
+        }
+
+        const limitEnabled = settings.limitEnabled !== undefined ? !!settings.limitEnabled : true;
+        const dailyLimit = typeof settings.dailyLimit === 'number' && Number.isFinite(settings.dailyLimit) && settings.dailyLimit >= 1
+          ? Math.floor(settings.dailyLimit)
+          : 10;
+
+        let candidateUnitsBefore = 0;
+        let recruiterUnitsBefore = 0;
+        let username = user.username || user.email || userId;
+
+        if (usageDoc.exists()) {
+          const u = usageDoc.data() || {};
+          candidateUnitsBefore = Number.isFinite(Number(u.candidateUnits)) && Number(u.candidateUnits) >= 0 ? Math.floor(Number(u.candidateUnits)) : 0;
+          recruiterUnitsBefore = Number.isFinite(Number(u.recruiterUnits)) && Number(u.recruiterUnits) >= 0 ? Math.floor(Number(u.recruiterUnits)) : 0;
+          if (u.username) username = String(u.username);
+        }
+
+        const usedBefore = candidateUnitsBefore + recruiterUnitsBefore;
+
+        if (limitEnabled && usedBefore + units > dailyLimit) {
+          const failResult: QuotaReservationResult = {
+            allowed: false,
+            dateKey,
+            dailyLimit,
+            usedBefore,
+            usedAfter: usedBefore,
+            requested: units,
+            remaining: Math.max(0, dailyLimit - usedBefore),
+            resetAt: getResetAt(),
+            code: 'DAILY_AI_LIMIT_EXCEEDED'
+          };
+
+          if (needWriteSettings) {
+            transaction.set(settingsRef, settings);
+          }
+          transaction.set(reservationRef, {
+            userId,
+            dateKey,
+            requestIdHash,
+            source,
+            units,
+            result: failResult,
+            createdAt: new Date().toISOString()
+          });
+
+          return failResult;
+        }
+
+        const candidateInc = source === 'candidate' ? units : 0;
+        const recruiterInc = source === 'recruiter_batch' ? units : 0;
+        const newCandidateUnits = candidateUnitsBefore + candidateInc;
+        const newRecruiterUnits = recruiterUnitsBefore + recruiterInc;
+        const newTotalUnits = newCandidateUnits + newRecruiterUnits;
+
+        const updatedUsage = {
+          userId,
+          username,
+          dateKey,
           timezone: 'Asia/Ho_Chi_Minh',
-          updatedAt: new Date().toISOString(),
-          updatedBy: 'system'
+          candidateUnits: newCandidateUnits,
+          recruiterUnits: newRecruiterUnits,
+          totalUnits: newTotalUnits,
+          updatedAt: new Date().toISOString()
         };
-        needWriteSettings = true;
-      } else {
-        settings = settingsDoc.data();
-      }
 
-      const limitEnabled = settings.limitEnabled !== undefined ? !!settings.limitEnabled : true;
-      const dailyLimit = typeof settings.dailyLimit === 'number' && Number.isFinite(settings.dailyLimit) && settings.dailyLimit >= 1
-        ? Math.floor(settings.dailyLimit)
-        : 10;
-
-      // 4. NORMALIZE USAGE DATA
-      let candidateUnitsBefore = 0;
-      let recruiterUnitsBefore = 0;
-      let username = user.username || user.email || userId;
-
-      if (usageDoc.exists()) {
-        const u = usageDoc.data() || {};
-        candidateUnitsBefore = Number.isFinite(Number(u.candidateUnits)) && Number(u.candidateUnits) >= 0 ? Math.floor(Number(u.candidateUnits)) : 0;
-        recruiterUnitsBefore = Number.isFinite(Number(u.recruiterUnits)) && Number(u.recruiterUnits) >= 0 ? Math.floor(Number(u.recruiterUnits)) : 0;
-        if (u.username) username = String(u.username);
-      }
-
-      const usedBefore = candidateUnitsBefore + recruiterUnitsBefore;
-
-      // 5. EVALUATE QUOTA LIMIT
-      if (limitEnabled && usedBefore + units > dailyLimit) {
-        const failResult: QuotaReservationResult = {
-          allowed: false,
+        const successResult: QuotaReservationResult = {
+          allowed: true,
           dateKey,
           dailyLimit,
           usedBefore,
-          usedAfter: usedBefore,
+          usedAfter: newTotalUnits,
           requested: units,
-          remaining: Math.max(0, dailyLimit - usedBefore),
-          resetAt: getResetAt(),
-          code: 'DAILY_AI_LIMIT_EXCEEDED'
+          remaining: limitEnabled ? Math.max(0, dailyLimit - newTotalUnits) : dailyLimit,
+          resetAt: getResetAt()
         };
 
-        // ALL WRITES AT THE END
         if (needWriteSettings) {
           transaction.set(settingsRef, settings);
         }
+        transaction.set(usageRef, updatedUsage);
         transaction.set(reservationRef, {
           userId,
           dateKey,
           requestIdHash,
           source,
           units,
-          result: failResult,
+          result: successResult,
           createdAt: new Date().toISOString()
         });
 
-        return failResult;
-      }
-
-      // 6. CALCULATE UPDATED USAGE
-      const candidateInc = source === 'candidate' ? units : 0;
-      const recruiterInc = source === 'recruiter_batch' ? units : 0;
-      const newCandidateUnits = candidateUnitsBefore + candidateInc;
-      const newRecruiterUnits = recruiterUnitsBefore + recruiterInc;
-      const newTotalUnits = newCandidateUnits + newRecruiterUnits;
-
-      const updatedUsage = {
-        userId,
-        username,
-        dateKey,
-        timezone: 'Asia/Ho_Chi_Minh',
-        candidateUnits: newCandidateUnits,
-        recruiterUnits: newRecruiterUnits,
-        totalUnits: newTotalUnits,
-        updatedAt: new Date().toISOString()
-      };
-
-      const successResult: QuotaReservationResult = {
-        allowed: true,
-        dateKey,
-        dailyLimit,
-        usedBefore,
-        usedAfter: newTotalUnits,
-        requested: units,
-        remaining: limitEnabled ? Math.max(0, dailyLimit - newTotalUnits) : dailyLimit,
-        resetAt: getResetAt()
-      };
-
-      // 7. ALL WRITES AT THE END (NO GETS AFTER THIS POINT)
-      if (needWriteSettings) {
-        transaction.set(settingsRef, settings);
-      }
-      transaction.set(usageRef, updatedUsage);
-      transaction.set(reservationRef, {
-        userId,
-        dateKey,
-        requestIdHash,
-        source,
-        units,
-        result: successResult,
-        createdAt: new Date().toISOString()
+        saveLocalUsageRecord(usageDocId, updatedUsage);
+        return successResult;
       });
-
-      return successResult;
-    });
-  } catch (err: any) {
-    console.error('Error in reserveAiQuota transaction:', err);
-    if (err?.message === 'AUTH_REQUIRED' || err?.message === 'INVALID_UNITS' || err?.message === 'INVALID_SOURCE' || err?.message === 'INVALID_REQUEST_ID') {
-      throw err;
+    } catch (err: any) {
+      if (err?.message === 'AUTH_REQUIRED' || err?.message === 'INVALID_UNITS' || err?.message === 'INVALID_SOURCE' || err?.message === 'INVALID_REQUEST_ID') {
+        throw err;
+      }
+      console.warn('Firestore transaction failed, switching to local quota engine fallback:', err?.message);
     }
-    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
+
+  // Local fallback engine
+  const settings = getLocalSettings();
+  const limitEnabled = settings.limitEnabled !== undefined ? !!settings.limitEnabled : true;
+  const dailyLimit = typeof settings.dailyLimit === 'number' && Number.isFinite(settings.dailyLimit) && settings.dailyLimit >= 1
+    ? Math.floor(settings.dailyLimit)
+    : 10;
+
+  const usageMap = getLocalUsageMap();
+  const currentUsage = usageMap[usageDocId] || { candidateUnits: 0, recruiterUnits: 0, totalUnits: 0 };
+  const candidateUnitsBefore = Number.isFinite(Number(currentUsage.candidateUnits)) ? Math.floor(Number(currentUsage.candidateUnits)) : 0;
+  const recruiterUnitsBefore = Number.isFinite(Number(currentUsage.recruiterUnits)) ? Math.floor(Number(currentUsage.recruiterUnits)) : 0;
+  const usedBefore = candidateUnitsBefore + recruiterUnitsBefore;
+
+  if (limitEnabled && usedBefore + units > dailyLimit) {
+    return {
+      allowed: false,
+      dateKey,
+      dailyLimit,
+      usedBefore,
+      usedAfter: usedBefore,
+      requested: units,
+      remaining: Math.max(0, dailyLimit - usedBefore),
+      resetAt: getResetAt(),
+      code: 'DAILY_AI_LIMIT_EXCEEDED'
+    };
+  }
+
+  const candidateInc = source === 'candidate' ? units : 0;
+  const recruiterInc = source === 'recruiter_batch' ? units : 0;
+  const newCandidateUnits = candidateUnitsBefore + candidateInc;
+  const newRecruiterUnits = recruiterUnitsBefore + recruiterInc;
+  const newTotalUnits = newCandidateUnits + newRecruiterUnits;
+
+  const updatedUsage = {
+    userId,
+    username: user.username || user.email || userId,
+    dateKey,
+    timezone: 'Asia/Ho_Chi_Minh',
+    candidateUnits: newCandidateUnits,
+    recruiterUnits: newRecruiterUnits,
+    totalUnits: newTotalUnits,
+    updatedAt: new Date().toISOString()
+  };
+
+  saveLocalUsageRecord(usageDocId, updatedUsage);
+
+  return {
+    allowed: true,
+    dateKey,
+    dailyLimit,
+    usedBefore,
+    usedAfter: newTotalUnits,
+    requested: units,
+    remaining: limitEnabled ? Math.max(0, dailyLimit - newTotalUnits) : dailyLimit,
+    resetAt: getResetAt()
+  };
 }
 
 export async function resetUserQuotaForDate(db: any, userId: string, dateKey?: string): Promise<boolean> {
-  if (!db) throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   const cleanId = normalizeUserId(userId);
   const dk = dateKey || getDateKey();
   const usageDocId = getUsageDocId(cleanId, dk);
@@ -338,8 +442,16 @@ export async function resetUserQuotaForDate(db: any, userId: string, dateKey?: s
     updatedAt: new Date().toISOString()
   };
 
-  const primaryUsageRef = doc(db, 'ai_usage', usageDocId);
-  await setDoc(primaryUsageRef, resetData, { merge: true });
+  saveLocalUsageRecord(usageDocId, resetData);
+
+  if (db) {
+    try {
+      const primaryUsageRef = doc(db, 'ai_usage', usageDocId);
+      await setDoc(primaryUsageRef, resetData, { merge: true });
+    } catch (err: any) {
+      console.warn('Unable to sync quota reset to Firestore:', err?.message);
+    }
+  }
 
   return true;
 }
