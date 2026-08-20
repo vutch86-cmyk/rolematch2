@@ -18,7 +18,7 @@ import {
   SavedBatchCandidate,
   RecruiterBatchDetail
 } from './src/types';
-import { reserveAiQuota } from './quotaService';
+import { reserveAiQuota, getAiQuotaSettings, updateAiQuotaSettings, getDateKey, getResetAt } from './quotaService';
 
 dotenv.config();
 
@@ -140,40 +140,7 @@ let analysesFileWriter: (records: AnalysisRecordItem[]) => void = (records: Anal
   }
 };
 
-export interface AppSettings {
-  limitEnabled: boolean;
-  dailyLimit: number;
-}
-
-let appSettings: AppSettings = {
-  limitEnabled: false,
-  dailyLimit: 10
-};
-
-function loadSettings() {
-  try {
-    if (fs.existsSync(SETTINGS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
-      appSettings = { ...appSettings, ...data };
-    }
-  } catch (err) {
-    console.error('Error loading app settings:', err);
-  }
-}
-
-function saveSettings() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(appSettings, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error saving app settings:', err);
-  }
-}
-
-// Load settings on bootup
-loadSettings();
+// Legacy appSettings removed in favor of Firestore-backed getAiQuotaSettings / updateAiQuotaSettings
 
 function ensureDefaultUsers(users: StoredUser[]): StoredUser[] {
   const adminHash = bcrypt.hashSync('admin123', 10);
@@ -1957,16 +1924,44 @@ app.get('/api/admin/users', async (req, res) => {
   }
 
   const users = await loadUsersAsync();
-  const safeUsers = users.map((u) => ({
-    id: u.id,
-    username: u.username,
-    fullName: u.fullName,
-    role: u.role,
-    createdAt: u.createdAt,
-    failedLoginAttempts: u.failedLoginAttempts || 0,
-    isLocked: !!u.isLocked,
-    lockedAt: u.lockedAt,
-    dailyAnalysisCount: u.dailyAnalysisCount || {},
+  const dateKey = getDateKey();
+  const settings = await getAiQuotaSettings(db).catch(() => ({ limitEnabled: false, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' }));
+
+  const safeUsers = await Promise.all(users.map(async (u) => {
+    let candidateUnits = 0;
+    let recruiterUnits = 0;
+    let totalUnits = 0;
+    if (db) {
+      try {
+        const usageRef = doc(db, 'ai_usage', `${u.id}_${dateKey}`);
+        const usageSnap = await getDoc(usageRef);
+        if (usageSnap.exists()) {
+          const usageData = usageSnap.data();
+          candidateUnits = Number(usageData.candidateUnits) || 0;
+          recruiterUnits = Number(usageData.recruiterUnits) || 0;
+          totalUnits = Number(usageData.totalUnits) || (candidateUnits + recruiterUnits);
+        }
+      } catch (e) {
+        console.error(`Error loading usage for user ${u.id}:`, e);
+      }
+    }
+    return {
+      id: u.id,
+      username: u.username,
+      fullName: u.fullName,
+      role: u.role,
+      createdAt: u.createdAt,
+      failedLoginAttempts: u.failedLoginAttempts || 0,
+      isLocked: !!u.isLocked,
+      lockedAt: u.lockedAt,
+      candidateUnits,
+      recruiterUnits,
+      totalUnits,
+      dailyLimit: settings.dailyLimit,
+      limitEnabled: settings.limitEnabled,
+      dateKey,
+      resetAt: getResetAt()
+    };
   }));
 
   res.json({ success: true, users: safeUsers });
@@ -2486,6 +2481,7 @@ app.get('/api/admin/stats', async (req, res) => {
   const users = await loadUsersAsync();
   const memory = process.memoryUsage();
   const now = Date.now();
+  const aiQuota = await getAiQuotaSettings(db).catch(() => ({ limitEnabled: false, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' }));
 
   const activeSessionsList: any[] = [];
   for (const [token, session] of activeSessions.entries()) {
@@ -2562,7 +2558,8 @@ app.get('/api/admin/stats', async (req, res) => {
           endpoints: ['/api/openai-fallback'],
         },
       ],
-      appSettings,
+      aiQuota,
+      appSettings: aiQuota,
     },
   });
 });
@@ -2574,14 +2571,19 @@ app.post('/api/admin/settings', async (req, res) => {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
   }
   const { limitEnabled, dailyLimit } = req.body;
-  if (typeof limitEnabled === 'boolean') {
-    appSettings.limitEnabled = limitEnabled;
+  try {
+    const updated = await updateAiQuotaSettings(db, {
+      limitEnabled: typeof limitEnabled === 'boolean' ? limitEnabled : undefined,
+      dailyLimit: typeof dailyLimit === 'number' && dailyLimit >= 1 ? dailyLimit : undefined,
+      userEmail: currentUser.username
+    });
+    res.json({ success: true, message: 'Đã cập nhật cấu hình giới hạn phân tích thành công.', appSettings: updated, aiQuota: updated });
+  } catch (err: any) {
+    if (err?.message === 'QUOTA_SERVICE_UNAVAILABLE') {
+      return res.status(503).json({ success: false, code: 'QUOTA_SERVICE_UNAVAILABLE', error: 'Dịch vụ quota tạm thời không khả dụng.' });
+    }
+    res.status(500).json({ success: false, error: err?.message || 'Lỗi hệ thống khi cập nhật settings.' });
   }
-  if (typeof dailyLimit === 'number' && dailyLimit >= 1) {
-    appSettings.dailyLimit = dailyLimit;
-  }
-  saveSettings();
-  res.json({ success: true, message: 'Đã cập nhật cấu hình giới hạn phân tích thành công.', appSettings });
 });
 
 // Admin: Reset a user's analysis count
@@ -2596,8 +2598,38 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
   if (!dbUser) {
     return res.status(404).json({ error: 'Không tìm thấy tài khoản người dùng.' });
   }
-  dbUser.dailyAnalysisCount = {};
-  await saveUsersAsync(users);
+
+  const dateKey = getDateKey();
+  if (db) {
+    try {
+      const usageRef = doc(db, 'ai_usage', `${userId}_${dateKey}`);
+      await setDoc(usageRef, {
+        userId,
+        username: dbUser.username || dbUser.email || userId,
+        dateKey,
+        timezone: 'Asia/Ho_Chi_Minh',
+        candidateUnits: 0,
+        recruiterUnits: 0,
+        totalUnits: 0,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const resQuery = query(collection(db, 'ai_reservations'), where('userId', '==', userId), where('dateKey', '==', dateKey));
+      const resSnap = await getDocs(resQuery);
+      for (const dSnap of resSnap.docs) {
+        await deleteDoc(dSnap.ref).catch(() => {});
+      }
+    } catch (err) {
+      console.error('Error resetting quota in Firestore:', err);
+      return res.status(503).json({ success: false, code: 'QUOTA_SERVICE_UNAVAILABLE', error: 'Không thể reset quota do lỗi kết nối cơ sở dữ liệu.' });
+    }
+  }
+
+  if (dbUser.dailyAnalysisCount) {
+    dbUser.dailyAnalysisCount[dateKey] = 0;
+    await saveUsersAsync(users);
+  }
+
   res.json({ success: true, message: `Đã đặt lại giới hạn lượt phân tích của người dùng "${dbUser.fullName}" về 0.` });
 });
 
@@ -5390,55 +5422,6 @@ CRITICAL LANGUAGE CONSTRAINT: Write all output explanations, reasons, gaps, and 
   return parseJsonSafely(responseText);
 }
 
-// Helper to verify and update normal user daily analysis limit
-async function checkAnalysisLimitAndIncrement(req: express.Request, res: express.Response, lang: 'vi' | 'en'): Promise<{ allowed: boolean; user?: StoredUser }> {
-  const user = getUserFromRequest(req);
-  if (!user) {
-    res.status(401).json({
-      error: lang === 'en'
-        ? 'Please log in to perform analysis.'
-        : 'Vui lòng đăng nhập để thực hiện phân tích.',
-    });
-    return { allowed: false };
-  }
-
-  if (user.role === 'admin') {
-    return { allowed: true, user };
-  }
-
-  // Normal user
-  const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  const users = await loadUsersAsync();
-  const dbUser = users.find(u => u.id === user.id);
-  if (!dbUser) {
-    res.status(404).json({
-      error: lang === 'en' ? 'User account not found.' : 'Không tìm thấy tài khoản người dùng.',
-    });
-    return { allowed: false };
-  }
-
-  if (!dbUser.dailyAnalysisCount) {
-    dbUser.dailyAnalysisCount = {};
-  }
-
-  const todayCount = dbUser.dailyAnalysisCount[dateStr] || 0;
-
-  // Only reject if limits are enabled
-  if (appSettings.limitEnabled && todayCount >= appSettings.dailyLimit) {
-    res.status(429).json({
-      error: lang === 'en'
-        ? `You have exceeded the daily analysis limit of ${appSettings.dailyLimit} runs.`
-        : `Bạn đã đạt giới hạn chạy phân tích trong ngày (${appSettings.dailyLimit}/${appSettings.dailyLimit} lượt). Hãy liên hệ quản trị viên để mở rộng giới hạn.`,
-    });
-    return { allowed: false };
-  }
-
-  // Increment and save
-  dbUser.dailyAnalysisCount[dateStr] = todayCount + 1;
-  await saveUsersAsync(users);
-  return { allowed: true, user: dbUser };
-}
-
 // API Endpoint for Analyzing CV against JD
 app.post('/api/analyze-cv', async (req, res) => {
   const startTime = Date.now();
@@ -5450,12 +5433,22 @@ app.post('/api/analyze-cv', async (req, res) => {
       return res.status(401).json({ error: lang === 'en' ? 'Please log in.' : 'Vui lòng đăng nhập.' });
     }
 
+    if (!rawCvText || !rawCvText.trim() || !rawJdText || !rawJdText.trim()) {
+      return res.status(400).json({
+        error: lang === 'en'
+          ? 'Please provide both CV and Job Description (JD) text.'
+          : 'Vui lòng cung cấp đầy đủ nội dung CV và Mô tả công việc (JD).',
+      });
+    }
+
+    const requestId = (req.body?.requestId as string)?.trim() || (req.headers['x-request-id'] as string)?.trim() || `req_cand_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
     try {
       const quotaRes = await reserveAiQuota(db, {
         user,
         units: 1,
         source: 'candidate',
-        requestId: crypto.randomUUID()
+        requestId
       });
       if (!quotaRes.allowed) {
         return res.status(429).json({
@@ -5475,13 +5468,6 @@ app.post('/api/analyze-cv', async (req, res) => {
       throw err;
     }
 
-    if (!rawCvText || !rawCvText.trim() || !rawJdText || !rawJdText.trim()) {
-      return res.status(400).json({
-        error: lang === 'en'
-          ? 'Please provide both CV and Job Description (JD) text.'
-          : 'Vui lòng cung cấp đầy đủ nội dung CV và Mô tả công việc (JD).',
-      });
-    }
 
     const cvText = cleanAndStructureExtractedText(rawCvText);
     const jdText = cleanAndStructureExtractedText(rawJdText);

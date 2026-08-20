@@ -1,4 +1,5 @@
 import { doc, getDoc, setDoc, runTransaction } from 'firebase/firestore';
+import crypto from 'crypto';
 
 export interface QuotaReservationResult {
   allowed: boolean;
@@ -34,53 +35,66 @@ export function getResetAt(date: Date = new Date()): string {
   const year = parseInt(parts.find(p => p.type === 'year')?.value || '2026', 10);
   const month = parseInt(parts.find(p => p.type === 'month')?.value || '1', 10) - 1;
   const day = parseInt(parts.find(p => p.type === 'day')?.value || '1', 10);
-  const nextDayUtc = new Date(Date.UTC(year, month, day + 1, -7, 0, 0, 0));
-  return nextDayUtc.toISOString();
+  
+  // Next day 00:00:00 in Asia/Ho_Chi_Minh (UTC+7)
+  const nextDayVnUtc = new Date(Date.UTC(year, month, day + 1, 0, 0, 0, 0) - 7 * 60 * 60 * 1000);
+  return nextDayVnUtc.toISOString();
 }
 
 export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boolean; dailyLimit: number; timezone: string }> {
   if (!db) {
-    return { limitEnabled: false, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' };
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
   const settingsRef = doc(db, 'system_settings', 'ai_quota');
-  const snap = await getDoc(settingsRef);
-  if (snap.exists()) {
-    const data = snap.data();
-    return {
-      limitEnabled: !!data.limitEnabled,
-      dailyLimit: typeof data.dailyLimit === 'number' ? data.dailyLimit : 10,
-      timezone: data.timezone || 'Asia/Ho_Chi_Minh'
-    };
-  } else {
-    const defaultSettings = {
-      limitEnabled: false,
-      dailyLimit: 10,
-      timezone: 'Asia/Ho_Chi_Minh',
-      updatedAt: new Date().toISOString(),
-      updatedBy: 'system'
-    };
-    try {
+  try {
+    const snap = await getDoc(settingsRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        limitEnabled: !!data.limitEnabled,
+        dailyLimit: typeof data.dailyLimit === 'number' && data.dailyLimit >= 1 ? data.dailyLimit : 10,
+        timezone: data.timezone || 'Asia/Ho_Chi_Minh'
+      };
+    } else {
+      const defaultSettings = {
+        limitEnabled: false,
+        dailyLimit: 10,
+        timezone: 'Asia/Ho_Chi_Minh',
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'system'
+      };
       await setDoc(settingsRef, defaultSettings);
-    } catch (e) {
-      console.error('Failed to seed system_settings/ai_quota:', e);
+      return defaultSettings;
     }
-    return defaultSettings;
+  } catch (err) {
+    console.error('Error fetching ai quota settings:', err);
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
 }
 
 export async function updateAiQuotaSettings(db: any, { limitEnabled, dailyLimit, userEmail }: { limitEnabled?: boolean; dailyLimit?: number; userEmail?: string }) {
   if (!db) throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   const settingsRef = doc(db, 'system_settings', 'ai_quota');
-  const current = await getAiQuotaSettings(db);
-  const updated = {
-    ...current,
-    ...(typeof limitEnabled === 'boolean' ? { limitEnabled } : {}),
-    ...(typeof dailyLimit === 'number' && dailyLimit >= 1 ? { dailyLimit } : {}),
-    updatedAt: new Date().toISOString(),
-    updatedBy: userEmail || 'admin'
-  };
-  await setDoc(settingsRef, updated);
-  return updated;
+  try {
+    const current = await getAiQuotaSettings(db);
+    const updated = {
+      ...current,
+      ...(typeof limitEnabled === 'boolean' ? { limitEnabled } : {}),
+      ...(typeof dailyLimit === 'number' && dailyLimit >= 1 ? { dailyLimit } : {}),
+      updatedAt: new Date().toISOString(),
+      updatedBy: userEmail || 'admin'
+    };
+    await setDoc(settingsRef, updated);
+    return updated;
+  } catch (err) {
+    console.error('Error updating ai quota settings:', err);
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
+  }
+}
+
+function hashRequestId(userId: string, dateKey: string, requestId: string): string {
+  const raw = `${userId}__${dateKey}__${requestId.trim()}`;
+  return crypto.createHash('sha256').update(raw).digest('hex');
 }
 
 export async function reserveAiQuota(
@@ -122,9 +136,11 @@ export async function reserveAiQuota(
   }
 
   const dateKey = getDateKey();
-  const usageRef = doc(db, 'ai_usage', `${user.id}_${dateKey}`);
+  const userId = String(user.id);
+  const usageRef = doc(db, 'ai_usage', `${userId}_${dateKey}`);
   const settingsRef = doc(db, 'system_settings', 'ai_quota');
-  const reservationRef = doc(db, 'ai_reservations', `${user.id}__${dateKey}__${requestId.trim()}`);
+  const requestIdHash = hashRequestId(userId, dateKey, requestId);
+  const reservationRef = doc(db, 'ai_reservations', requestIdHash);
 
   try {
     return await runTransaction(db, async (transaction) => {
@@ -137,15 +153,27 @@ export async function reserveAiQuota(
       }
 
       const settingsDoc = await transaction.get(settingsRef);
-      const usageDoc = await transaction.get(usageRef);
+      let settings: any;
+      if (!settingsDoc.exists()) {
+        settings = {
+          limitEnabled: false,
+          dailyLimit: 10,
+          timezone: 'Asia/Ho_Chi_Minh',
+          updatedAt: new Date().toISOString(),
+          updatedBy: 'system'
+        };
+        transaction.set(settingsRef, settings);
+      } else {
+        settings = settingsDoc.data();
+      }
 
-      const settings = settingsDoc.exists() ? settingsDoc.data() : { limitEnabled: false, dailyLimit: 10 };
       const limitEnabled = !!settings.limitEnabled;
-      const dailyLimit = typeof settings.dailyLimit === 'number' ? settings.dailyLimit : 10;
+      const dailyLimit = typeof settings.dailyLimit === 'number' && settings.dailyLimit >= 1 ? settings.dailyLimit : 10;
 
+      const usageDoc = await transaction.get(usageRef);
       const usage = usageDoc.exists() ? usageDoc.data() : {
-        userId: user.id,
-        username: user.username || user.email || user.id,
+        userId,
+        username: user.username || user.email || userId,
         dateKey,
         timezone: 'Asia/Ho_Chi_Minh',
         candidateUnits: 0,
@@ -154,7 +182,9 @@ export async function reserveAiQuota(
         updatedAt: new Date().toISOString()
       };
 
-      const usedBefore = usage.totalUnits || 0;
+      const candidateUnitsBefore = Number(usage.candidateUnits) || 0;
+      const recruiterUnitsBefore = Number(usage.recruiterUnits) || 0;
+      const usedBefore = Number(usage.totalUnits) || (candidateUnitsBefore + recruiterUnitsBefore);
 
       if (limitEnabled && usedBefore + units > dailyLimit) {
         const failResult: QuotaReservationResult = {
@@ -168,18 +198,32 @@ export async function reserveAiQuota(
           resetAt: getResetAt(),
           code: 'DAILY_AI_LIMIT_EXCEEDED'
         };
-        transaction.set(reservationRef, { result: failResult, createdAt: new Date().toISOString() });
+        transaction.set(reservationRef, {
+          userId,
+          dateKey,
+          requestIdHash,
+          source,
+          units,
+          result: failResult,
+          createdAt: new Date().toISOString()
+        });
         return failResult;
       }
 
+      const candidateInc = source === 'candidate' ? units : 0;
+      const recruiterInc = source === 'recruiter_batch' ? units : 0;
+      const newCandidateUnits = candidateUnitsBefore + candidateInc;
+      const newRecruiterUnits = recruiterUnitsBefore + recruiterInc;
+      const newTotalUnits = usedBefore + units;
+
       const updatedUsage = {
-        ...usage,
-        userId: user.id,
-        username: user.username || user.email || usage.username || user.id,
+        userId,
+        username: user.username || user.email || usage.username || userId,
         dateKey,
         timezone: 'Asia/Ho_Chi_Minh',
-        [`${source}Units`]: (usage[`${source}Units`] || 0) + units,
-        totalUnits: usedBefore + units,
+        candidateUnits: newCandidateUnits,
+        recruiterUnits: newRecruiterUnits,
+        totalUnits: newTotalUnits,
         updatedAt: new Date().toISOString()
       };
 
@@ -190,13 +234,22 @@ export async function reserveAiQuota(
         dateKey,
         dailyLimit,
         usedBefore,
-        usedAfter: updatedUsage.totalUnits,
+        usedAfter: newTotalUnits,
         requested: units,
-        remaining: limitEnabled ? dailyLimit - updatedUsage.totalUnits : dailyLimit,
+        remaining: limitEnabled ? Math.max(0, dailyLimit - newTotalUnits) : dailyLimit,
         resetAt: getResetAt()
       };
 
-      transaction.set(reservationRef, { result: successResult, createdAt: new Date().toISOString() });
+      transaction.set(reservationRef, {
+        userId,
+        dateKey,
+        requestIdHash,
+        source,
+        units,
+        result: successResult,
+        createdAt: new Date().toISOString()
+      });
+
       return successResult;
     });
   } catch (err: any) {
