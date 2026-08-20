@@ -3464,6 +3464,9 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
         if (analyzeCache.has(cacheKey)) {
           console.log(`[Batch Pipeline Cache Hit] Returning cached analysis for candidate: ${candidate.filename}`);
           finalResult = analyzeCache.get(cacheKey);
+          if (finalResult) {
+            finalResult.outputLanguage = lang;
+          }
         } else {
           console.log(`[Batch Pipeline] Starting 3-step sequential evaluation for candidate: ${candidate.filename}`);
 
@@ -3507,6 +3510,10 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           } catch (synthErr) {
             console.warn('[Batch Pipeline] Synthesizer error, falling back to draft + audit log:', synthErr);
             finalResult = draftAnalysis;
+          }
+
+          if (finalResult) {
+            finalResult.outputLanguage = lang;
           }
 
           // Save to shared analysis cache
@@ -4921,7 +4928,11 @@ app.post('/api/analyze-cv', async (req, res) => {
     const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'language-consistency-v3' });
     if (analyzeCache.has(cacheKey)) {
       console.log('[Cache Hit] Returning cached analysis response.');
-      return res.json(analyzeCache.get(cacheKey));
+      const cachedResult = analyzeCache.get(cacheKey);
+      if (cachedResult) {
+        cachedResult.outputLanguage = lang;
+      }
+      return res.json(cachedResult);
     }
 
     try {
@@ -5014,6 +5025,7 @@ app.post('/api/analyze-cv', async (req, res) => {
         usedOpenAiKey: usedOpenAi
       };
 
+      finalResult.outputLanguage = lang;
       analyzeCache.set(cacheKey, finalResult);
 
       try {

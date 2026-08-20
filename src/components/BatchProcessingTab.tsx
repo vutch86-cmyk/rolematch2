@@ -84,6 +84,133 @@ interface CandidateResult {
   processingStatus?: 'COMPLETED' | 'NO_SCORE' | 'FAILED';
 }
 
+export type DetectedLanguage = 'vi' | 'en' | 'neutral' | 'mixed';
+
+// Common Vietnamese proper name tokens (case-insensitive)
+const VIETNAMESE_NAME_TOKENS = new Set([
+  'nguyen', 'nguyễn', 'tran', 'trần', 'le', 'lê', 'pham', 'phạm', 'hoang', 'hoàng',
+  'huynh', 'huỳnh', 'vo', 'võ', 'vu', 'vũ', 'dang', 'đặng', 'bui', 'bùi', 'do', 'đỗ',
+  'ho', 'hồ', 'ngo', 'ngô', 'duong', 'dương', 'ly', 'lý', 'van', 'văn', 'thi', 'thị',
+  'an', 'binh', 'bình', 'cuong', 'cường', 'dung', 'dũng', 'duy', 'giang', 'hai', 'hải',
+  'hau', 'hậu', 'hieu', 'hiếu', 'hoa', 'hoà', 'hòa', 'hung', 'hùng', 'huy',
+  'khanh', 'khánh', 'lam', 'lâm', 'linh', 'loc', 'lộc', 'long', 'mai', 'minh', 'nam',
+  'nga', 'ngoc', 'ngọc', 'nhan', 'nhân', 'nhat', 'nhất', 'nhi', 'nhu', 'như', 'phat', 'phát',
+  'phuc', 'phúc', 'phuong', 'phương', 'quan', 'quân', 'quang', 'quoc', 'quốc', 'quy', 'quý',
+  'quyen', 'quyên', 'sang', 'son', 'sơn', 'tam', 'tâm', 'tan', 'tấn', 'tân',
+  'thach', 'thạch', 'thai', 'thái', 'thang', 'thắng', 'thanh', 'thành', 'thao', 'thảo',
+  'thinh', 'thịnh', 'thu', 'thứ', 'thuan', 'thuận', 'thuy', 'thủy', 'tien', 'tiến',
+  'trang', 'trinh', 'trị', 'trung', 'tu', 'tú', 'tuan', 'tuấn', 'tuyet', 'tuyết',
+  'vinh', 'vuong', 'vương', 'xuan', 'xuân', 'yen', 'yến'
+]);
+
+// Neutral technical terms & acronyms (case-insensitive)
+const NEUTRAL_TECH_TOKENS = new Set([
+  'sla', 'kpi', 'cab', 'cmdb', 'itsm', 'itil', 'devops', 'cicd', 'ci/cd',
+  'api', 'sql', 'aws', 'azure', 'gcp', 'ui', 'ux', 'qa', 'qc', 'pr',
+  'root', 'cause', 'analysis', 'major', 'incident', 'asset', 'management',
+  'system', 'outage', 'okr', 'scrum', 'agile', 'kanban', 'jira', 'confluence',
+  'framework', 'microservices', 'docker', 'kubernetes', 'rest', 'graphql'
+]);
+
+// Unaccented Vietnamese function words & common stop words
+const VI_UNACCENTED_TOKENS = new Set([
+  'ban', 'khong', 've', 'can', 'duoc', 'nhu', 'the', 'nao', 'voi', 'trong',
+  'cua', 'da', 'cho', 'nguoi', 'xu', 'ly', 'kinh', 'nghiem', 'bang', 'chung',
+  'bo', 'sung', 'giai', 'thich', 'mo', 'ta', 'ung', 'vien', 'yeu', 'cau',
+  'thuc', 'hien', 'dan', 'su', 'co', 'quan', 'hoi', 'xac', 'minh', 'chi',
+  'tiet', 'chua', 'tra', 'loi', 'thong', 'tin', 'danh', 'gia', 'phu',
+  'hop', 'nhan', 'xet', 'de', 'xuat'
+]);
+
+// English function words & common question/prompt verbs
+const EN_TOKENS = new Set([
+  'the', 'is', 'are', 'a', 'an', 'of', 'in', 'to', 'for', 'with', 'on', 'at',
+  'from', 'by', 'about', 'as', 'into', 'like', 'through', 'after', 'over',
+  'between', 'out', 'against', 'during', 'without', 'before', 'under', 'around',
+  'among', 'you', 'your', 'how', 'what', 'why', 'can', 'could', 'would', 'should',
+  'describe', 'provide', 'give', 'explain', 'demonstrate', 'manage', 'leadership',
+  'experience', 'evidence', 'example', 'critical', 'specific', 'project',
+  'role', 'team', 'did', 'does', 'do', 'have', 'has', 'need', 'needs',
+  'requirement', 'requirements', 'compliance', 'assessment', 'details', 'candidate',
+  'lead', 'led', 'address', 'regarding', 'verify', 'clarify', 'confirm', 'show',
+  'showcase', 'handled', 'handle', 'handling', 'perform', 'performed'
+]);
+
+export const detectContentLanguage = (text: string): DetectedLanguage => {
+  if (!text || !text.trim()) return 'neutral';
+  
+  const normalized = text.toLowerCase().trim();
+  const tokens = normalized.match(/[\p{L}\p{N}]+/gu) || [];
+  
+  if (tokens.length === 0) return 'neutral';
+
+  let viScore = 0;
+  let enScore = 0;
+  let neutralCount = 0;
+
+  const diacriticRegex = /[àáảãạăắằẳẵặânấầnẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i;
+
+  for (const token of tokens) {
+    if (NEUTRAL_TECH_TOKENS.has(token)) {
+      neutralCount++;
+      continue;
+    }
+    
+    const hasDiacritic = diacriticRegex.test(token);
+    
+    if (hasDiacritic) {
+      if (VIETNAMESE_NAME_TOKENS.has(token)) {
+        neutralCount++;
+      } else {
+        viScore += 2;
+      }
+    } else {
+      if (VIETNAMESE_NAME_TOKENS.has(token)) {
+        neutralCount++;
+      } else if (VI_UNACCENTED_TOKENS.has(token)) {
+        viScore += 1;
+      } else if (EN_TOKENS.has(token)) {
+        enScore += 1;
+      } else {
+        if (/^[a-z]+$/.test(token)) {
+          enScore += 0.5;
+        }
+      }
+    }
+  }
+
+  const nonNeutralTokens = tokens.length - neutralCount;
+  
+  if (nonNeutralTokens <= 0) {
+    return 'neutral';
+  }
+
+  if (viScore > 0 && enScore === 0) {
+    return 'vi';
+  }
+  if (enScore > 0 && viScore === 0) {
+    return 'en';
+  }
+
+  if (viScore >= enScore * 2) {
+    return 'vi';
+  }
+  if (enScore >= viScore * 2) {
+    return 'en';
+  }
+
+  return 'mixed';
+};
+
+export const normalizeQuestionKey = (text: string): string => {
+  return text
+    .normalize('NFKC')
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ');
+};
+
 export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, token, onAddHistoryItems, onOpenFullAnalysis }) => {
   const isEn = lang === 'en';
 
@@ -1018,17 +1145,17 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const getInterviewFollowUpQuestions = (candidate: CandidateResult, isEn: boolean): string[] => {
     const rawQuestions: string[] = [];
 
-    // 1. Extract from feature2.clarifyingQuestions
+    // 1. Priority 1: Extract from feature2.clarifyingQuestions
     if (candidate.fullAnalysis?.feature2?.clarifyingQuestions && Array.isArray(candidate.fullAnalysis.feature2.clarifyingQuestions)) {
       candidate.fullAnalysis.feature2.clarifyingQuestions.forEach((q: any) => {
         const text = typeof q === 'string' ? q : q?.question;
-        if (text && text.trim().length > 0) {
+        if (text && typeof text === 'string' && text.trim().length > 0) {
           rawQuestions.push(text.trim());
         }
       });
     }
 
-    // 2. Extract from feature1.comparisonTable gaps or clarifications
+    // 2. Priority 2: Extract from feature1.comparisonTable gaps or clarifications
     if (candidate.fullAnalysis?.feature1?.comparisonTable && Array.isArray(candidate.fullAnalysis.feature1.comparisonTable)) {
       candidate.fullAnalysis.feature1.comparisonTable.forEach((row: ComparisonRow) => {
         if ((row.matchStatus === 'can_bo_sung' || row.matchStatus === 'thieu') && row.gapOrClarification) {
@@ -1044,7 +1171,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       });
     }
 
-    // 3. Extract from feature3.top3MustFix or biggestDoubt
+    // 3. Priority 3: Extract from feature3.top3MustFix
     if (candidate.fullAnalysis?.feature3?.top3MustFix && Array.isArray(candidate.fullAnalysis.feature3.top3MustFix)) {
       candidate.fullAnalysis.feature3.top3MustFix.forEach((fix: any) => {
         if (typeof fix === 'string' && fix.trim().length > 0) {
@@ -1056,58 +1183,45 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       });
     }
 
+    // Trim, normalize space, filter empty
+    const cleanedList = rawQuestions
+      .map(q => q.trim().replace(/\s+/g, ' '))
+      .filter(q => q.length > 0);
+
     // Filter by Language
     const filteredQuestions: string[] = [];
-    const viPatterns = [
-      "bạn có thể giải thích", "quy mô ngân sách", "số lượng thành viên",
-      "tỷ lệ % cải thiện", "cần bổ sung dẫn chứng", "thiếu thông tin",
-      "đã khớp tốt", "cần bổ sung"
-    ];
-    const enPatterns = [
-      "recommend adding specific", "how do you", "what was the", "what key",
-      "how many", "missing", "missing experience", "no experience",
-      "adequately referenced", "clarification"
-    ];
-
-    for (const q of rawQuestions) {
-      const lowerQ = q.toLowerCase();
-      const hasViAccents = /[àáảãạăắằẳẵặânấầnẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i.test(q);
+    for (const q of cleanedList) {
+      const detected = detectContentLanguage(q);
 
       if (isEn) {
-        // English UI: Filter out Vietnamese
-        const matchesViPattern = viPatterns.some(p => lowerQ.includes(p));
-        if (hasViAccents || matchesViPattern) {
-          continue; // Discard Vietnamese questions
+        if (detected === 'en') {
+          filteredQuestions.push(q);
+        } else if (detected === 'neutral' && q.length <= 40) {
+          filteredQuestions.push(q);
         }
       } else {
-        // Vietnamese UI: Filter out English questions
-        const matchesEnPattern = enPatterns.some(p => lowerQ.includes(p));
-        const containsEnglishQuestionWord = /\b(how|what|why|who|whom|recommend|clarify|demonstrate|explain)\b/i.test(q);
-        if (!hasViAccents && (matchesEnPattern || containsEnglishQuestionWord)) {
-          continue; // Discard English questions
+        if (detected === 'vi') {
+          filteredQuestions.push(q);
+        } else if (detected === 'neutral' && q.length <= 40) {
+          filteredQuestions.push(q);
         }
       }
-      filteredQuestions.push(q);
     }
 
-    // Deduplicate using normalized keys: lowercase, trim, remove punctuation, normalize whitespace
+    // Deduplicate using normalizeQuestionKey
     const uniqueList: string[] = [];
-    const seenNormalized = new Set<string>();
+    const seenKeys = new Set<string>();
 
     for (const q of filteredQuestions) {
-      const normalized = q
-        .toLowerCase()
-        .trim()
-        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "") // remove punctuation
-        .replace(/\s+/g, " "); // normalize spaces
-
-      if (!seenNormalized.has(normalized)) {
-        seenNormalized.add(normalized);
+      const key = normalizeQuestionKey(q);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
         uniqueList.push(q);
       }
     }
 
-    return uniqueList;
+    // Return max 6 items
+    return uniqueList.slice(0, 6);
   };
 
   // Export results to raw Markdown for recruiters to copy/paste
