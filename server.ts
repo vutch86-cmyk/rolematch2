@@ -3824,6 +3824,16 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
     const createdBy = currentUser ? currentUser.username : actorUsername;
     const userEmailVal = currentUser?.email || (actorUsername.includes('@') ? actorUsername : `${actorUsername}@system.local`);
 
+    const firstLine = jdText.trim().split('\n')[0] || '';
+    const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+
+    const auditResults: { expected: number; saved: number; failed: number; recordIds: string[] } = {
+      expected: allFiles.length,
+      saved: 0,
+      failed: 0,
+      recordIds: [],
+    };
+
     const extractedCandidates: { filename: string; text: string; fileIndex: number }[] = [];
     const failedExtractionResults: any[] = [];
     
@@ -3874,73 +3884,7 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
       }
       throw err;
     }
-        const deterministicRecordId = `anl_${requestId}_${i}_${file.originalname.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 16)}`;
-        const safeErrMsg = (extractError?.message || (isEn ? 'Could not extract readable text from document.' : 'Không thể trích xuất nội dung văn bản từ tệp tin.')).replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
 
-        console.warn(`[Batch Extraction Failed] File: ${file.originalname}, requestId: ${requestId}, error: ${safeErrMsg}`);
-
-        const logRes = await createAnalysisRecord({
-          id: deterministicRecordId,
-          recordId: deterministicRecordId,
-          requestId,
-          source: 'recruiter_batch',
-          batchId,
-          batchName,
-          candidateId: `cand_${i + 1}`,
-          candidateName: candName,
-          fileName: file.originalname,
-          cvFileName: file.originalname,
-          jobTitle: `${jdTitleVal} - ${candName}`,
-          actorUsername,
-          createdBy,
-          userEmail: userEmailVal,
-          status: 'FAILED',
-          overallScore: null,
-          keywordScore: null,
-          experienceScore: null,
-          skillsScore: null,
-          matchLevel: 'NOT_AVAILABLE',
-          topStrengths: [],
-          missingSkills: [],
-          recommendation: '',
-          recruiterDecision: undefined,
-          engineUsed: 'CV Text Extraction Service',
-          durationMs: extractDurationMs,
-          cvTextLength: 0,
-          jdTextLength: jdText.length,
-          fullAnalysis: undefined,
-          errorCode: 'CV_EXTRACTION_FAILED',
-          errorMessage: safeErrMsg,
-        });
-
-        if (logRes.success) {
-          auditResults.saved++;
-          auditResults.recordIds.push(deterministicRecordId);
-        } else {
-          auditResults.failed++;
-          console.error(
-            `[Recruiter Batch Audit Failed (Extraction Failure)] requestId=${requestId}, file=${file.originalname}, error=${logRes.error}`
-          );
-        }
-
-        failedExtractionResults.push({
-          filename: file.originalname,
-          success: false,
-          candidateName: candName,
-          overallScore: null,
-          matchLevel: 'NOT_AVAILABLE',
-          keywordScore: null,
-          experienceScore: null,
-          skillScore: null,
-          topStrengths: [],
-          keyGaps: [],
-          shortRecommendation: isEn ? 'Text extraction failed' : 'Trích xuất văn bản thất bại',
-          errorMessage: safeErrMsg,
-          processingStatus: 'FAILED',
-          analysisRecordId: deterministicRecordId,
-        });
-      }
-    }
 
     if (extractedCandidates.length === 0) {
       return res.status(200).json({
