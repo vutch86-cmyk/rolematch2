@@ -1,11 +1,10 @@
-# Hướng dẫn sử dụng RoleMatch2 dành cho Nhà tuyển dụng
+# Hướng dẫn sử dụng RoleMatch dành cho Nhà tuyển dụng
 
-> **Phạm vi đối chiếu:** source code tại commit `e6770b2`  
 > **Mục tiêu:** giúp nhà tuyển dụng đọc đúng báo cáo phân tích AI và đưa ra quyết định có kiểm chứng.
 
-## 1. RoleMatch2 hỗ trợ việc gì?
+## 1. RoleMatch hỗ trợ việc gì?
 
-RoleMatch2 hỗ trợ nhà tuyển dụng:
+RoleMatch hỗ trợ nhà tuyển dụng:
 
 - Phân tích nhiều CV theo cùng một mô tả công việc (JD).
 - Xếp hạng các hồ sơ đã phân tích thành công.
