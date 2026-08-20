@@ -377,7 +377,7 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full max-h-[85vh] shadow-2xl flex flex-col overflow-hidden"
+          className="fixed inset-0 m-auto bg-white border border-slate-200 rounded-3xl max-w-[min(1100px,calc(100vw-48px))] w-full max-h-[calc(100vh-48px)] shadow-2xl flex flex-col overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
