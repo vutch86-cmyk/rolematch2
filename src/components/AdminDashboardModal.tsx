@@ -156,6 +156,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [isAnalysesLoading, setIsAnalysesLoading] = useState<boolean>(false);
   const [analysisSearchQuery, setAnalysisSearchQuery] = useState<string>('');
   const [analysisLevelFilter, setAnalysisLevelFilter] = useState<string>('ALL');
+  const [analysisSourceFilter, setAnalysisSourceFilter] = useState<'ALL' | 'candidate' | 'recruiter_batch'>('ALL');
   const [analysisLatencyFilter, setAnalysisLatencyFilter] = useState<'ALL' | 'FAST' | 'NORMAL' | 'SLOW'>('ALL');
   const [selectedAnalysisDetail, setSelectedAnalysisDetail] = useState<AnalysisRecordItem | null>(null);
 
@@ -247,10 +248,22 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         item.userEmail.toLowerCase().includes(q) ||
         item.jobTitle.toLowerCase().includes(q) ||
         (item.cvFileName && item.cvFileName.toLowerCase().includes(q)) ||
+        (item.fileName && item.fileName.toLowerCase().includes(q)) ||
+        (item.candidateName && item.candidateName.toLowerCase().includes(q)) ||
+        (item.actorUsername && item.actorUsername.toLowerCase().includes(q)) ||
+        (item.batchName && item.batchName.toLowerCase().includes(q)) ||
+        (item.batchId && item.batchId.toLowerCase().includes(q)) ||
+        (item.status && item.status.toLowerCase().includes(q)) ||
+        (item.source && item.source.toLowerCase().includes(q)) ||
         (item.engineUsed && item.engineUsed.toLowerCase().includes(q)) ||
         searchableMissingSkills.some((s) => s.toLowerCase().includes(q));
 
       const matchesLevel = analysisLevelFilter === 'ALL' || item.matchLevel === analysisLevelFilter;
+
+      const matchesSource =
+        analysisSourceFilter === 'ALL' ||
+        item.source === analysisSourceFilter ||
+        (analysisSourceFilter === 'candidate' && (!item.source || item.source === 'candidate'));
 
       const dur = item.durationMs || 0;
       let matchesLatency = true;
@@ -262,9 +275,9 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         matchesLatency = dur > 120000;
       }
 
-      return matchesQuery && matchesLevel && matchesLatency;
+      return matchesQuery && matchesLevel && matchesSource && matchesLatency;
     });
-  }, [analyses, analysisSearchQuery, analysisLevelFilter, analysisLatencyFilter]);
+  }, [analyses, analysisSearchQuery, analysisLevelFilter, analysisSourceFilter, analysisLatencyFilter]);
 
   // --- AUDIT LOGS STATE ---
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
@@ -739,9 +752,19 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       const headers = [
         'ID',
         'Timestamp',
-        'Candidate Email',
+        'Source',
+        'Status',
+        'Actor / Recruiter',
+        'Candidate Name',
+        'Candidate Email / ID',
         'Job Title',
+        'CV File Name',
+        'Batch ID',
+        'Batch Name',
         'Overall Score',
+        'Keyword Score',
+        'Experience Score',
+        'Skills Score',
         'Match Level',
         'Recruiter Decision',
         'Engine Used',
@@ -751,13 +774,23 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       const rows = filteredAnalyses.map((a) => [
         a.id,
         a.timestamp,
-        a.userEmail,
+        a.source || 'candidate',
+        a.status || 'COMPLETED',
+        `"${(a.actorUsername || a.createdBy || a.userEmail || '').replace(/"/g, '""')}"`,
+        `"${(a.candidateName || '').replace(/"/g, '""')}"`,
+        `"${(a.userEmail || '').replace(/"/g, '""')}"`,
         `"${formatReportTitle(a.jobTitle, a.userEmail).replace(/"/g, '""')}"`,
+        `"${(a.cvFileName || a.fileName || '').replace(/"/g, '""')}"`,
+        `"${(a.batchId || '').replace(/"/g, '""')}"`,
+        `"${(a.batchName || '').replace(/"/g, '""')}"`,
         a.overallScore,
+        a.keywordScore ?? '',
+        a.experienceScore ?? '',
+        a.skillsScore ?? '',
         a.matchLevel,
-        a.recruiterDecision,
-        `"${a.engineUsed}"`,
-        a.durationMs,
+        a.recruiterDecision || '',
+        `"${(a.engineUsed || '').replace(/"/g, '""')}"`,
+        a.durationMs || 0,
         (() => {
           const { skills, isLegacy } = getRecordMissingSkills(a);
           const formatted = skills.join('; ') + (isLegacy && skills.length > 0 ? ' (Legacy data)' : '');
@@ -2528,6 +2561,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    {/* Source Filter */}
+                    <select
+                      value={analysisSourceFilter}
+                      onChange={(e) => setAnalysisSourceFilter(e.target.value as any)}
+                      className="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="ALL">{lang === 'vi' ? 'Nguồn phân tích (Tất cả)' : 'All Sources'}</option>
+                      <option value="recruiter_batch">🎯 {lang === 'vi' ? 'Batch Tuyển Dụng' : 'Recruiter Batch'}</option>
+                      <option value="candidate">👤 {lang === 'vi' ? 'Tab Ứng Viên' : 'Candidate Tab'}</option>
+                    </select>
+
                     {/* Level Filter */}
                     <select
                       value={analysisLevelFilter}
@@ -2573,7 +2617,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   ) : (
                     filteredAnalyses.map((item, idx) => {
                       const hasValidScore = typeof item.overallScore === 'number' && Number.isFinite(item.overallScore);
-                      const scoreColor = !hasValidScore
+                      const isFailed = item.status === 'FAILED';
+                      const scoreColor = isFailed
+                        ? 'text-rose-400 border-rose-500/40 bg-rose-500/10'
+                        : !hasValidScore
                         ? 'text-slate-400 border-slate-700 bg-slate-800/80'
                         : item.overallScore >= 85
                         ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10'
@@ -2591,7 +2638,9 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                         <div
                           key={`${item.id || 'ana'}-${idx}`}
                           className={`p-4 bg-slate-950 border rounded-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all ${
-                            isSlow
+                            isFailed
+                              ? 'border-rose-500/50 hover:border-rose-500/80 bg-rose-950/20'
+                              : isSlow
                               ? 'border-rose-500/40 hover:border-rose-500/70 bg-rose-950/10'
                               : 'border-slate-800/80 hover:border-slate-700'
                           }`}
@@ -2600,37 +2649,59 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                             {/* Score Dial Badge */}
                             <div className={`w-12 h-12 rounded-2xl border flex flex-col items-center justify-center shrink-0 ${scoreColor}`}>
                               <span className="text-sm font-black font-mono leading-none">
-                                {hasValidScore ? item.overallScore : '—'}
+                                {isFailed ? 'ERR' : hasValidScore ? item.overallScore : '—'}
                               </span>
-                              {hasValidScore && <span className="text-[9px] font-bold opacity-80 mt-0.5">%</span>}
+                              {!isFailed && hasValidScore && <span className="text-[9px] font-bold opacity-80 mt-0.5">%</span>}
                             </div>
 
                             <div className="min-w-0 flex-1 space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-black text-slate-100 text-sm">
-                                  {formatReportTitle(item.jobTitle, item.userEmail)}
+                                  {formatReportTitle(item.jobTitle, item.candidateName || item.userEmail)}
                                 </span>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 border border-slate-800 text-purple-300">
-                                  {item.matchLevel === 'NOT_AVAILABLE'
-                                    ? (lang === 'vi' ? 'Chưa có dữ liệu' : 'Not available')
-                                    : item.matchLevel}
-                                </span>
-                                {item.recruiterDecision === 'YES' ? (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                                    MỜI PHỎNG VẤN (YES)
-                                  </span>
-                                ) : item.recruiterDecision === 'NO' ? (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                                    TỪ CHỐI (NO)
-                                  </span>
-                                ) : item.recruiterDecision === 'MAYBE' ? (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                                    CÂN NHẮC (MAYBE)
+
+                                {/* Source Badge */}
+                                {item.source === 'recruiter_batch' ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1">
+                                    🎯 {lang === 'vi' ? 'Batch Tuyển Dụng' : 'Recruiter Batch'}
                                   </span>
                                 ) : (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800/80 text-slate-400 border border-slate-700">
-                                    {lang === 'vi' ? 'Chưa có quyết định' : 'No decision available'}
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 flex items-center gap-1">
+                                    👤 {lang === 'vi' ? 'Ứng Viên' : 'Candidate'}
                                   </span>
+                                )}
+
+                                {/* Status Badge */}
+                                {isFailed ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                    🚨 FAILED
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 border border-slate-800 text-purple-300">
+                                    {item.matchLevel === 'NOT_AVAILABLE'
+                                      ? (lang === 'vi' ? 'Chưa có dữ liệu' : 'Not available')
+                                      : item.matchLevel}
+                                  </span>
+                                )}
+
+                                {!isFailed && (
+                                  item.recruiterDecision === 'YES' ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                      MỜI PHỎNG VẤN (YES)
+                                    </span>
+                                  ) : item.recruiterDecision === 'NO' ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                      TỪ CHỐI (NO)
+                                    </span>
+                                  ) : item.recruiterDecision === 'MAYBE' ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                      CÂN NHẮC (MAYBE)
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800/80 text-slate-400 border border-slate-700">
+                                      {lang === 'vi' ? 'Chưa có quyết định' : 'No decision available'}
+                                    </span>
+                                  )
                                 )}
 
                                 {/* Latency Badge */}
@@ -2650,31 +2721,51 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               </div>
 
                               <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-3 font-mono">
-                                <span>Ứng viên: <strong className="text-sky-300">{item.userEmail}</strong></span>
+                                {item.actorUsername && item.actorUsername !== item.userEmail && (
+                                  <>
+                                    <span>Recruiter: <strong className="text-amber-300">{item.actorUsername}</strong></span>
+                                    <span>•</span>
+                                  </>
+                                )}
+                                <span>{item.source === 'recruiter_batch' ? 'Ứng viên' : 'Người gửi'}: <strong className="text-sky-300">{item.candidateName || item.userEmail}</strong></span>
                                 <span>•</span>
-                                <span>CV: <strong className="text-slate-200">{item.cvFileName}</strong></span>
+                                <span>CV: <strong className="text-slate-200">{item.cvFileName || item.fileName}</strong></span>
+                                {item.batchName && (
+                                  <>
+                                    <span>•</span>
+                                    <span>Đợt tuyển: <strong className="text-purple-300">{item.batchName}</strong></span>
+                                  </>
+                                )}
                                 <span>•</span>
                                 <span>Engine: <strong className="text-purple-300">{item.engineUsed || 'Gemini 2.0 Flash'}</strong></span>
                                 <span>•</span>
                                 <span className="text-slate-500">{new Date(item.timestamp).toLocaleString()}</span>
                               </div>
 
+                              {isFailed && item.errorMessage && (
+                                <div className="text-[11px] text-rose-300 bg-rose-950/40 border border-rose-500/30 px-2.5 py-1 rounded-lg">
+                                  <strong>Lỗi AI:</strong> {item.errorMessage}
+                                </div>
+                              )}
+
                               {/* Key strengths & Missing skills preview */}
-                              <div className="flex flex-wrap gap-1.5 pt-1">
-                                {item.topStrengths?.map((str, sIdx) => (
-                                  <span key={`strength-${sIdx}-${str}`} className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">
-                                    ✓ {str}
-                                  </span>
-                                ))}
-                                {(() => {
-                                  const { skills: itemSkills, isLegacy: itemLegacy } = getRecordMissingSkills(item);
-                                  return itemSkills.map((sk, mIdx) => (
-                                    <span key={`missing-${mIdx}-${sk}`} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] rounded-lg">
-                                      ✗ Thiếu {sk} {itemLegacy ? '(Legacy data)' : ''}
+                              {!isFailed && (
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  {item.topStrengths?.map((str, sIdx) => (
+                                    <span key={`strength-${sIdx}-${str}`} className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] rounded-lg">
+                                      ✓ {str}
                                     </span>
-                                  ));
-                                })()}
-                              </div>
+                                  ))}
+                                  {(() => {
+                                    const { skills: itemSkills, isLegacy: itemLegacy } = getRecordMissingSkills(item);
+                                    return itemSkills.map((sk, mIdx) => (
+                                      <span key={`missing-${mIdx}-${sk}`} className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] rounded-lg">
+                                        ✗ Thiếu {sk} {itemLegacy ? '(Legacy data)' : ''}
+                                      </span>
+                                    ));
+                                  })()}
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -3371,18 +3462,31 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                   <Award className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-100 text-base flex items-center gap-2">
-                    <span>{formatReportTitle(selectedAnalysisDetail.jobTitle, selectedAnalysisDetail.userEmail)}</span>
+                  <h3 className="font-black text-slate-100 text-base flex flex-wrap items-center gap-2">
+                    <span>{formatReportTitle(selectedAnalysisDetail.jobTitle, selectedAnalysisDetail.candidateName || selectedAnalysisDetail.userEmail)}</span>
                     <span className="px-2.5 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/40 font-mono">
-                      {typeof selectedAnalysisDetail.overallScore === 'number' && Number.isFinite(selectedAnalysisDetail.overallScore)
+                      {selectedAnalysisDetail.status === 'FAILED'
+                        ? 'FAILED'
+                        : typeof selectedAnalysisDetail.overallScore === 'number' && Number.isFinite(selectedAnalysisDetail.overallScore)
                         ? `${selectedAnalysisDetail.overallScore}%`
-                        : '—'} - {selectedAnalysisDetail.matchLevel === 'NOT_AVAILABLE'
+                        : '—'}{' '}
+                      - {selectedAnalysisDetail.matchLevel === 'NOT_AVAILABLE'
                         ? (lang === 'vi' ? 'Chưa có dữ liệu' : 'Not available')
                         : selectedAnalysisDetail.matchLevel}
                     </span>
+                    {selectedAnalysisDetail.source === 'recruiter_batch' ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                        🎯 {lang === 'vi' ? 'Batch Tuyển Dụng' : 'Recruiter Batch'}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">
+                        👤 {lang === 'vi' ? 'Ứng Viên' : 'Candidate'}
+                      </span>
+                    )}
                   </h3>
-                  <p className="text-xs text-slate-400 font-mono">
-                    Ứng viên: {selectedAnalysisDetail.userEmail} • CV: {selectedAnalysisDetail.cvFileName} • Engine: {selectedAnalysisDetail.engineUsed}
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    {selectedAnalysisDetail.actorUsername && <span>Người thực hiện: <strong className="text-amber-300">{selectedAnalysisDetail.actorUsername}</strong> • </span>}
+                    Ứng viên: <strong className="text-sky-300">{selectedAnalysisDetail.candidateName || selectedAnalysisDetail.userEmail}</strong> • CV: <strong className="text-slate-200">{selectedAnalysisDetail.cvFileName || selectedAnalysisDetail.fileName}</strong> • Engine: <strong className="text-purple-300">{selectedAnalysisDetail.engineUsed}</strong>
                   </p>
                 </div>
               </div>
@@ -3395,6 +3499,21 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
             </div>
 
             <div className="p-6 overflow-y-auto flex-1 space-y-6 text-xs text-slate-300">
+              {/* Error Banner if Failed */}
+              {selectedAnalysisDetail.status === 'FAILED' && (
+                <div className="p-4 bg-rose-950/40 border border-rose-500/50 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
+                    <AlertTriangle className="w-4 h-4 text-rose-400" />
+                    <span>Lỗi Trong Quá Trình Phân Tích (Processing Failed)</span>
+                  </div>
+                  <p className="text-rose-200 font-mono text-xs">
+                    Mã lỗi: {selectedAnalysisDetail.errorCode || 'AI_PROCESSING_ERROR'}
+                  </p>
+                  <p className="text-rose-300 text-xs">
+                    {selectedAnalysisDetail.errorMessage || 'Không thể hoàn tất quá trình phân tích CV này do lỗi mô hình hoặc định dạng file.'}
+                  </p>
+                </div>
+              )}
               {/* Summary Metrics */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl text-center">

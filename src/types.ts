@@ -215,21 +215,38 @@ export interface UploadedDocumentItem {
 
 export interface AnalysisRecordItem {
   id: string;
-  timestamp: string;
-  userEmail: string;
-  jobTitle: string;
-  overallScore: number | null;
-  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE';
+  recordId?: string;
+  requestId?: string;
+  source?: 'candidate' | 'recruiter_batch';
+  batchId?: string;
+  batchName?: string;
+  candidateId?: string;
+  candidateName?: string;
+  fileName?: string;
   cvFileName?: string;
-  jdTitle?: string;
+  jobTitle: string;
+  actorUsername?: string;
+  createdBy?: string;
+  userEmail: string;
+  status?: 'COMPLETED' | 'NO_SCORE' | 'FAILED';
+  overallScore: number | null;
+  keywordScore?: number | null;
+  experienceScore?: number | null;
+  skillsScore?: number | null;
+  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE';
   topStrengths: string[];
   missingSkills: string[];
+  recommendation?: string;
   recruiterDecision?: 'YES' | 'NO' | 'MAYBE';
   engineUsed: string;
   durationMs: number;
   cvTextLength: number;
   jdTextLength: number;
   fullAnalysis?: CompleteCVAnalysisResponse;
+  errorCode?: string;
+  errorMessage?: string;
+  timestamp: string;
+  createdAt?: string;
 }
 
 // --- RECRUITER BATCH PERSISTENCE DATA MODEL ---

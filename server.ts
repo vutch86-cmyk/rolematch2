@@ -109,6 +109,7 @@ export interface StoredUser {
   fullName: string;
   role: 'admin' | 'normal';
   createdAt: string;
+  email?: string;
   isLocked?: boolean;
   failedLoginAttempts?: number;
   password?: string;
@@ -722,21 +723,39 @@ export interface UploadedDocumentItem {
 
 export interface AnalysisRecordItem {
   id: string;
-  timestamp: string;
-  userEmail: string;
-  jobTitle: string;
-  overallScore: number | null;
-  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE';
+  recordId?: string;
+  requestId?: string;
+  source?: 'candidate' | 'recruiter_batch';
+  batchId?: string;
+  batchName?: string;
+  candidateId?: string;
+  candidateName?: string;
+  fileName?: string;
   cvFileName?: string;
+  jobTitle: string;
+  actorUsername?: string;
+  createdBy?: string;
+  userEmail: string;
+  status?: 'COMPLETED' | 'NO_SCORE' | 'FAILED';
+  overallScore: number | null;
+  keywordScore?: number | null;
+  experienceScore?: number | null;
+  skillsScore?: number | null;
+  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE';
   jdTitle?: string;
   topStrengths: string[];
   missingSkills: string[];
+  recommendation?: string;
   recruiterDecision?: 'YES' | 'NO' | 'MAYBE';
   engineUsed: string;
   durationMs: number;
   cvTextLength: number;
   jdTextLength: number;
   fullAnalysis?: any;
+  errorCode?: string;
+  errorMessage?: string;
+  timestamp: string;
+  createdAt?: string;
 }
 
 const auditLogs: AuditLogItem[] = [
@@ -965,17 +984,173 @@ const analysisRecords: AnalysisRecordItem[] = [
 
 const MAX_ANALYSIS_RECORDS = 200;
 
-function recordAnalysisRecord(rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'>): AnalysisRecordItem {
+export interface CreateAnalysisRecordParams {
+  id?: string;
+  recordId?: string;
+  requestId: string;
+  source: 'candidate' | 'recruiter_batch';
+  batchId?: string;
+  batchName?: string;
+  candidateId?: string;
+  candidateName: string;
+  fileName?: string;
+  cvFileName?: string;
+  jobTitle: string;
+  actorUsername?: string;
+  createdBy?: string;
+  userEmail?: string;
+  status: 'COMPLETED' | 'NO_SCORE' | 'FAILED';
+  overallScore: number | null;
+  keywordScore?: number | null;
+  experienceScore?: number | null;
+  skillsScore?: number | null;
+  matchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE';
+  topStrengths: string[];
+  missingSkills: string[];
+  recommendation?: string;
+  recruiterDecision?: 'YES' | 'NO' | 'MAYBE';
+  engineUsed: string;
+  durationMs: number;
+  cvTextLength: number;
+  jdTextLength: number;
+  fullAnalysis?: any;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+export async function createAnalysisRecord(
+  params: CreateAnalysisRecordParams
+): Promise<{ success: boolean; recordId: string; error?: string; item?: AnalysisRecordItem }> {
+  const recordId = params.recordId || params.id || `anl_${params.requestId}_${Math.random().toString(36).substring(2, 7)}`;
+  const timestamp = new Date().toISOString();
+
+  const actor = (params.actorUsername || params.createdBy || (params.userEmail ? params.userEmail.split('@')[0] : 'user_guest')).trim();
+  const emailField = (params.userEmail || (actor.includes('@') ? actor : `${actor}@system.local`)).trim();
+  const cvFile = params.fileName || params.cvFileName || 'CV_Document.pdf';
+
   const item: AnalysisRecordItem = {
-    id: 'anl_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
-    timestamp: new Date().toISOString(),
-    ...rec,
+    id: recordId,
+    recordId,
+    requestId: params.requestId,
+    source: params.source,
+    batchId: params.batchId,
+    batchName: params.batchName,
+    candidateId: params.candidateId,
+    candidateName: params.candidateName || actor,
+    fileName: cvFile,
+    cvFileName: cvFile,
+    jobTitle: params.jobTitle,
+    actorUsername: actor,
+    createdBy: params.createdBy || actor,
+    userEmail: emailField,
+    status: params.status,
+    overallScore: params.overallScore,
+    keywordScore: params.keywordScore !== undefined ? params.keywordScore : null,
+    experienceScore: params.experienceScore !== undefined ? params.experienceScore : null,
+    skillsScore: params.skillsScore !== undefined ? params.skillsScore : null,
+    matchLevel: params.matchLevel,
+    topStrengths: Array.isArray(params.topStrengths) ? params.topStrengths : [],
+    missingSkills: Array.isArray(params.missingSkills) ? params.missingSkills : [],
+    recommendation: params.recommendation,
+    recruiterDecision: params.recruiterDecision,
+    engineUsed: params.engineUsed || 'Gemini 2.0 Flash',
+    durationMs: Math.max(0, params.durationMs || 0),
+    cvTextLength: params.cvTextLength || 0,
+    jdTextLength: params.jdTextLength || 0,
+    fullAnalysis: params.fullAnalysis,
+    errorCode: params.errorCode,
+    errorMessage: params.errorMessage,
+    timestamp: timestamp,
+    createdAt: timestamp,
   };
-  analysisRecords.unshift(item);
+
+  try {
+    // 1. In-memory update with idempotency check
+    const existingIndex = analysisRecords.findIndex((r) => r.id === recordId);
+    if (existingIndex >= 0) {
+      analysisRecords[existingIndex] = item;
+    } else {
+      analysisRecords.unshift(item);
+    }
+
+    if (analysisRecords.length > MAX_ANALYSIS_RECORDS) {
+      const deleted = analysisRecords.pop();
+      if (deleted && db) {
+        deleteDoc(doc(db, 'analysis_records', deleted.id)).catch((err) =>
+          console.error('[Analysis Log] Error purging old analysis record from Firestore:', err)
+        );
+      }
+    }
+
+    // 2. Safe local filesystem write
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
+    } catch (fsErr) {
+      console.error('[Analysis Log] Error writing analyses to file:', fsErr);
+    }
+
+    // 3. Firestore persistence (AWAITED and SANITIZED)
+    if (db) {
+      const sanitizedDoc = removeUndefinedDeep(item);
+      await setDoc(doc(db, 'analysis_records', recordId), sanitizedDoc);
+    }
+
+    return { success: true, recordId, item };
+  } catch (err: any) {
+    const rawErrMsg = err?.message || String(err);
+    const sanitizedErrMsg = rawErrMsg.replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+    console.error(
+      `[Analysis Log Error] Failed to persist analysis record: requestId=${params.requestId}, file=${cvFile}, error=${sanitizedErrMsg}`
+    );
+    return { success: false, recordId, error: sanitizedErrMsg, item };
+  }
+}
+
+// Backward-compatible wrapper
+function recordAnalysisRecord(rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'> & { id?: string; timestamp?: string }): AnalysisRecordItem {
+  const recordId = rec.id || 'anl_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+  const timestamp = rec.timestamp || new Date().toISOString();
+  const actor = (rec.actorUsername || (rec.userEmail ? rec.userEmail.split('@')[0] : 'user_guest')).trim();
+  const emailField = (rec.userEmail || (actor.includes('@') ? actor : `${actor}@system.local`)).trim();
+  const cvFile = rec.fileName || rec.cvFileName || 'CV_Document.pdf';
+
+  const item: AnalysisRecordItem = {
+    ...rec,
+    id: recordId,
+    recordId,
+    timestamp,
+    createdAt: timestamp,
+    userEmail: emailField,
+    actorUsername: actor,
+    fileName: cvFile,
+    cvFileName: cvFile,
+    source: rec.source || 'candidate',
+    status: rec.status || (rec.overallScore !== null ? 'COMPLETED' : 'NO_SCORE'),
+    matchLevel: rec.matchLevel || 'NOT_AVAILABLE',
+    topStrengths: Array.isArray(rec.topStrengths) ? rec.topStrengths : [],
+    missingSkills: Array.isArray(rec.missingSkills) ? rec.missingSkills : [],
+    engineUsed: rec.engineUsed || 'Gemini 2.0 Flash',
+    durationMs: rec.durationMs || 0,
+    cvTextLength: rec.cvTextLength || 0,
+    jdTextLength: rec.jdTextLength || 0,
+  };
+
+  const existingIndex = analysisRecords.findIndex((r) => r.id === recordId);
+  if (existingIndex >= 0) {
+    analysisRecords[existingIndex] = item;
+  } else {
+    analysisRecords.unshift(item);
+  }
+
   if (analysisRecords.length > MAX_ANALYSIS_RECORDS) {
     const deleted = analysisRecords.pop();
     if (deleted && db) {
-      deleteDoc(doc(db, 'analysis_records', deleted.id)).catch(err => console.error('Error purging old analysis record:', err));
+      deleteDoc(doc(db, 'analysis_records', deleted.id)).catch((err) =>
+        console.error('Error purging old analysis record:', err)
+      );
     }
   }
 
@@ -989,7 +1164,10 @@ function recordAnalysisRecord(rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'>)
   }
 
   if (db) {
-    setDoc(doc(db, 'analysis_records', item.id), item).catch(err => console.error('Error saving analysis record to Firestore:', err));
+    const sanitizedDoc = removeUndefinedDeep(item);
+    setDoc(doc(db, 'analysis_records', item.id), sanitizedDoc).catch((err) =>
+      console.error('Error saving analysis record to Firestore:', err)
+    );
   }
   return item;
 }
@@ -3182,12 +3360,13 @@ async function extractTextFromBuffer(buffer: Buffer, originalname: string, mimet
 async function processBatchInPool<T, R>(
   items: T[],
   limit: number,
-  fn: (item: T) => Promise<R>
+  fn: (item: T, index: number) => Promise<R>
 ): Promise<R[]> {
   const results: Promise<R>[] = [];
   const executing: Promise<any>[] = [];
-  for (const item of items) {
-    const p = Promise.resolve().then(() => fn(item));
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const p = Promise.resolve().then(() => fn(item, i));
     results.push(p);
     if (limit <= items.length) {
       const e: Promise<any> = p.then(() => executing.splice(executing.indexOf(e), 1));
@@ -3449,7 +3628,27 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
 
     const ai = getGeminiClient();
 
-    const analysisResults = await processBatchInPool(extractedCandidates, 3, async (candidate) => {
+    const requestId = 'req_batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const batchId = (req.body?.batchId as string)?.trim() || ('batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+    const batchName = (req.body?.batchName as string)?.trim() || undefined;
+    const currentUser = getUserFromRequest(req);
+    const actorUsername = currentUser ? currentUser.username : 'user_batch_hr';
+    const createdBy = currentUser ? currentUser.username : actorUsername;
+    const userEmailVal = currentUser?.email || (actorUsername.includes('@') ? actorUsername : `${actorUsername}@system.local`);
+
+    const auditResults: { expected: number; saved: number; failed: number; recordIds: string[] } = {
+      expected: extractedCandidates.length,
+      saved: 0,
+      failed: 0,
+      recordIds: [],
+    };
+
+    const analysisResults = await processBatchInPool(extractedCandidates, 3, async (candidate, candIdx) => {
+      const candStartTime = Date.now();
+      const deterministicRecordId = `anl_${requestId}_${candIdx}_${candidate.filename.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 16)}`;
+      const firstLine = jdText.trim().split('\n')[0] || '';
+      const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+
       try {
         const cacheKey = getHashKey({
           cvText: candidate.text,
@@ -3541,6 +3740,14 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           else matchLevel = 'Low';
         }
 
+        let dbMatchLevel: 'XUAT_SAC' | 'TOT' | 'TRUNG_BINH' | 'CAN_CAI_THIEN' | 'NOT_AVAILABLE' = 'NOT_AVAILABLE';
+        if (overallScore !== null) {
+          if (overallScore >= 85) dbMatchLevel = 'XUAT_SAC';
+          else if (overallScore >= 70) dbMatchLevel = 'TOT';
+          else if (overallScore >= 50) dbMatchLevel = 'TRUNG_BINH';
+          else dbMatchLevel = 'CAN_CAI_THIEN';
+        }
+
         // topStrengths strictly from feature1.summary.biggestStrength
         const topStrengths: string[] = (typeof finalResult.feature1?.summary?.biggestStrength === 'string' && finalResult.feature1.summary.biggestStrength.trim())
           ? [finalResult.feature1.summary.biggestStrength.trim()]
@@ -3560,36 +3767,12 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
             ? finalResult.shortRecommendation.trim()
             : '');
 
-        try {
-          const currentUser = getUserFromRequest(req);
-          const userEmailVal = currentUser ? currentUser.username : 'user_batch_hr';
-          const candNameVal = candidateName || candidate.filename.replace(/\.[^/.]+$/, "");
-          const firstLine = jdText.trim().split('\n')[0] || '';
-          const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
-          const formattedJobTitle = `${jdTitleVal} - ${candNameVal}`;
-
-          const rawInvite = finalResult.feature3?.inviteDecision;
-          const recruiterDecisionVal = (rawInvite === 'YES' || rawInvite === 'MAYBE' || rawInvite === 'NO') ? rawInvite : undefined;
-
-          recordAnalysisRecord({
-            userEmail: userEmailVal,
-            jobTitle: formattedJobTitle,
-            overallScore: overallScore,
-            matchLevel: overallScore !== null ? (overallScore >= 85 ? 'XUAT_SAC' : (overallScore >= 70 ? 'TOT' : (overallScore >= 50 ? 'TRUNG_BINH' : 'CAN_CAI_THIEN'))) : 'NOT_AVAILABLE',
-            cvFileName: candidate.filename,
-            jdTitle: jdTitleVal,
-            topStrengths,
-            missingSkills: keyGaps,
-            recruiterDecision: recruiterDecisionVal,
-            engineUsed: 'Gemini 2.0 Flash Batch Pipeline',
-            durationMs: 0,
-            cvTextLength: candidate.text.length,
-            jdTextLength: jdText.length,
-            fullAnalysis: finalResult,
-          });
-        } catch (recErr) {
-          console.warn('Could not record batch candidate analysis history:', recErr);
-        }
+        const candNameVal = candidateName || candidate.filename.replace(/\.[^/.]+$/, "");
+        const formattedJobTitle = `${jdTitleVal} - ${candNameVal}`;
+        const rawInvite = finalResult.feature3?.inviteDecision;
+        const recruiterDecisionVal = (rawInvite === 'YES' || rawInvite === 'MAYBE' || rawInvite === 'NO') ? rawInvite : undefined;
+        const candDurationMs = Date.now() - candStartTime;
+        const processingStatus: 'COMPLETED' | 'NO_SCORE' = overallScore !== null ? 'COMPLETED' : 'NO_SCORE';
 
         const rawKw = finalResult.feature1?.scores?.keywordMatchScore;
         const keywordScore = (typeof rawKw === 'number' && Number.isFinite(rawKw)) ? rawKw : null;
@@ -3599,6 +3782,49 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
 
         const rawSk = finalResult.feature1?.scores?.skillMatchScore;
         const skillScore = (typeof rawSk === 'number' && Number.isFinite(rawSk)) ? rawSk : null;
+
+        // Save analysis record
+        const logRes = await createAnalysisRecord({
+          id: deterministicRecordId,
+          recordId: deterministicRecordId,
+          requestId,
+          source: 'recruiter_batch',
+          batchId,
+          batchName,
+          candidateId: `cand_${candIdx + 1}`,
+          candidateName: candNameVal,
+          fileName: candidate.filename,
+          cvFileName: candidate.filename,
+          jobTitle: formattedJobTitle,
+          actorUsername,
+          createdBy,
+          userEmail: userEmailVal,
+          status: processingStatus,
+          overallScore,
+          keywordScore,
+          experienceScore,
+          skillsScore: skillScore,
+          matchLevel: dbMatchLevel,
+          topStrengths,
+          missingSkills: keyGaps,
+          recommendation: shortRecommendation,
+          recruiterDecision: recruiterDecisionVal,
+          engineUsed: 'Gemini 2.0 Flash Batch Pipeline',
+          durationMs: candDurationMs,
+          cvTextLength: candidate.text.length,
+          jdTextLength: jdText.length,
+          fullAnalysis: finalResult,
+        });
+
+        if (logRes.success) {
+          auditResults.saved++;
+          auditResults.recordIds.push(deterministicRecordId);
+        } else {
+          auditResults.failed++;
+          console.error(
+            `[Recruiter Batch Audit Failed] requestId=${requestId}, candidate=${candidate.filename}, error=${logRes.error}`
+          );
+        }
 
         return {
           filename: candidate.filename,
@@ -3613,14 +3839,64 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           keyGaps,
           shortRecommendation,
           cvText: candidate.text,
-          fullAnalysis: finalResult
+          fullAnalysis: finalResult,
+          analysisRecordId: deterministicRecordId,
         };
       } catch (err: any) {
-        console.error(`Error in 3-step pipeline for candidate CV ${candidate.filename}:`, err);
+        const candDurationMs = Date.now() - candStartTime;
+        const candName = extractNameFromFilename(candidate.filename) || candidate.filename.replace(/\.[^/.]+$/, "");
+        const safeErrMsg = (err?.message || 'Lỗi xử lý AI.').replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+        const safeErrCode = err?.code || 'AI_PROCESSING_ERROR';
+        console.error(`Error in 3-step pipeline for candidate CV ${candidate.filename}:`, safeErrMsg);
+
+        const logRes = await createAnalysisRecord({
+          id: deterministicRecordId,
+          recordId: deterministicRecordId,
+          requestId,
+          source: 'recruiter_batch',
+          batchId,
+          batchName,
+          candidateId: `cand_${candIdx + 1}`,
+          candidateName: candName,
+          fileName: candidate.filename,
+          cvFileName: candidate.filename,
+          jobTitle: `${jdTitleVal} - ${candName}`,
+          actorUsername,
+          createdBy,
+          userEmail: userEmailVal,
+          status: 'FAILED',
+          overallScore: null,
+          keywordScore: null,
+          experienceScore: null,
+          skillsScore: null,
+          matchLevel: 'NOT_AVAILABLE',
+          topStrengths: [],
+          missingSkills: [],
+          recommendation: '',
+          recruiterDecision: undefined,
+          engineUsed: 'Gemini 2.0 Flash Batch Pipeline',
+          durationMs: candDurationMs,
+          cvTextLength: candidate.text.length,
+          jdTextLength: jdText.length,
+          fullAnalysis: undefined,
+          errorCode: safeErrCode,
+          errorMessage: safeErrMsg,
+        });
+
+        if (logRes.success) {
+          auditResults.saved++;
+          auditResults.recordIds.push(deterministicRecordId);
+        } else {
+          auditResults.failed++;
+          console.error(
+            `[Recruiter Batch Audit Failed (Failed CV)] requestId=${requestId}, candidate=${candidate.filename}, error=${logRes.error}`
+          );
+        }
+
         return {
           filename: candidate.filename,
           success: false,
-          candidateName: candidate.filename.replace(/\.[^/.]+$/, ""),
+          candidateName: candName,
           overallScore: null,
           matchLevel: 'NOT_AVAILABLE',
           keywordScore: null,
@@ -3629,7 +3905,8 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           topStrengths: [],
           keyGaps: [],
           shortRecommendation: '',
-          errorMessage: err.message || 'Lỗi xử lý AI.'
+          errorMessage: safeErrMsg,
+          analysisRecordId: deterministicRecordId,
         };
       }
     });
@@ -3646,10 +3923,19 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
       return 0;
     });
 
+    if (auditResults.failed > 0) {
+      console.warn(`[Recruiter Batch Audit Warning] Batch completed with ${auditResults.failed}/${auditResults.expected} failed persistence writes.`, {
+        requestId,
+        batchId,
+        audit: auditResults,
+      });
+    }
+
     res.json({
       success: true,
       results: analysisResults,
-      processedAt: new Date().toISOString()
+      processedAt: new Date().toISOString(),
+      audit: auditResults,
     });
 
   } catch (err: any) {
@@ -5044,18 +5330,30 @@ app.post('/api/analyze-cv', async (req, res) => {
           ? rawTitleVal
           : `${rawTitleVal} - ${candNameVal}`;
 
-        recordAnalysisRecord({
-          userEmail: userEmailVal,
-          jobTitle: formattedJobTitle,
-          overallScore,
-          matchLevel,
+        const reqRequestId = (req.body?.requestId as string)?.trim() || `req_cand_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+        await createAnalysisRecord({
+          requestId: reqRequestId,
+          source: 'candidate',
+          userEmail: currentUser?.email || (userEmailVal.includes('@') ? userEmailVal : `${userEmailVal}@system.local`),
+          actorUsername: userEmailVal,
+          createdBy: userEmailVal,
+          candidateName: candNameVal,
+          fileName: req.body?.cvFileName || 'CV_Ứng_Viên.pdf',
           cvFileName: req.body?.cvFileName || 'CV_Ứng_Viên.pdf',
-          jdTitle: req.body?.jdTitle || 'JD_Yêu_Cầu.docx',
+          jobTitle: formattedJobTitle,
+          status: 'COMPLETED',
+          overallScore,
+          keywordScore: finalResult.feature1?.scores?.keywordMatchScore ?? null,
+          experienceScore: finalResult.feature1?.scores?.experienceOutcomeScore ?? null,
+          skillsScore: finalResult.feature1?.scores?.skillMatchScore ?? null,
+          matchLevel,
           topStrengths: [
             finalResult.feature1?.summary?.biggestStrength || '',
             finalResult.feature3?.immediateStrength || '',
           ].filter(Boolean),
           missingSkills: finalResult.feature1?.summary?.missingKeywordsSkills || [],
+          recommendation: finalResult.feature3?.firstImpression10s || finalResult.shortRecommendation || '',
           recruiterDecision: finalResult.feature3?.inviteDecision || 'MAYBE',
           engineUsed: usedOpenAi ? 'Gemini 2.0 + OpenRouter Auditor' : 'Gemini 2.0 Flash Sequential Pipeline',
           durationMs: Date.now() - startTime,
@@ -5092,15 +5390,27 @@ app.post('/api/analyze-cv', async (req, res) => {
           ? rawTitleFb
           : `${rawTitleFb} - ${candNameFb}`;
 
-        recordAnalysisRecord({
-          userEmail: userEmailFb,
-          jobTitle: formattedJobTitleFb,
-          overallScore,
-          matchLevel,
+        const reqRequestId = (req.body?.requestId as string)?.trim() || `req_cand_fb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+        await createAnalysisRecord({
+          requestId: reqRequestId,
+          source: 'candidate',
+          userEmail: currentUser?.email || (userEmailFb.includes('@') ? userEmailFb : `${userEmailFb}@system.local`),
+          actorUsername: userEmailFb,
+          createdBy: userEmailFb,
+          candidateName: candNameFb,
+          fileName: req.body?.cvFileName || 'CV_Uploaded.pdf',
           cvFileName: req.body?.cvFileName || 'CV_Uploaded.pdf',
-          jdTitle: req.body?.jdTitle || 'JD_Target.txt',
+          jobTitle: formattedJobTitleFb,
+          status: 'COMPLETED',
+          overallScore,
+          keywordScore: fallbackResult.feature1?.scores?.keywordMatchScore ?? null,
+          experienceScore: fallbackResult.feature1?.scores?.experienceOutcomeScore ?? null,
+          skillsScore: fallbackResult.feature1?.scores?.skillMatchScore ?? null,
+          matchLevel,
           topStrengths: [fallbackResult.feature1?.summary?.biggestStrength || ''].filter(Boolean),
           missingSkills: fallbackResult.feature1?.summary?.missingKeywordsSkills || [],
+          recommendation: fallbackResult.feature3?.firstImpression10s || (fallbackResult as any).shortRecommendation || '',
           recruiterDecision: fallbackResult.feature3?.inviteDecision || 'MAYBE',
           engineUsed: 'Fallback Local Heuristic Engine',
           durationMs: Date.now() - startTime,
