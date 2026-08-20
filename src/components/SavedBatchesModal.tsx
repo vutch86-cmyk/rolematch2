@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Search, Filter, Calendar, Users, AlertCircle, Loader2, Layers, RefreshCw, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RecruiterBatchSummary, RecruiterBatchDetail } from '../types';
@@ -189,7 +190,19 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const originalOverflow = document.body.style.overflow;
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -284,21 +297,22 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <div 
         id="saved-batches-backdrop"
         onClick={handleBackdropClick}
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-[100] flex items-center justify-center p-4"
       >
         <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby="saved-batches-title"
+          onClick={(e) => e.stopPropagation()}
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full h-[85vh] shadow-2xl flex flex-col overflow-hidden"
+          className="bg-white border border-slate-200 rounded-3xl max-w-3xl w-full max-h-[85vh] shadow-2xl flex flex-col overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
@@ -381,7 +395,7 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
           )}
 
           {/* Main List Area */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
             {isLoading && batches.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-3">
                 <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
@@ -499,6 +513,7 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
