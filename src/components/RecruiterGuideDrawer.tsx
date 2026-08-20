@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
@@ -61,6 +62,7 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
   const [activeHeadingId, setActiveHeadingId] = useState<string>('');
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const triggerElementRef = useRef<HTMLElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -83,35 +85,70 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
     setTocItems(parsedToc);
   }, []);
 
-  // Handle Focus Trap & Keyboard Esc listener
+  // Handle Focus Trap & Scroll Lock
   useEffect(() => {
-    if (isOpen) {
-      triggerElementRef.current = document.activeElement as HTMLElement;
-      document.body.style.overflow = 'hidden';
+    if (!isOpen) return;
 
-      // Move focus into the drawer close button
-      const timer = setTimeout(() => {
-        closeButtonRef.current?.focus();
-      }, 50);
+    // Save current scroll lock state and active element
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    triggerElementRef.current = document.activeElement as HTMLElement;
 
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          onClose();
+    // Auto-focus close button
+    const timer = setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 50);
+
+    const getFocusableElements = (): HTMLElement[] => {
+      if (!dialogRef.current) return [];
+      return Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter(
+        (el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0
+      );
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const focusables = getFocusableElements();
+        if (focusables.length === 0) return;
+
+        const firstEl = focusables[0];
+        const lastEl = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
         }
-      };
+      }
+    };
 
-      window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
 
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener('keydown', handleKeyDown);
-        document.body.style.overflow = '';
-        triggerElementRef.current?.focus();
-      };
-    }
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+      triggerElementRef.current?.focus();
+    };
   }, [isOpen, onClose]);
 
-  // Handle active heading tracking on scroll inside drawer
+  // Handle active heading tracking on scroll inside main reader column
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || !isOpen) return;
@@ -123,8 +160,7 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
 
       headingElements.forEach((el) => {
         const rect = el.getBoundingClientRect();
-        // Check if top of heading is near top of scroll view
-        if (rect.top - containerTop <= 100) {
+        if (rect.top - containerTop <= 120) {
           currentActiveId = el.id;
         }
       });
@@ -151,224 +187,268 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
     }
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex justify-end"
+        <motion.div
+          ref={dialogRef}
+          initial={{ opacity: 0, scale: 0.99 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.99 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="fixed inset-0 z-50 w-screen h-[100dvh] bg-slate-50 flex flex-col overflow-hidden text-slate-800"
           role="dialog"
           aria-modal="true"
           aria-labelledby="recruiter-guide-title"
+          aria-describedby="recruiter-guide-desc"
         >
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs cursor-pointer"
-            aria-hidden="true"
-          />
-
-          {/* Sliding Drawer Panel */}
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-            className="relative z-10 w-full sm:w-[85vw] lg:w-[50vw] max-w-[800px] h-full bg-white shadow-2xl flex flex-col border-l border-slate-200"
-          >
-            {/* Drawer Header */}
-            <div className="p-4 sm:p-6 bg-slate-900 text-white shrink-0 sticky top-0 z-20 border-b border-slate-800 flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                  <BookOpen className="w-3 h-3" />
-                  <span>{isEn ? 'RECRUITER GUIDE' : 'HƯỚNG DẪN DÀNH CHO NHÀ TUYỂN DỤNG'}</span>
+          {/* Top Sticky Header Bar */}
+          <header className="p-4 sm:px-8 bg-slate-900 text-white shrink-0 z-30 border-b border-slate-800 flex items-center justify-between gap-4 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-indigo-600/30 text-indigo-300 border border-indigo-400/30 shrink-0">
+                <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] sm:text-xs font-black tracking-wider uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-2 py-0.5 rounded-full">
+                    {isEn ? 'USER GUIDE' : 'HƯỚNG DẪN SỬ DỤNG'}
+                  </span>
                 </div>
-                <h2 id="recruiter-guide-title" className="text-lg sm:text-xl font-black text-white leading-snug">
+                <h1 id="recruiter-guide-title" className="text-base sm:text-xl font-black text-white leading-tight">
                   {isEn ? 'Recruiter User Guide' : 'Hướng dẫn dành cho Nhà tuyển dụng'}
-                </h2>
-                <p className="text-xs text-slate-300 font-medium">
+                </h1>
+                <p id="recruiter-guide-desc" className="text-xs text-slate-300 hidden sm:block font-medium mt-0.5">
                   {isEn ? 'How to read and utilize AI analysis reports effectively' : 'Cách đọc và sử dụng báo cáo phân tích AI'}
                 </p>
               </div>
-
-              <button
-                ref={closeButtonRef}
-                onClick={onClose}
-                aria-label={isEn ? 'Close guide' : 'Đóng hướng dẫn'}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700/60 shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
-            {/* Language Note Banner for English UI */}
-            {isEn && (
-              <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 text-xs text-amber-800 font-medium flex items-center gap-2 shrink-0">
-                <Info className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>The current guide content is available in Vietnamese.</span>
-              </div>
-            )}
+            <button
+              ref={closeButtonRef}
+              onClick={onClose}
+              aria-label={isEn ? 'Close guide' : 'Đóng hướng dẫn'}
+              className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white transition-all cursor-pointer border border-slate-700/80 shrink-0 flex items-center gap-2 text-xs sm:text-sm font-extrabold focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300" />
+              <span className="hidden sm:inline">{isEn ? 'Close Guide' : 'Đóng hướng dẫn'}</span>
+            </button>
+          </header>
 
-            {/* Collapsible Table of Contents Bar */}
+          {/* Language Note Banner for English UI */}
+          {isEn && (
+            <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 text-xs sm:text-sm text-amber-800 font-medium flex items-center gap-2 shrink-0">
+              <Info className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>The current guide content is available in Vietnamese.</span>
+            </div>
+          )}
+
+          {/* Collapsible Mobile/Tablet Table of Contents Bar (< lg) */}
+          {tocItems.length > 0 && (
+            <div className="bg-white border-b border-slate-200 shrink-0 z-20 block lg:hidden">
+              <button
+                type="button"
+                aria-expanded={isTocOpen}
+                aria-controls="mobile-toc-dropdown"
+                onClick={() => setIsTocOpen(!isTocOpen)}
+                className="w-full px-4 sm:px-6 py-3 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <List className="w-4 h-4 text-indigo-600" />
+                  <span>{isEn ? 'Table of Contents' : 'Mục lục hướng dẫn'}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700">
+                    {tocItems.length} {isEn ? 'sections' : 'mục'}
+                  </span>
+                </div>
+                {isTocOpen ? (
+                  <ChevronUp className="w-4 h-4 text-slate-500" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isTocOpen && (
+                  <motion.div
+                    id="mobile-toc-dropdown"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden bg-slate-50 border-t border-slate-200 max-h-[260px] overflow-y-auto"
+                  >
+                    <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs sm:text-sm">
+                      {tocItems.map((item) => {
+                        const isActive = activeHeadingId === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            aria-current={isActive ? 'location' : undefined}
+                            onClick={() => handleTocClick(item.id)}
+                            className={`text-left px-3 py-2 rounded-lg transition-all truncate cursor-pointer font-medium ${
+                              isActive
+                                ? 'bg-indigo-600 text-white font-extrabold shadow-2xs'
+                                : 'text-slate-700 hover:bg-slate-200/80 hover:text-slate-900'
+                            }`}
+                          >
+                            {item.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Desktop Two-Column Reader Body Container */}
+          <div className="w-full max-w-[1440px] mx-auto flex-1 flex overflow-hidden">
+            {/* Desktop Sticky Left Sidebar TOC (lg+) */}
             {tocItems.length > 0 && (
-              <div className="bg-slate-50 border-b border-slate-200 shrink-0 z-10">
-                <button
-                  type="button"
-                  onClick={() => setIsTocOpen(!isTocOpen)}
-                  className="w-full px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs font-bold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
+              <aside className="w-[280px] xl:w-[320px] shrink-0 border-r border-slate-200 bg-white p-6 overflow-y-auto hidden lg:flex flex-col gap-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                  <div className="flex items-center gap-2 font-black text-slate-900 text-sm">
                     <List className="w-4 h-4 text-indigo-600" />
                     <span>{isEn ? 'Table of Contents' : 'Mục lục hướng dẫn'}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-700">
-                      {tocItems.length} {isEn ? 'sections' : 'mục'}
-                    </span>
                   </div>
-                  {isTocOpen ? (
-                    <ChevronUp className="w-4 h-4 text-slate-500" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
-                  )}
-                </button>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {tocItems.length}
+                  </span>
+                </div>
 
-                {/* Dropdown / Expandable TOC Grid */}
-                <AnimatePresence>
-                  {isTocOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden bg-white border-t border-slate-200 max-h-[220px] overflow-y-auto"
-                    >
-                      <div className="p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
-                        {tocItems.map((item) => {
-                          const isActive = activeHeadingId === item.id;
-                          return (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => handleTocClick(item.id)}
-                              className={`text-left px-2.5 py-1.5 rounded-lg transition-all truncate cursor-pointer font-medium ${
-                                isActive
-                                  ? 'bg-indigo-50 text-indigo-700 font-extrabold border border-indigo-200'
-                                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                              }`}
-                            >
-                              {item.title}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                <nav className="space-y-1 text-xs xl:text-sm">
+                  {tocItems.map((item) => {
+                    const isActive = activeHeadingId === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-current={isActive ? 'location' : undefined}
+                        onClick={() => handleTocClick(item.id)}
+                        className={`w-full text-left px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-semibold leading-snug flex items-center gap-2 ${
+                          isActive
+                            ? 'bg-indigo-50 text-indigo-800 font-extrabold border border-indigo-200/90 shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
+                            isActive ? 'bg-indigo-600 scale-125' : 'bg-slate-300'
+                          }`}
+                        />
+                        <span className="truncate">{item.title}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </aside>
             )}
 
-            {/* Main Scrollable Markdown Content Container */}
-            <div
+            {/* Right Main Article Column */}
+            <main
               ref={scrollContainerRef}
-              className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6 text-slate-800 leading-relaxed"
+              className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-10 bg-slate-50/60"
             >
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeSanitize]}
-                components={{
-                  h1: ({ children }) => (
-                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 border-b border-slate-200 pb-3 mb-6 mt-2 flex items-center gap-2">
-                      <FileText className="w-6 h-6 text-indigo-600 shrink-0" />
-                      <span>{children}</span>
-                    </h1>
-                  ),
-                  h2: ({ children }) => {
-                    const text = extractNodeText(children);
-                    // Match heading in parsed TOC to get stable anchor id
-                    const tocMatch = tocItems.find((item) => item.title === text);
-                    const id = tocMatch ? tocMatch.id : slugifyHeading(text, 0);
+              <article className="max-w-3xl lg:max-w-4xl mx-auto bg-white rounded-2xl p-6 sm:p-10 md:p-12 shadow-sm border border-slate-200/80 space-y-6">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+                  components={{
+                    h1: ({ children }) => (
+                      <h1 className="text-2xl lg:text-3xl font-black text-slate-900 border-b-2 border-slate-200 pb-4 mb-8 mt-2 flex items-center gap-3">
+                        <FileText className="w-7 h-7 text-indigo-600 shrink-0" />
+                        <span>{children}</span>
+                      </h1>
+                    ),
+                    h2: ({ children }) => {
+                      const text = extractNodeText(children);
+                      const tocMatch = tocItems.find((item) => item.title === text);
+                      const id = tocMatch ? tocMatch.id : slugifyHeading(text, 0);
 
-                    return (
-                      <h2
-                        id={id}
-                        className="text-lg sm:text-xl font-black text-slate-900 border-b border-slate-200 pb-2.5 mb-4 mt-8 scroll-mt-6 flex items-center gap-2 group"
-                      >
-                        <span className="flex-1">{children}</span>
-                      </h2>
-                    );
-                  },
-                  h3: ({ children }) => (
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 mb-2 mt-5">
-                      {children}
-                    </h3>
-                  ),
-                  p: ({ children }) => (
-                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed mb-4 font-normal">
-                      {children}
-                    </p>
-                  ),
-                  ul: ({ children }) => (
-                    <ul className="list-disc list-outside ml-5 text-xs sm:text-sm text-slate-700 space-y-1.5 mb-4">
-                      {children}
-                    </ul>
-                  ),
-                  ol: ({ children }) => (
-                    <ol className="list-decimal list-outside ml-5 text-xs sm:text-sm text-slate-700 space-y-2 mb-4">
-                      {children}
-                    </ol>
-                  ),
-                  li: ({ children }) => (
-                    <li className="leading-relaxed text-slate-700">{children}</li>
-                  ),
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-indigo-500 bg-indigo-50/70 rounded-r-xl p-3.5 my-4 text-xs font-medium text-slate-800 shadow-2xs">
-                      {children}
-                    </blockquote>
-                  ),
-                  code: ({ children }) => (
-                    <code className="font-mono text-[11px] sm:text-xs bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded border border-slate-200 font-bold">
-                      {children}
-                    </code>
-                  ),
-                  table: ({ children }) => (
-                    <div className="overflow-x-auto my-6 rounded-xl border border-slate-200 shadow-2xs max-w-full">
-                      <table className="w-full text-left text-xs text-slate-700 border-collapse min-w-[500px]">
-                        {children}
-                      </table>
-                    </div>
-                  ),
-                  thead: ({ children }) => (
-                    <thead className="bg-slate-100 text-slate-900 font-extrabold border-b border-slate-200">
-                      {children}
-                    </thead>
-                  ),
-                  th: ({ children }) => (
-                    <th className="p-3 font-extrabold text-slate-900">{children}</th>
-                  ),
-                  td: ({ children }) => (
-                    <td className="p-3 border-b border-slate-100 text-slate-700 leading-normal">
-                      {children}
-                    </td>
-                  ),
-                  input: (props) => {
-                    if (props.type === 'checkbox') {
-                      return props.checked ? (
-                        <CheckSquare className="w-4 h-4 text-emerald-600 inline-block mr-2 shrink-0 align-text-bottom" />
-                      ) : (
-                        <Square className="w-4 h-4 text-slate-400 inline-block mr-2 shrink-0 align-text-bottom" />
+                      return (
+                        <h2
+                          id={id}
+                          className="text-xl lg:text-2xl font-black text-slate-900 border-b border-slate-200 pb-3 mb-5 mt-10 scroll-mt-24 flex items-center gap-2 group"
+                        >
+                          <span className="flex-1">{children}</span>
+                        </h2>
                       );
+                    },
+                    h3: ({ children }) => (
+                      <h3 className="text-base lg:text-lg font-extrabold text-slate-900 mb-3 mt-6">
+                        {children}
+                      </h3>
+                    ),
+                    p: ({ children }) => (
+                      <p className="text-sm sm:text-base text-slate-700 leading-7 sm:leading-8 mb-5 font-normal">
+                        {children}
+                      </p>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc list-outside ml-6 text-sm sm:text-base text-slate-700 space-y-2.5 mb-5">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal list-outside ml-6 text-sm sm:text-base text-slate-700 space-y-2.5 mb-5">
+                        {children}
+                      </ol>
+                    ),
+                    li: ({ children }) => (
+                      <li className="leading-relaxed text-slate-700">{children}</li>
+                    ),
+                    blockquote: ({ children }) => (
+                      <blockquote className="border-l-4 border-indigo-500 bg-indigo-50/70 rounded-r-xl p-4 sm:p-5 my-6 text-sm sm:text-base font-medium text-slate-800 shadow-2xs">
+                        {children}
+                      </blockquote>
+                    ),
+                    code: ({ children }) => (
+                      <code className="font-mono text-xs sm:text-sm bg-slate-100 text-indigo-700 px-2 py-0.5 rounded border border-slate-200 font-bold">
+                        {children}
+                      </code>
+                    ),
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-6 rounded-xl border border-slate-200/90 shadow-2xs max-w-full bg-white">
+                        <table className="w-full text-left text-xs sm:text-sm text-slate-700 border-collapse min-w-[580px]">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    thead: ({ children }) => (
+                      <thead className="bg-slate-100/90 text-slate-900 font-extrabold border-b border-slate-200">
+                        {children}
+                      </thead>
+                    ),
+                    th: ({ children }) => (
+                      <th className="p-3.5 sm:p-4 font-extrabold text-slate-900">{children}</th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="p-3.5 sm:p-4 border-b border-slate-100 text-slate-700 leading-relaxed">
+                        {children}
+                      </td>
+                    ),
+                    input: (props) => {
+                      if (props.type === 'checkbox') {
+                        return props.checked ? (
+                          <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 inline-block mr-2.5 shrink-0 align-text-bottom" />
+                        ) : (
+                          <Square className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 inline-block mr-2.5 shrink-0 align-text-bottom" />
+                        );
+                      }
+                      return <input {...props} />;
                     }
-                    return <input {...props} />;
-                  }
-                }}
-              >
-                {guideContent}
-              </ReactMarkdown>
-            </div>
-          </motion.div>
-        </div>
+                  }}
+                >
+                  {guideContent}
+                </ReactMarkdown>
+              </article>
+            </main>
+          </div>
+        </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
