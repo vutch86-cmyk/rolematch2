@@ -36,7 +36,8 @@ import {
   Save,
   FolderOpen,
   Maximize2,
-  Minimize2
+  Minimize2,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -57,6 +58,7 @@ import {
 import { HistoryItem, ComparisonRow, RecruiterBatchDetail, SavedBatchCandidate } from '../types';
 import { SaveBatchModal } from './SaveBatchModal';
 import { SavedBatchesModal } from './SavedBatchesModal';
+import { RecruiterGuideDrawer } from './RecruiterGuideDrawer';
 
 interface BatchProcessingTabProps {
   lang: 'vi' | 'en';
@@ -251,9 +253,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     }
   }, [isLoading]);
 
-  // Saved Batches Integration States
+  // Saved Batches & Recruiter Guide Integration States
   const [isSaveBatchModalOpen, setIsSaveBatchModalOpen] = useState<boolean>(false);
   const [isSavedBatchesModalOpen, setIsSavedBatchesModalOpen] = useState<boolean>(false);
+  const [isRecruiterGuideOpen, setIsRecruiterGuideOpen] = useState<boolean>(false);
   const [activeSavedBatch, setActiveSavedBatch] = useState<RecruiterBatchDetail | null>(null);
   const [batchError, setBatchError] = useState<string>('');
   const [batchNotice, setBatchNotice] = useState<string>('');
@@ -1354,6 +1357,15 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </p>
           </div>
           <div className="shrink-0 flex flex-wrap gap-2.5">
+            <button
+              onClick={() => setIsRecruiterGuideOpen(true)}
+              title={isEn ? "How to read AI analysis reports" : "Hướng dẫn đọc báo cáo AI"}
+              aria-label={isEn ? "How to read AI analysis reports" : "Hướng dẫn đọc báo cáo AI"}
+              className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-indigo-200/90 whitespace-nowrap"
+            >
+              <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>{isEn ? 'User Guide' : 'Hướng dẫn sử dụng'}</span>
+            </button>
             <button
               onClick={() => setIsSavedBatchesModalOpen(true)}
               className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-slate-950/20 whitespace-nowrap"
@@ -3252,6 +3264,13 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           token={token}
         />
       )}
+
+      {/* RecruiterGuideDrawer */}
+      <RecruiterGuideDrawer
+        isOpen={isRecruiterGuideOpen}
+        onClose={() => setIsRecruiterGuideOpen(false)}
+        lang={lang}
+      />
     </div>
   );
 };
