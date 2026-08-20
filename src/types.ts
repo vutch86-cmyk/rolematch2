@@ -69,9 +69,32 @@ export interface SequentialPipelineMetadata {
   usedOpenAiKey?: boolean;
 }
 
+export interface StoredUser {
+  id: string;
+  username: string;
+  passwordHash: string;
+  fullName: string;
+  role: 'admin' | 'normal';
+  createdAt: string;
+  email?: string;
+  isLocked?: boolean;
+  failedLoginAttempts?: number;
+  password?: string;
+}
+
+export interface CandidateAuditMetadata {
+  requestId: string;
+  saved: boolean;
+  recordId?: string;
+  errorCode?: 'FIRESTORE_UNAVAILABLE' | 'PERSISTENCE_FAILED';
+}
+
 export interface CompleteCVAnalysisResponse {
   isDemoFallback?: boolean;
   pipelineMetadata?: SequentialPipelineMetadata;
+  audit?: CandidateAuditMetadata;
+  outputLanguage?: string;
+  shortRecommendation?: string;
   feature1: {
     jdKeywords: JDKeyword[];
     comparisonTable: ComparisonRow[];

@@ -1018,20 +1018,56 @@ export interface CreateAnalysisRecordParams {
   errorMessage?: string;
 }
 
-export function getFirestoreDb() {
+export interface CandidateAuditMetadata {
+  requestId: string;
+  saved: boolean;
+  recordId?: string;
+  errorCode?: 'FIRESTORE_UNAVAILABLE' | 'PERSISTENCE_FAILED';
+}
+
+export function buildCandidateAuditMetadata(
+  logResult: { success: boolean; recordId?: string; error?: string } | undefined | null,
+  requestId: string
+): CandidateAuditMetadata {
+  if (logResult && logResult.success) {
+    return {
+      requestId,
+      saved: true,
+      recordId: logResult.recordId,
+    };
+  }
+
+  let errorCode: 'FIRESTORE_UNAVAILABLE' | 'PERSISTENCE_FAILED' = 'PERSISTENCE_FAILED';
+  if (logResult?.error === 'FIRESTORE_UNAVAILABLE') {
+    errorCode = 'FIRESTORE_UNAVAILABLE';
+  }
+
+  return {
+    requestId,
+    saved: false,
+    errorCode,
+  };
+}
+
+// Test-only helpers (do not call in production logic)
+export function __getFirestoreDbForTesting() {
   return db;
 }
 
-export function setFirestoreDb(newDb: any) {
+export function __setFirestoreDbForTesting(newDb: any) {
   db = newDb;
 }
 
-export function getAnalysisRecords(): AnalysisRecordItem[] {
+export function __getAnalysisRecordsForTesting(): AnalysisRecordItem[] {
   return analysisRecords;
 }
 
-export function clearAnalysisRecordsForTesting() {
+export function __clearAnalysisRecordsForTesting() {
   analysisRecords.length = 0;
+}
+
+export function __generateTokenForTesting(user: StoredUser): string {
+  return generateToken(user);
 }
 
 export async function createAnalysisRecord(
@@ -1118,10 +1154,12 @@ export async function createAnalysisRecord(
     }
 
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+      if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+        if (!fs.existsSync(DATA_DIR)) {
+          fs.mkdirSync(DATA_DIR, { recursive: true });
+        }
+        fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
       }
-      fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
     } catch (fsErr) {
       console.error('[Analysis Log] Error writing analyses to file:', fsErr);
     }
@@ -5471,6 +5509,10 @@ app.post('/api/analyze-cv', async (req, res) => {
       finalResult.outputLanguage = lang;
       analyzeCache.set(cacheKey, finalResult);
 
+      let logResult: { success: boolean; recordId: string; error?: string; item?: AnalysisRecordItem } | null = null;
+      const reqRequestId = (req.body?.requestId as string)?.trim() || `req_cand_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const cvFileNameVal = req.body?.cvFileName || 'CV_Ứng_Viên.pdf';
+
       try {
         const currentUser = getUserFromRequest(req);
         const overallScore = finalResult.feature1?.scores?.overallRoleScore || 75;
@@ -5487,17 +5529,15 @@ app.post('/api/analyze-cv', async (req, res) => {
           ? rawTitleVal
           : `${rawTitleVal} - ${candNameVal}`;
 
-        const reqRequestId = (req.body?.requestId as string)?.trim() || `req_cand_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-        await createAnalysisRecord({
+        logResult = await createAnalysisRecord({
           requestId: reqRequestId,
           source: 'candidate',
           userEmail: currentUser?.email || (userEmailVal.includes('@') ? userEmailVal : `${userEmailVal}@system.local`),
           actorUsername: userEmailVal,
           createdBy: userEmailVal,
           candidateName: candNameVal,
-          fileName: req.body?.cvFileName || 'CV_Ứng_Viên.pdf',
-          cvFileName: req.body?.cvFileName || 'CV_Ứng_Viên.pdf',
+          fileName: cvFileNameVal,
+          cvFileName: cvFileNameVal,
           jobTitle: formattedJobTitle,
           status: 'COMPLETED',
           overallScore,
@@ -5518,11 +5558,27 @@ app.post('/api/analyze-cv', async (req, res) => {
           jdTextLength: jdText.length,
           fullAnalysis: finalResult,
         });
-      } catch (recErr) {
-        console.warn('Could not record analysis history:', recErr);
+
+        if (!logResult.success) {
+          const sanitizedErr = (logResult.error || 'Unknown persistence error').replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+          console.error(
+            `[Candidate Analysis Audit Failed] requestId=${reqRequestId}, source=candidate, file=${cvFileNameVal}, error=${sanitizedErr}`
+          );
+        }
+      } catch (recErr: any) {
+        const rawErrMsg = recErr?.message || String(recErr);
+        const sanitizedErr = rawErrMsg.replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+        console.error(
+          `[Candidate Analysis Audit Error] requestId=${reqRequestId}, source=candidate, file=${cvFileNameVal}, error=${sanitizedErr}`
+        );
       }
 
-      return res.json(finalResult);
+      const auditMeta = buildCandidateAuditMetadata(logResult, reqRequestId);
+
+      return res.json({
+        ...finalResult,
+        audit: auditMeta,
+      });
     } catch (err: any) {
       const errMsg = err?.message || (typeof err === 'string' ? err : 'Quota or AI rate limit reached');
       console.info('API /api/analyze-cv AI models busy/quota limit, triggering fallback engine:', errMsg);
@@ -5530,6 +5586,10 @@ app.post('/api/analyze-cv', async (req, res) => {
       console.log('[Fallback Engine] Triggered instant analysis fallback to guarantee response.');
       const fallbackResult = createFallbackAnalysis(cvText, jdText, (lang || 'vi') as 'vi' | 'en');
       analyzeCache.set(cacheKey, fallbackResult);
+
+      let fbLogResult: { success: boolean; recordId: string; error?: string; item?: AnalysisRecordItem } | null = null;
+      const reqRequestIdFb = (req.body?.requestId as string)?.trim() || `req_cand_fb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const cvFileNameFb = req.body?.cvFileName || 'CV_Uploaded.pdf';
 
       try {
         const currentUser = getUserFromRequest(req);
@@ -5547,17 +5607,15 @@ app.post('/api/analyze-cv', async (req, res) => {
           ? rawTitleFb
           : `${rawTitleFb} - ${candNameFb}`;
 
-        const reqRequestId = (req.body?.requestId as string)?.trim() || `req_cand_fb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-        await createAnalysisRecord({
-          requestId: reqRequestId,
+        fbLogResult = await createAnalysisRecord({
+          requestId: reqRequestIdFb,
           source: 'candidate',
           userEmail: currentUser?.email || (userEmailFb.includes('@') ? userEmailFb : `${userEmailFb}@system.local`),
           actorUsername: userEmailFb,
           createdBy: userEmailFb,
           candidateName: candNameFb,
-          fileName: req.body?.cvFileName || 'CV_Uploaded.pdf',
-          cvFileName: req.body?.cvFileName || 'CV_Uploaded.pdf',
+          fileName: cvFileNameFb,
+          cvFileName: cvFileNameFb,
           jobTitle: formattedJobTitleFb,
           status: 'COMPLETED',
           overallScore,
@@ -5575,18 +5633,38 @@ app.post('/api/analyze-cv', async (req, res) => {
           jdTextLength: jdText.length,
           fullAnalysis: fallbackResult,
         });
-      } catch (recErr) {
-        console.warn('Could not record fallback analysis history:', recErr);
+
+        if (!fbLogResult.success) {
+          const sanitizedErr = (fbLogResult.error || 'Unknown persistence error').replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+          console.error(
+            `[Candidate Fallback Analysis Audit Failed] requestId=${reqRequestIdFb}, source=candidate, file=${cvFileNameFb}, error=${sanitizedErr}`
+          );
+        }
+      } catch (recErr: any) {
+        const rawErrMsg = recErr?.message || String(recErr);
+        const sanitizedErr = rawErrMsg.replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+        console.error(
+          `[Candidate Fallback Analysis Audit Error] requestId=${reqRequestIdFb}, source=candidate, file=${cvFileNameFb}, error=${sanitizedErr}`
+        );
       }
 
-      return res.json(fallbackResult);
+      const fbAuditMeta = buildCandidateAuditMetadata(fbLogResult, reqRequestIdFb);
+
+      return res.json({
+        ...fallbackResult,
+        audit: fbAuditMeta,
+      });
     }
   } catch (err: any) {
     console.error('API /api/analyze-cv Error:', err);
     // Fallback safeguard
     try {
       const fallbackResult = createFallbackAnalysis(req.body?.cvText || '', req.body?.jdText || '', (req.body?.lang || 'vi') as 'vi' | 'en');
-      return res.json(fallbackResult);
+      const errRequestId = (req.body?.requestId as string)?.trim() || `req_cand_err_${Date.now()}`;
+      return res.json({
+        ...fallbackResult,
+        audit: buildCandidateAuditMetadata(null, errRequestId),
+      });
     } catch {
       return res.status(500).json({
         error: formatGeminiError(err, (req.body?.lang || 'vi') as 'vi' | 'en'),
@@ -5899,6 +5977,22 @@ async function startServer() {
   });
 }
 
-if (!process.env.VITEST) {
+export { app, startServer };
+
+function isDirectExecution(): boolean {
+  if (process.env.VITEST || process.env.NODE_ENV === 'test') {
+    return false;
+  }
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return (
+    entry.endsWith('server.ts') ||
+    entry.endsWith('server.js') ||
+    entry.endsWith('server.cjs') ||
+    entry.includes('dist/server')
+  );
+}
+
+if (isDirectExecution()) {
   startServer();
 }
