@@ -18,7 +18,7 @@ import {
   SavedBatchCandidate,
   RecruiterBatchDetail
 } from './src/types';
-import { reserveAiQuota, getAiQuotaSettings, updateAiQuotaSettings, getDateKey, getResetAt } from './quotaService';
+import { reserveAiQuota, getAiQuotaSettings, updateAiQuotaSettings, getDateKey, getResetAt, normalizeUserId, getUsageDocId, getQuotaHealth, resetUserQuotaForDate } from './quotaService';
 
 dotenv.config();
 
@@ -1931,20 +1931,43 @@ app.get('/api/admin/users', async (req, res) => {
     let candidateUnits = 0;
     let recruiterUnits = 0;
     let totalUnits = 0;
+    let rawUsageData: any = null;
+
     if (db) {
+      const usageDocId = getUsageDocId(u.id, dateKey);
       try {
-        const usageRef = doc(db, 'ai_usage', `${u.id}_${dateKey}`);
+        const usageRef = doc(db, 'ai_usage', usageDocId);
         const usageSnap = await getDoc(usageRef);
         if (usageSnap.exists()) {
-          const usageData = usageSnap.data();
-          candidateUnits = Number(usageData.candidateUnits) || 0;
-          recruiterUnits = Number(usageData.recruiterUnits) || 0;
-          totalUnits = Number(usageData.totalUnits) || (candidateUnits + recruiterUnits);
+          rawUsageData = usageSnap.data();
+        } else {
+          const fallbackRef = doc(db, 'users', usageDocId);
+          const fallbackSnap = await getDoc(fallbackRef);
+          if (fallbackSnap.exists()) {
+            rawUsageData = fallbackSnap.data();
+          }
         }
       } catch (e) {
-        console.error(`Error loading usage for user ${u.id}:`, e);
+        try {
+          const fallbackRef = doc(db, 'users', usageDocId);
+          const fallbackSnap = await getDoc(fallbackRef);
+          if (fallbackSnap.exists()) {
+            rawUsageData = fallbackSnap.data();
+          }
+        } catch (fErr) {
+          console.error(`Error loading usage for user ${u.id}:`, fErr);
+        }
+      }
+
+      if (rawUsageData) {
+        candidateUnits = Number.isFinite(Number(rawUsageData.candidateUnits)) && Number(rawUsageData.candidateUnits) >= 0 ? Math.floor(Number(rawUsageData.candidateUnits)) : 0;
+        recruiterUnits = Number.isFinite(Number(rawUsageData.recruiterUnits)) && Number(rawUsageData.recruiterUnits) >= 0 ? Math.floor(Number(rawUsageData.recruiterUnits)) : 0;
+        totalUnits = candidateUnits + recruiterUnits;
       }
     }
+
+    const quotaHealth = getQuotaHealth(rawUsageData || { candidateUnits, recruiterUnits, totalUnits });
+
     return {
       id: u.id,
       username: u.username,
@@ -1960,7 +1983,8 @@ app.get('/api/admin/users', async (req, res) => {
       dailyLimit: settings.dailyLimit,
       limitEnabled: settings.limitEnabled,
       dateKey,
-      resetAt: getResetAt()
+      resetAt: getResetAt(),
+      quotaHealth
     };
   }));
 
@@ -2592,32 +2616,39 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
   if (!currentUser || currentUser.role !== 'admin') {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
   }
-  const userId = req.params.id;
+  const rawUserId = req.params.id;
   const users = await loadUsersAsync();
-  const dbUser = users.find(u => u.id === userId);
+  const dbUser = users.find(u => u.id === rawUserId || u.username === rawUserId);
   if (!dbUser) {
     return res.status(404).json({ error: 'Không tìm thấy tài khoản người dùng.' });
   }
 
+  const userId = normalizeUserId(dbUser.id);
   const dateKey = getDateKey();
+
   if (db) {
     try {
-      const usageRef = doc(db, 'ai_usage', `${userId}_${dateKey}`);
-      await setDoc(usageRef, {
-        userId,
-        username: dbUser.username || dbUser.email || userId,
-        dateKey,
-        timezone: 'Asia/Ho_Chi_Minh',
-        candidateUnits: 0,
-        recruiterUnits: 0,
-        totalUnits: 0,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      await resetUserQuotaForDate(db, userId, dateKey);
 
-      const resQuery = query(collection(db, 'ai_reservations'), where('userId', '==', userId), where('dateKey', '==', dateKey));
-      const resSnap = await getDocs(resQuery);
-      for (const dSnap of resSnap.docs) {
-        await deleteDoc(dSnap.ref).catch(() => {});
+      try {
+        const resQuery = query(collection(db, 'ai_reservations'), where('userId', '==', userId), where('dateKey', '==', dateKey));
+        const resSnap = await getDocs(resQuery);
+        for (const dSnap of resSnap.docs) {
+          await deleteDoc(dSnap.ref);
+        }
+      } catch (resErr) {
+        // Fallback for reservation deletion if primary collection permission issue
+        try {
+          const fallbackQuery = query(collection(db, 'users'), where('userId', '==', userId), where('dateKey', '==', dateKey));
+          const fallbackSnap = await getDocs(fallbackQuery);
+          for (const dSnap of fallbackSnap.docs) {
+            if (dSnap.id.startsWith('reservation_')) {
+              await deleteDoc(dSnap.ref);
+            }
+          }
+        } catch (fErr) {
+          console.warn('[reset-limit] Reservation deletion warning:', fErr);
+        }
       }
     } catch (err) {
       console.error('Error resetting quota in Firestore:', err);
@@ -3849,7 +3880,10 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
       });
     }
 
-    const requestId = 'req_batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const headerReqId = (req.headers['x-request-id'] as string)?.trim();
+    const bodyReqId = (req.body?.requestId as string)?.trim();
+    const requestId = headerReqId || bodyReqId || ('req_batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+
     const batchId = (req.body?.batchId as string)?.trim() || ('batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
     const batchName = (req.body?.batchName as string)?.trim() || undefined;
     const actorUsername = currentUser ? currentUser.username : 'user_batch_hr';
@@ -3897,7 +3931,7 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
         user: currentUser,
         units: requestedUnits,
         source: 'recruiter_batch',
-        requestId: crypto.randomUUID()
+        requestId
       });
       if (!quotaRes.allowed) {
         return res.status(429).json({
@@ -3907,14 +3941,26 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           used: quotaRes.usedBefore,
           requested: requestedUnits,
           remaining: quotaRes.remaining,
-          resetAt: quotaRes.resetAt
+          resetAt: quotaRes.resetAt,
+          requestId
         });
       }
     } catch (err: any) {
+      console.error('[Batch Analyze Quota Error]', err);
       if (err.message === 'QUOTA_SERVICE_UNAVAILABLE') {
-        return res.status(503).json({ error: isEn ? 'Quota service unavailable.' : 'Dịch vụ kiểm soát lượt tạm thời không khả dụng.' });
+        return res.status(503).json({
+          success: false,
+          code: 'QUOTA_SERVICE_UNAVAILABLE',
+          error: isEn ? 'Quota service unavailable.' : 'Dịch vụ kiểm soát lượt tạm thời không khả dụng.',
+          requestId
+        });
       }
-      throw err;
+      return res.status(500).json({
+        success: false,
+        code: 'INTERNAL_API_ERROR',
+        error: isEn ? 'Quota check failed.' : 'Lỗi kiểm tra lượt phân tích.',
+        requestId
+      });
     }
 
 
@@ -5462,10 +5508,11 @@ app.post('/api/analyze-cv', async (req, res) => {
         });
       }
     } catch (err: any) {
+      console.error('[Analyze CV API Error] Unhandled error:', err);
       if (err.message === 'QUOTA_SERVICE_UNAVAILABLE') {
-        return res.status(503).json({ error: lang === 'en' ? 'Quota service unavailable.' : 'Dịch vụ kiểm soát lượt tạm thời không khả dụng.' });
+        return res.status(503).json({ success: false, code: 'QUOTA_SERVICE_UNAVAILABLE', error: lang === 'en' ? 'Quota service unavailable.' : 'Dịch vụ kiểm soát lượt tạm thời không khả dụng.' });
       }
-      throw err;
+      return res.status(500).json({ success: false, error: lang === 'en' ? 'An internal server error occurred.' : 'Đã có lỗi xảy ra trên máy chủ.' });
     }
 
 
@@ -5981,14 +6028,23 @@ app.post('/api/test-openai', async (req, res) => {
 });
 
 // API 404 handler (prevents unmatched /api requests from falling through to Vite's index.html fallback)
-app.use('/api', (_req, res, next) => {
+app.all('/api/*', (req, res, next) => {
   if (res.headersSent) return next();
-  res.status(404).json({ error: 'Yêu cầu API không tồn tại hoặc không hợp lệ.' });
+  const reqId = (req.headers['x-request-id'] as string) || (req.body?.requestId as string) || undefined;
+  res.status(404).json({
+    success: false,
+    code: 'API_NOT_FOUND',
+    error: `API route ${req.method} ${req.path} not found.`,
+    requestId: reqId
+  });
 });
 
 // Global API error handler (ensures JSON responses for /api/* errors)
-app.use('/api', (err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('API Middleware Global Error:', err);
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (!req.path.startsWith('/api') && !req.xhr && !req.headers.accept?.includes('json')) {
+    return next(err);
+  }
+  console.error('[Global Express Error Handler]', err);
   recordLog({
     source: 'server',
     level: 'error',
@@ -5996,8 +6052,17 @@ app.use('/api', (err: any, req: express.Request, res: express.Response, _next: e
     details: err?.stack || String(err),
     endpoint: req.originalUrl || req.path,
   });
-  res.status(500).json({
-    error: err?.message || 'Lỗi hệ thống khi xử lý yêu cầu API.',
+  const status = err.status || err.statusCode || 500;
+  const isMulter = err instanceof multer.MulterError || err?.name === 'MulterError';
+  const code = isMulter ? 'FILE_UPLOAD_ERROR' : 'INTERNAL_API_ERROR';
+  const message = typeof err.message === 'string' ? err.message : 'An internal server error occurred.';
+  const reqId = (req.headers['x-request-id'] as string) || (req.body?.requestId as string) || undefined;
+
+  res.status(status).json({
+    success: false,
+    code,
+    error: message,
+    requestId: reqId
   });
 });
 

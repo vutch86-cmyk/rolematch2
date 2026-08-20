@@ -82,6 +82,25 @@ export interface StoredUser {
   password?: string;
 }
 
+export interface UserQuotaInfo {
+  id: string;
+  username: string;
+  fullName: string;
+  role: 'admin' | 'normal';
+  createdAt: string;
+  failedLoginAttempts: number;
+  isLocked: boolean;
+  lockedAt?: string;
+  candidateUnits: number;
+  recruiterUnits: number;
+  totalUnits: number;
+  dailyLimit: number;
+  limitEnabled: boolean;
+  dateKey: string;
+  resetAt: string;
+  quotaHealth: 'HEALTHY' | 'NORMALIZED' | 'ERROR';
+}
+
 export interface CandidateAuditMetadata {
   requestId: string;
   saved: boolean;
@@ -163,6 +182,7 @@ export interface UserAccount {
   limitEnabled?: boolean;
   dateKey?: string;
   resetAt?: string;
+  quotaHealth?: 'HEALTHY' | 'NORMALIZED' | 'ERROR';
 }
 
 export interface AIModelStatus {

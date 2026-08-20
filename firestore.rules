@@ -27,5 +27,14 @@ service cloud.firestore {
     match /recruiter_batches/{batchId}/candidates/{document} {
       allow read, write: if true;
     }
+    match /system_settings/{document} {
+      allow read, write: if true;
+    }
+    match /ai_usage/{document} {
+      allow read, write: if true;
+    }
+    match /ai_reservations/{document} {
+      allow read, write: if true;
+    }
   }
 }

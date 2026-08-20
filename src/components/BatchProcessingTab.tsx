@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { parseApiResponseSafely } from '../utils/apiResponse';
 import {
   Upload,
   FileText,
@@ -65,6 +66,7 @@ interface BatchProcessingTabProps {
   token: string | null;
   onAddHistoryItems?: (items: HistoryItem[]) => void;
   onOpenFullAnalysis?: (item: HistoryItem) => void;
+  onRequireLogin?: () => void;
 }
 
 interface CandidateResult {
@@ -213,7 +215,7 @@ export const normalizeQuestionKey = (text: string): string => {
     .replace(/\s+/g, ' ');
 };
 
-export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, token, onAddHistoryItems, onOpenFullAnalysis }) => {
+export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, token, onAddHistoryItems, onOpenFullAnalysis, onRequireLogin }) => {
   const isEn = lang === 'en';
 
   // --- State Variables ---
@@ -599,11 +601,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
       clearInterval(interval);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || (isEn ? "Batch analysis failed." : "Lỗi xử lý hàng loạt."));
-      }
+      const data = await parseApiResponseSafely(response, lang as 'vi' | 'en', generatedRequestId);
 
       if (data.batchId) {
         setCurrentBatchId(data.batchId);
@@ -654,8 +652,11 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         setIsLoading(false);
       }, 500);
 
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error(err);
+      if (err?.code === 'AUTH_REQUIRED') {
+        if (onRequireLogin) onRequireLogin();
+      }
       const errMsg = err instanceof Error ? err.message : String(err);
       setErrorMsg(errMsg || (isEn ? "An unexpected error occurred during batch analysis." : "Có lỗi xảy ra trong quá trình phân tích hàng loạt."));
       setIsLoading(false);

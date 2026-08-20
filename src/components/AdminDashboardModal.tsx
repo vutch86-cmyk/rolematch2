@@ -2018,12 +2018,27 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                 </span>
 
                                 {!isAdmin && (() => {
-                                  const todayStr = new Date().toISOString().split('T')[0];
-                                  const todayRuns = u.dailyAnalysisCount?.[todayStr] || 0;
+                                  const cUnits = u.candidateUnits !== undefined ? u.candidateUnits : 0;
+                                  const rUnits = u.recruiterUnits !== undefined ? u.recruiterUnits : 0;
+                                  const tUnits = u.totalUnits !== undefined ? u.totalUnits : (cUnits + rUnits);
+                                  const dLimit = u.dailyLimit !== undefined ? u.dailyLimit : (limitEnabled ? dailyLimit : 10);
+                                  const qHealth = u.quotaHealth || 'HEALTHY';
+
                                   return (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-500/10 text-indigo-300 border border-indigo-500/25">
-                                      AI Today: <strong className="text-amber-400 font-black">{todayRuns}</strong>{limitEnabled ? ` / ${dailyLimit}` : ''} runs
-                                    </span>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-500/10 text-indigo-300 border border-indigo-500/25">
+                                        Cand: <strong className="text-amber-400 font-black">{cUnits}</strong> | Batch: <strong className="text-sky-400 font-black">{rUnits}</strong> | Total: <strong className="text-emerald-400 font-black">{tUnits}</strong>/{u.limitEnabled || limitEnabled ? dLimit : '∞'}
+                                      </span>
+                                      <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
+                                        qHealth === 'HEALTHY'
+                                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                          : qHealth === 'NORMALIZED'
+                                          ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                          : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                                      }`}>
+                                        {qHealth}
+                                      </span>
+                                    </div>
                                   );
                                 })()}
 

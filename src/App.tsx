@@ -18,6 +18,7 @@ import { UserAccount } from './types';
 import { initGlobalErrorLogging, fetchAllLogs } from './utils/logger';
 import { Language, translations } from './utils/i18n';
 import { BatchProcessingTab } from './components/BatchProcessingTab';
+import { parseApiResponseSafely } from './utils/apiResponse';
 import {
   FileText,
   Sparkles,
@@ -280,30 +281,9 @@ export default function App() {
         }),
       }, requestId);
 
-      const data = await res.json();
+      const data = await parseApiResponseSafely<CompleteCVAnalysisResponse>(res, lang as 'vi' | 'en', requestId);
 
-      if (!res.ok) {
-        if (data.code === 'AUTH_REQUIRED') {
-          setIsLoginModalOpen(true);
-          throw new Error(lang === 'vi' ? 'Vui lòng đăng nhập để thực hiện phân tích.' : 'Please log in to perform analysis.');
-        }
-        if (data.code === 'DAILY_AI_LIMIT_EXCEEDED') {
-          const resetTime = data.resetAt ? new Date(data.resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-          const msg = lang === 'vi'
-            ? `Bạn đã đạt giới hạn sử dụng AI trong ngày (${data.used}/${data.dailyLimit} lượt). Còn lại: ${data.remaining}. Làm mới lúc: ${resetTime}.`
-            : `Daily AI usage limit reached (${data.used}/${data.dailyLimit}). Remaining: ${data.remaining}. Resets at: ${resetTime}.`;
-          throw new Error(msg);
-        }
-        if (data.code === 'QUOTA_SERVICE_UNAVAILABLE') {
-          throw new Error(lang === 'vi' ? 'Dịch vụ kiểm soát lượt tạm thời không khả dụng. Vui lòng thử lại sau.' : 'Quota control service temporarily unavailable. Please try again later.');
-        }
-        const errMsg = typeof data.error === 'string'
-          ? data.error
-          : (data.error?.message || data.message || (lang === 'vi' ? 'Có lỗi xảy ra khi gọi API phân tích.' : 'An error occurred while calling analysis API.'));
-        throw new Error(errMsg);
-      }
-
-      setAnalysis(data);
+      setAnalysis(data as any);
       setCheckedActions([false, false, false, false, false]);
 
       if (!clarifyingAnswers) {
@@ -334,8 +314,8 @@ export default function App() {
         timestamp: Date.now(),
         cvText,
         jdText,
-        analysis: data,
-        score: data.feature1?.scores?.overallRoleScore || 0,
+        analysis: data as unknown as CompleteCVAnalysisResponse,
+        score: (data as any).feature1?.scores?.overallRoleScore || 0,
       };
 
       setCurrentActiveHistoryId(newHistoryItem.id);
@@ -344,6 +324,9 @@ export default function App() {
       );
     } catch (err: any) {
       console.error('Error analyzing CV:', err);
+      if (err?.code === 'AUTH_REQUIRED') {
+        setIsLoginModalOpen(true);
+      }
       const msg = typeof err?.message === 'string' ? err.message : (typeof err === 'string' ? err : (lang === 'vi' ? 'Không thể thực hiện phân tích. Vui lòng thử lại.' : 'Unable to run analysis. Please try again.'));
       setError(msg);
     } finally {
@@ -814,6 +797,7 @@ export default function App() {
             token={token}
             onAddHistoryItems={handleSaveBatchHistoryItems}
             onOpenFullAnalysis={handleSelectHistoryItem}
+            onRequireLogin={() => setIsLoginModalOpen(true)}
           />
         </div>
 
