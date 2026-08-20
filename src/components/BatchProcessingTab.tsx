@@ -1038,9 +1038,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             if (!qStr.endsWith('?') && !qStr.endsWith('.')) {
               qStr += '?';
             }
-            if (!rawQuestions.includes(qStr)) {
-              rawQuestions.push(qStr);
-            }
+            rawQuestions.push(qStr);
           }
         }
       });
@@ -1053,17 +1051,58 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           const qText = isEn 
             ? `How do you demonstrate or address the requirement regarding: ${fix.trim()}?`
             : `Bạn có thể giải thích hoặc chứng minh cụ thể hơn về yêu cầu: ${fix.trim()}?`;
-          if (!rawQuestions.includes(qText)) {
-            rawQuestions.push(qText);
-          }
+          rawQuestions.push(qText);
         }
       });
     }
 
-    // Deduplicate
-    const uniqueList: string[] = [];
+    // Filter by Language
+    const filteredQuestions: string[] = [];
+    const viPatterns = [
+      "bạn có thể giải thích", "quy mô ngân sách", "số lượng thành viên",
+      "tỷ lệ % cải thiện", "cần bổ sung dẫn chứng", "thiếu thông tin",
+      "đã khớp tốt", "cần bổ sung"
+    ];
+    const enPatterns = [
+      "recommend adding specific", "how do you", "what was the", "what key",
+      "how many", "missing", "missing experience", "no experience",
+      "adequately referenced", "clarification"
+    ];
+
     for (const q of rawQuestions) {
-      if (!uniqueList.some(existing => existing.toLowerCase().slice(0, 15) === q.toLowerCase().slice(0, 15))) {
+      const lowerQ = q.toLowerCase();
+      const hasViAccents = /[àáảãạăắằẳẵặânấầnẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i.test(q);
+
+      if (isEn) {
+        // English UI: Filter out Vietnamese
+        const matchesViPattern = viPatterns.some(p => lowerQ.includes(p));
+        if (hasViAccents || matchesViPattern) {
+          continue; // Discard Vietnamese questions
+        }
+      } else {
+        // Vietnamese UI: Filter out English questions
+        const matchesEnPattern = enPatterns.some(p => lowerQ.includes(p));
+        const containsEnglishQuestionWord = /\b(how|what|why|who|whom|recommend|clarify|demonstrate|explain)\b/i.test(q);
+        if (!hasViAccents && (matchesEnPattern || containsEnglishQuestionWord)) {
+          continue; // Discard English questions
+        }
+      }
+      filteredQuestions.push(q);
+    }
+
+    // Deduplicate using normalized keys: lowercase, trim, remove punctuation, normalize whitespace
+    const uniqueList: string[] = [];
+    const seenNormalized = new Set<string>();
+
+    for (const q of filteredQuestions) {
+      const normalized = q
+        .toLowerCase()
+        .trim()
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "") // remove punctuation
+        .replace(/\s+/g, " "); // normalize spaces
+
+      if (!seenNormalized.has(normalized)) {
+        seenNormalized.add(normalized);
         uniqueList.push(q);
       }
     }
@@ -2654,7 +2693,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           {/* Keyword alignment */}
                           <div className="space-y-1">
                             <div className={'flex justify-between font-bold ' + detailSecondaryClass}>
-                              <span className="text-slate-700">{isEn ? 'Keyword alignment' : 'Keyword alignment'}</span>
+                              <span className="text-slate-700">{isEn ? 'Keyword alignment' : 'Mức độ khớp từ khóa'}</span>
                               <span className="text-slate-900 font-black">{typeof selectedCandidate.keywordScore === 'number' && Number.isFinite(selectedCandidate.keywordScore) ? `${selectedCandidate.keywordScore}%` : '—'}</span>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -2668,7 +2707,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           {/* Experience fit */}
                           <div className="space-y-1">
                             <div className={'flex justify-between font-bold ' + detailSecondaryClass}>
-                              <span className="text-slate-700">{isEn ? 'Experience fit' : 'Experience fit'}</span>
+                              <span className="text-slate-700">{isEn ? 'Experience fit' : 'Mức độ phù hợp kinh nghiệm'}</span>
                               <span className="text-slate-900 font-black">{typeof selectedCandidate.experienceScore === 'number' && Number.isFinite(selectedCandidate.experienceScore) ? `${selectedCandidate.experienceScore}%` : '—'}</span>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -2682,7 +2721,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           {/* Skills fit */}
                           <div className="space-y-1">
                             <div className={'flex justify-between font-bold ' + detailSecondaryClass}>
-                              <span className="text-slate-700">{isEn ? 'Skills fit' : 'Skills fit'}</span>
+                              <span className="text-slate-700">{isEn ? 'Skills fit' : 'Mức độ phù hợp kỹ năng'}</span>
                               <span className="text-slate-900 font-black">{typeof selectedCandidate.skillScore === 'number' && Number.isFinite(selectedCandidate.skillScore) ? `${selectedCandidate.skillScore}%` : '—'}</span>
                             </div>
                             <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -2788,7 +2827,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               <div className={'bg-indigo-50/50 rounded-xl border border-indigo-100/80 flex flex-col justify-between ' + (isDetailExpanded ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5')}>
                                 <div className={'flex items-center gap-1.5 font-black text-indigo-950 ' + detailSecondaryClass}>
                                   <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                  <span>{isEn ? '10-Second First Impression' : 'Ấn tượng 10s đầu tiên'}</span>
+                                  <span>{isEn ? 'First Impression' : 'Ấn tượng đầu tiên'}</span>
                                 </div>
                                 <p className={'text-slate-700 font-medium ' + detailSecondaryClass}>
                                   "{quickScanData.firstImpression10s}"

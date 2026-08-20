@@ -3228,6 +3228,9 @@ Return a rigorous comparison and matching analysis in JSON format conforming EXA
 - keyGaps: An array of 3 to 5 detailed bullet points detailing the key missing skills, tools, or requirements (in ${isEn ? 'English' : 'Vietnamese'}).
 - shortRecommendation: A 1-sentence professional hiring recommendation summarizing their fit (in ${isEn ? 'English' : 'Vietnamese'}).
 
+CRITICAL LANGUAGE CONSTRAINT:
+All output fields (topStrengths, keyGaps, shortRecommendation, candidateName) MUST be written strictly in ${isEn ? 'ENGLISH' : 'VIETNAMESE'}. Under no circumstances should any mixed-language results or simultaneous translations be returned. Keep professional/technical terms (e.g., SLA, KPI, CAB, CMDB) or CV quotations verbatim and untranslated.
+
 Crucial: Return ONLY valid JSON matching the specified schema. No markdown formatting outside the JSON, no backticks, no comments.
 `;
 }
@@ -3452,7 +3455,8 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           cvText: candidate.text,
           jdText,
           clarifyingAnswers: undefined,
-          lang
+          lang,
+          analysisPromptVersion: 'language-consistency-v3'
         });
 
         let finalResult: any;
@@ -4422,6 +4426,7 @@ Act as a strict real-world hiring manager scanning the CV in 10 seconds:
 === LANGUAGE & FACTUAL ACCURACY RULES ===
 - Write response explanations, gaps, and reasons IN ENGLISH. However, each 'rewrittenBullet' MUST strictly match the SAME LANGUAGE as the original bullet point in the candidate's CV.
 - Preserve candidate's original company names, dates, tools, numbers, and facts 100% accurately.
+- CRITICAL LANGUAGE CONSTRAINT: All output fields, lists, analysis summaries, gaps, doubts, standouts, and feedback (everything outside of 'rewrittenBullet') MUST be strictly written in ENGLISH. Under no circumstances should Vietnamese words or phrases appear in these explanatory fields unless they are verbatim quotes/evidence of Vietnamese text from the original CV. Under no circumstances should technical terms (such as SLA, KPI, CAB, CMDB, etc.) be translated.
 `;
   }
 
@@ -4495,6 +4500,7 @@ Trả lời trực diện 6 câu hỏi:
 - Tránh nhồi từ khóa máy móc.
 - Thiếu thông tin phải ghi rõ "Thiếu thông tin".
 - Sử dụng tiếng Việt chuẩn tuyển dụng chuyên nghiệp cho các đánh giá và nhận xét. Riêng giá trị 'rewrittenBullet' BẮT BUỘC phải dùng CÙNG NGÔN NGỮ với CV gốc.
+- BẮT BUỘC VỀ NGÔN NGỮ ĐÁNH GIÁ (CRITICAL LANGUAGE CONSTRAINT): Tất cả các trường giải thích, lý do, nhận xét, điểm mạnh, điểm thiếu sót, khoảng trống, nghi ngờ, tóm tắt, khuyến nghị tuyển dụng, v.v. (tất cả các thuộc tính JSON ngoại trừ 'rewrittenBullet') BẮT BUỘC phải được viết hoàn toàn bằng TIẾNG VIỆT. Tuyệt đối không pha trộn tiếng Anh hay hiển thị đồng thời cả hai ngôn ngữ. Tuy nhiên, các thuật ngữ kỹ thuật/chuyên ngành (như SLA, KPI, CAB, CMDB, tên công nghệ...) hoặc trích dẫn/bằng chứng trực tiếp từ CV gốc (CV evidence/original CV quotations) phải được giữ nguyên văn bản gốc và KHÔNG ĐƯỢC dịch hay tự điều chỉnh.
 `;
 }
 
@@ -4685,7 +4691,8 @@ Identify:
 4. Suggestions to refine rewritten bullet points for higher impact and strict accuracy.
 5. Specific corrections needed for immediate actions.
 
-Write a clear, structured auditor critique in ${isEn ? 'English' : 'Vietnamese'}.`;
+Write a clear, structured auditor critique.
+CRITICAL LANGUAGE CONSTRAINT: The critique MUST be written entirely in ${isEn ? 'English' : 'Vietnamese'}. Under no circumstances should you mix languages or translate technical terms/CV evidence verbatim.`;
 
   // 1. First attempt: OpenRouter API (if OPENROUTER_API_KEY is configured)
   const openRouterApiKey = (process.env.OPENROUTER_API_KEY || (process.env.OPENAI_API_KEY?.startsWith('sk-or-') ? process.env.OPENAI_API_KEY : '')).trim();
@@ -4815,7 +4822,7 @@ Specifically:
 - Ensure the 10-second recruiter scan reflects the auditor's findings.
 
 Return the final synthesized JSON matching the exact output schema.
-Write all output explanations in ${isEn ? 'ENGLISH' : 'VIETNAMESE'}, EXCEPT for 'rewrittenBullet' which MUST match the language of the candidate's original CV.
+CRITICAL LANGUAGE CONSTRAINT: Write all output explanations, reasons, gaps, and text fields strictly in ${isEn ? 'ENGLISH' : 'VIETNAMESE'}. Under no circumstances should any explanations or comments be in a different language. However, each 'rewrittenBullet' MUST match the language of the candidate's original CV bullet point. Original CV quotations and technical terms (e.g. SLA, KPI, CAB, CMDB, etc.) must remain verbatim and untranslated.
 `;
 
   const response = await callGeminiWithRetry(ai, {
@@ -4911,7 +4918,7 @@ app.post('/api/analyze-cv', async (req, res) => {
       });
     }
 
-    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang });
+    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'language-consistency-v3' });
     if (analyzeCache.has(cacheKey)) {
       console.log('[Cache Hit] Returning cached analysis response.');
       return res.json(analyzeCache.get(cacheKey));
@@ -5132,7 +5139,7 @@ app.post('/api/generate-updated-cv', async (req, res) => {
       });
     }
 
-    const cacheKey = getHashKey({ cvText, jdText, customInstruction, lang });
+    const cacheKey = getHashKey({ cvText, jdText, customInstruction, lang, analysisPromptVersion: 'language-consistency-v3' });
     if (updatedCvCache.has(cacheKey)) {
       console.log('[Cache Hit] Returning cached updated CV response.');
       return res.json(updatedCvCache.get(cacheKey));
