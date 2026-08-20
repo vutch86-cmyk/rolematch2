@@ -10,13 +10,13 @@ import {
   List,
   ChevronDown,
   ChevronUp,
-  Info,
   CheckSquare,
   Square,
   FileText
 } from 'lucide-react';
 
-import guideContent from '../../docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md?raw';
+import recruiterGuideVi from '../../docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md?raw';
+import recruiterGuideEn from '../../docs/RECRUITER_USER_GUIDE_EN.md?raw';
 
 export interface RecruiterGuideDrawerProps {
   isOpen: boolean;
@@ -58,6 +58,7 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
   lang = 'vi'
 }) => {
   const isEn = lang === 'en';
+  const guideContent = isEn ? recruiterGuideEn : recruiterGuideVi;
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [activeHeadingId, setActiveHeadingId] = useState<string>('');
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
@@ -67,7 +68,7 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
   const triggerElementRef = useRef<HTMLElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Parse table of contents (## headings) from raw Markdown
+  // Parse table of contents (## headings) from current language raw Markdown
   useEffect(() => {
     const lines = guideContent.split('\n');
     const parsedToc: TocItem[] = [];
@@ -83,7 +84,13 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
       }
     }
     setTocItems(parsedToc);
-  }, []);
+    setActiveHeadingId('');
+    setIsTocOpen(false);
+    scrollContainerRef.current?.scrollTo({
+      top: 0,
+      behavior: 'auto'
+    });
+  }, [guideContent]);
 
   // Handle Focus Trap & Scroll Lock
   useEffect(() => {
@@ -220,7 +227,7 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
                   {isEn ? 'Recruiter User Guide' : 'Hướng dẫn dành cho Nhà tuyển dụng'}
                 </h1>
                 <p id="recruiter-guide-desc" className="text-xs text-slate-300 hidden sm:block font-medium mt-0.5">
-                  {isEn ? 'How to read and utilize AI analysis reports effectively' : 'Cách đọc và sử dụng báo cáo phân tích AI'}
+                  {isEn ? 'How to read and use AI analysis reports' : 'Cách đọc và sử dụng báo cáo phân tích AI'}
                 </p>
               </div>
             </div>
@@ -228,21 +235,13 @@ export const RecruiterGuideDrawer: React.FC<RecruiterGuideDrawerProps> = ({
             <button
               ref={closeButtonRef}
               onClick={onClose}
-              aria-label={isEn ? 'Close guide' : 'Đóng hướng dẫn'}
+              aria-label={isEn ? 'Close user guide' : 'Đóng hướng dẫn'}
               className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white transition-all cursor-pointer border border-slate-700/80 shrink-0 flex items-center gap-2 text-xs sm:text-sm font-extrabold focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
               <X className="w-4 h-4 sm:w-5 sm:h-5 text-slate-300" />
-              <span className="hidden sm:inline">{isEn ? 'Close Guide' : 'Đóng hướng dẫn'}</span>
+              <span className="hidden sm:inline">{isEn ? 'Close user guide' : 'Đóng hướng dẫn'}</span>
             </button>
           </header>
-
-          {/* Language Note Banner for English UI */}
-          {isEn && (
-            <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 text-xs sm:text-sm text-amber-800 font-medium flex items-center gap-2 shrink-0">
-              <Info className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>The current guide content is available in Vietnamese.</span>
-            </div>
-          )}
 
           {/* Collapsible Mobile/Tablet Table of Contents Bar (< lg) */}
           {tocItems.length > 0 && (
