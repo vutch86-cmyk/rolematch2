@@ -25,6 +25,7 @@ interface SaveBatchModalProps {
   onClose: () => void;
   isEn: boolean;
   token: string | null;
+  batchId?: string | null;
   jdText: string;
   jdFileName: string | null;
   results: CandidateResult[];
@@ -110,6 +111,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
   onClose,
   isEn,
   token,
+  batchId,
   jdText,
   jdFileName,
   results,
@@ -181,6 +183,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
       }));
 
       const payload = {
+        batchId: batchId || undefined,
         batchName: batchName.trim(),
         roleTitle: roleTitle.trim(),
         jdText,

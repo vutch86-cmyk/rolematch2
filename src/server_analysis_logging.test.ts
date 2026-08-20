@@ -25,6 +25,8 @@ describe('Analysis Record Structure & Filtering', () => {
       recruiterDecision: 'YES',
       engineUsed: 'Gemini 2.0 Flash Sequential Pipeline',
       durationMs: 42000,
+      cvTextLength: 1500,
+      jdTextLength: 900,
     };
 
     const batchRecord: AnalysisRecordItem = {
@@ -53,6 +55,8 @@ describe('Analysis Record Structure & Filtering', () => {
       recruiterDecision: 'YES',
       engineUsed: 'Gemini 2.0 Flash Sequential Pipeline',
       durationMs: 51000,
+      cvTextLength: 2000,
+      jdTextLength: 1200,
     };
 
     expect(candidateRecord.source).toBe('candidate');
@@ -80,7 +84,11 @@ describe('Analysis Record Structure & Filtering', () => {
         overallScore: 82,
         matchLevel: 'TOT',
         durationMs: 45000,
+        topStrengths: ['React'],
         missingSkills: ['Docker'],
+        engineUsed: 'Gemini 2.0 Flash',
+        cvTextLength: 1000,
+        jdTextLength: 800,
       },
       {
         id: 'rec_2',
@@ -98,7 +106,11 @@ describe('Analysis Record Structure & Filtering', () => {
         overallScore: 92,
         matchLevel: 'XUAT_SAC',
         durationMs: 38000,
+        topStrengths: ['Architecture'],
         missingSkills: [],
+        engineUsed: 'Gemini 2.0 Flash',
+        cvTextLength: 1200,
+        jdTextLength: 800,
       },
       {
         id: 'rec_3',
@@ -116,7 +128,11 @@ describe('Analysis Record Structure & Filtering', () => {
         overallScore: 0,
         matchLevel: 'NOT_AVAILABLE',
         durationMs: 12000,
+        topStrengths: [],
         missingSkills: [],
+        engineUsed: 'Gemini 2.0 Flash',
+        cvTextLength: 0,
+        jdTextLength: 800,
         errorMessage: 'Invalid file format',
       },
     ];
@@ -141,5 +157,59 @@ describe('Analysis Record Structure & Filtering', () => {
         r.jobTitle.toLowerCase().includes(query)
     );
     expect(searched).toHaveLength(2);
+  });
+
+  it('should track audit stats correctly and detect failed persistence writes', () => {
+    const auditStats = {
+      expected: 3,
+      saved: 2,
+      failed: 1,
+      recordIds: ['anl_req_1_0', 'anl_req_1_1'],
+    };
+
+    expect(auditStats.expected).toBe(3);
+    expect(auditStats.saved).toBe(2);
+    expect(auditStats.failed).toBe(1);
+    expect(auditStats.recordIds).toHaveLength(2);
+    expect(auditStats.failed > 0).toBe(true);
+  });
+
+  it('should sanitize objects and remove undefined fields before Firestore operations', () => {
+    function removeUndefinedDeep(obj: any): any {
+      if (obj === null || obj === undefined) return null;
+      if (Array.isArray(obj)) {
+        return obj.map(removeUndefinedDeep);
+      }
+      if (typeof obj === 'object') {
+        const cleaned: Record<string, any> = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = removeUndefinedDeep(value);
+          }
+        }
+        return cleaned;
+      }
+      return obj;
+    }
+
+    const rawRecord = {
+      id: 'anl_test_1',
+      source: 'recruiter_batch',
+      batchId: 'batch_123',
+      batchName: undefined,
+      overallScore: 85,
+      fullAnalysis: {
+        feature1: {
+          score: 80,
+          missingData: undefined,
+        },
+      },
+    };
+
+    const sanitized = removeUndefinedDeep(rawRecord);
+    expect(sanitized.id).toBe('anl_test_1');
+    expect('batchName' in sanitized).toBe(false);
+    expect(sanitized.fullAnalysis.feature1.score).toBe(80);
+    expect('missingData' in sanitized.fullAnalysis.feature1).toBe(false);
   });
 });

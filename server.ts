@@ -23,7 +23,7 @@ dotenv.config();
 
 // Firebase Firestore Integration
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc, addDoc, setLogLevel } from 'firebase/firestore';
+import { getFirestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, updateDoc, addDoc, setLogLevel, query, where } from 'firebase/firestore';
 
 export enum OperationType {
   CREATE = 'create',
@@ -1065,7 +1065,13 @@ export async function createAnalysisRecord(
   };
 
   try {
-    // 1. In-memory update with idempotency check
+    // 1. Primary Firestore persistence (AWAITED and SANITIZED)
+    if (db) {
+      const sanitizedDoc = removeUndefinedDeep(item);
+      await setDoc(doc(db, 'analysis_records', recordId), sanitizedDoc);
+    }
+
+    // 2. In-memory update with idempotency check
     const existingIndex = analysisRecords.findIndex((r) => r.id === recordId);
     if (existingIndex >= 0) {
       analysisRecords[existingIndex] = item;
@@ -1076,13 +1082,15 @@ export async function createAnalysisRecord(
     if (analysisRecords.length > MAX_ANALYSIS_RECORDS) {
       const deleted = analysisRecords.pop();
       if (deleted && db) {
-        deleteDoc(doc(db, 'analysis_records', deleted.id)).catch((err) =>
-          console.error('[Analysis Log] Error purging old analysis record from Firestore:', err)
-        );
+        try {
+          await deleteDoc(doc(db, 'analysis_records', deleted.id));
+        } catch (err) {
+          console.error('[Analysis Log] Error purging old analysis record from Firestore:', err);
+        }
       }
     }
 
-    // 2. Safe local filesystem write
+    // 3. Safe local filesystem cache write
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -1092,12 +1100,6 @@ export async function createAnalysisRecord(
       console.error('[Analysis Log] Error writing analyses to file:', fsErr);
     }
 
-    // 3. Firestore persistence (AWAITED and SANITIZED)
-    if (db) {
-      const sanitizedDoc = removeUndefinedDeep(item);
-      await setDoc(doc(db, 'analysis_records', recordId), sanitizedDoc);
-    }
-
     return { success: true, recordId, item };
   } catch (err: any) {
     const rawErrMsg = err?.message || String(err);
@@ -1105,28 +1107,42 @@ export async function createAnalysisRecord(
     console.error(
       `[Analysis Log Error] Failed to persist analysis record: requestId=${params.requestId}, file=${cvFile}, error=${sanitizedErrMsg}`
     );
+    // Rollback in-memory cache if it was tentatively updated
+    const failedIndex = analysisRecords.findIndex((r) => r.id === recordId);
+    if (failedIndex >= 0) {
+      analysisRecords.splice(failedIndex, 1);
+    }
     return { success: false, recordId, error: sanitizedErrMsg, item };
   }
 }
 
-// Backward-compatible wrapper
-function recordAnalysisRecord(rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'> & { id?: string; timestamp?: string }): AnalysisRecordItem {
-  const recordId = rec.id || 'anl_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
-  const timestamp = rec.timestamp || new Date().toISOString();
-  const actor = (rec.actorUsername || (rec.userEmail ? rec.userEmail.split('@')[0] : 'user_guest')).trim();
-  const emailField = (rec.userEmail || (actor.includes('@') ? actor : `${actor}@system.local`)).trim();
-  const cvFile = rec.fileName || rec.cvFileName || 'CV_Document.pdf';
-
-  const item: AnalysisRecordItem = {
+// Async helper for recording analysis record
+export async function recordAnalysisRecord(
+  rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'> & { id?: string; timestamp?: string }
+): Promise<AnalysisRecordItem> {
+  const requestId = rec.requestId || `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const status = rec.status || (typeof rec.overallScore === 'number' && Number.isFinite(rec.overallScore) ? 'COMPLETED' : (rec.errorMessage ? 'FAILED' : 'NO_SCORE'));
+  const res = await createAnalysisRecord({
     ...rec,
-    id: recordId,
-    recordId,
-    timestamp,
-    createdAt: timestamp,
-    userEmail: emailField,
-    actorUsername: actor,
-    fileName: cvFile,
-    cvFileName: cvFile,
+    source: rec.source || 'candidate',
+    status,
+    requestId,
+    candidateName: rec.candidateName || rec.actorUsername || 'Candidate',
+    jobTitle: rec.jobTitle || 'Vị trí tuyển dụng',
+    topStrengths: Array.isArray(rec.topStrengths) ? rec.topStrengths : [],
+    missingSkills: Array.isArray(rec.missingSkills) ? rec.missingSkills : [],
+    engineUsed: rec.engineUsed || 'Gemini 2.0 Flash',
+    durationMs: rec.durationMs || 0,
+    cvTextLength: rec.cvTextLength || 0,
+    jdTextLength: rec.jdTextLength || 0,
+  });
+  return res.item || {
+    ...rec,
+    id: res.recordId,
+    recordId: res.recordId,
+    requestId,
+    timestamp: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
     source: rec.source || 'candidate',
     status: rec.status || (rec.overallScore !== null ? 'COMPLETED' : 'NO_SCORE'),
     matchLevel: rec.matchLevel || 'NOT_AVAILABLE',
@@ -1136,40 +1152,11 @@ function recordAnalysisRecord(rec: Omit<AnalysisRecordItem, 'id' | 'timestamp'> 
     durationMs: rec.durationMs || 0,
     cvTextLength: rec.cvTextLength || 0,
     jdTextLength: rec.jdTextLength || 0,
+    userEmail: rec.userEmail || `${rec.actorUsername || 'user_guest'}@system.local`,
+    actorUsername: rec.actorUsername || 'user_guest',
+    candidateName: rec.candidateName || 'Candidate',
+    jobTitle: rec.jobTitle || 'Vị trí tuyển dụng',
   };
-
-  const existingIndex = analysisRecords.findIndex((r) => r.id === recordId);
-  if (existingIndex >= 0) {
-    analysisRecords[existingIndex] = item;
-  } else {
-    analysisRecords.unshift(item);
-  }
-
-  if (analysisRecords.length > MAX_ANALYSIS_RECORDS) {
-    const deleted = analysisRecords.pop();
-    if (deleted && db) {
-      deleteDoc(doc(db, 'analysis_records', deleted.id)).catch((err) =>
-        console.error('Error purging old analysis record:', err)
-      );
-    }
-  }
-
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing analyses to file:', err);
-  }
-
-  if (db) {
-    const sanitizedDoc = removeUndefinedDeep(item);
-    setDoc(doc(db, 'analysis_records', item.id), sanitizedDoc).catch((err) =>
-      console.error('Error saving analysis record to Firestore:', err)
-    );
-  }
-  return item;
 }
 
 // Helper to deeply remove undefined properties from objects/arrays before Firestore writes
@@ -2270,17 +2257,49 @@ app.delete('/api/admin/documents', (req, res) => {
 });
 
 // 7g. Admin: Get CV Analysis Records History
-app.get('/api/admin/analyses', (req, res) => {
+app.get('/api/admin/analyses', async (req, res) => {
   const currentUser = getUserFromRequest(req);
   if (!currentUser || currentUser.role !== 'admin') {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
   }
 
-  res.json({ success: true, analyses: analysisRecords });
+  if (db) {
+    try {
+      const colRef = collection(db, 'analysis_records');
+      const snapshot = await getDocs(colRef);
+      const fetched: AnalysisRecordItem[] = [];
+      snapshot.forEach((docSnap) => {
+        fetched.push(docSnap.data() as AnalysisRecordItem);
+      });
+
+      // Sort descending by timestamp / createdAt
+      fetched.sort((a, b) => {
+        const timeA = new Date(a.timestamp || a.createdAt || 0).getTime();
+        const timeB = new Date(b.timestamp || b.createdAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      // Sync in-memory cache
+      analysisRecords.length = 0;
+      analysisRecords.push(...fetched);
+
+      return res.json({ success: true, analyses: fetched });
+    } catch (err: any) {
+      const rawErrMsg = err?.message || String(err);
+      const sanitized = rawErrMsg.replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+      console.error('[Admin Analyses API Error] Failed to read from Firestore:', sanitized);
+      return res.status(503).json({
+        success: false,
+        error: 'Dịch vụ lưu trữ nhật ký phân tích (Firestore) tạm thời không khả dụng. Vui lòng thử lại sau.'
+      });
+    }
+  }
+
+  return res.json({ success: true, analyses: analysisRecords });
 });
 
 // 7h. Admin: Delete Single Analysis Record
-app.delete('/api/admin/analyses/:id', (req, res) => {
+app.delete('/api/admin/analyses/:id', async (req, res) => {
   const currentUser = getUserFromRequest(req);
   if (!currentUser || currentUser.role !== 'admin') {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
@@ -2288,11 +2307,15 @@ app.delete('/api/admin/analyses/:id', (req, res) => {
 
   const { id } = req.params;
   const index = analysisRecords.findIndex((a) => a.id === id);
-  if (index === -1) {
+  if (index === -1 && !db) {
     return res.status(404).json({ error: 'Không tìm thấy kết quả phân tích với ID chỉ định.' });
   }
 
-  const deletedRecord = analysisRecords.splice(index, 1)[0];
+  let deletedRecord: AnalysisRecordItem | undefined;
+  if (index !== -1) {
+    deletedRecord = analysisRecords.splice(index, 1)[0];
+  }
+
   try {
     fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
   } catch (err) {
@@ -2300,7 +2323,11 @@ app.delete('/api/admin/analyses/:id', (req, res) => {
   }
 
   if (db) {
-    deleteDoc(doc(db, 'analysis_records', id)).catch(err => console.error('Error deleting analysis record from Firestore:', err));
+    try {
+      await deleteDoc(doc(db, 'analysis_records', id));
+    } catch (err) {
+      console.error('Error deleting analysis record from Firestore:', err);
+    }
   }
 
   recordAuditLog({
@@ -2309,7 +2336,7 @@ app.delete('/api/admin/analyses/:id', (req, res) => {
     action: 'ANALYSIS_RECORD_DELETE',
     category: 'USER_MGMT',
     status: 'warning',
-    details: `Quản trị viên đã xóa kết quả phân tích ID: ${deletedRecord.id} của ứng viên ${deletedRecord.userEmail}`,
+    details: `Quản trị viên đã xóa kết quả phân tích ID: ${id}${deletedRecord ? ` của ứng viên ${deletedRecord.userEmail}` : ''}`,
     ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress,
     userAgent: req.headers['user-agent'],
   });
@@ -2318,7 +2345,7 @@ app.delete('/api/admin/analyses/:id', (req, res) => {
 });
 
 // 7i. Admin: Clear All Analysis Records
-app.delete('/api/admin/analyses', (req, res) => {
+app.delete('/api/admin/analyses', async (req, res) => {
   const currentUser = getUserFromRequest(req);
   if (!currentUser || currentUser.role !== 'admin') {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
@@ -2333,12 +2360,15 @@ app.delete('/api/admin/analyses', (req, res) => {
   }
 
   if (db) {
-    const colRef = collection(db, 'analysis_records');
-    getDocs(colRef).then(snapshot => {
-      snapshot.forEach(docSnap => {
-        deleteDoc(docSnap.ref).catch(err => console.error('Error clearing analyses from Firestore:', err));
-      });
-    }).catch(err => console.error('Error fetching analyses for clear:', err));
+    try {
+      const colRef = collection(db, 'analysis_records');
+      const snapshot = await getDocs(colRef);
+      for (const docSnap of snapshot.docs) {
+        await deleteDoc(docSnap.ref);
+      }
+    } catch (err) {
+      console.error('Error clearing analyses from Firestore:', err);
+    }
   }
 
   recordAuditLog({
@@ -2644,7 +2674,8 @@ app.post('/api/recruiter/batches', async (req, res) => {
     const failedCount = normalizedCandidates.filter(c => c.processingStatus === 'FAILED').length;
 
     const nowIso = new Date().toISOString();
-    const batchId = `batch_${crypto.randomUUID()}`;
+    const clientBatchId = (req.body?.batchId as string)?.trim() || (req.body?.id as string)?.trim();
+    const batchId = clientBatchId || `batch_${crypto.randomUUID()}`;
     const initialStatus: RecruiterBatchStatus = db ? 'SAVING' : 'READY';
 
     const newBatchDetail: RecruiterBatchDetail = {
@@ -2685,16 +2716,47 @@ app.post('/api/recruiter/batches', async (req, res) => {
         });
       }
 
-      // 2. Local cache file update
+      // 2. Update batchName across analysis_records with matching batchId in memory and Firestore
+      let updatedCount = 0;
+      for (const rec of analysisRecords) {
+        if (rec.batchId === batchId) {
+          rec.batchName = cleanBatchName;
+          updatedCount++;
+        }
+      }
+
+      try {
+        const analysisCol = collection(db, 'analysis_records');
+        const q = query(analysisCol, where('batchId', '==', batchId));
+        const matchingDocs = await getDocs(q);
+        for (const dSnap of matchingDocs.docs) {
+          await updateDoc(doc(db, 'analysis_records', dSnap.id), {
+            batchName: cleanBatchName
+          });
+        }
+      } catch (updateErr) {
+        console.warn('Warning: Could not update batchName on Firestore analysis_records:', updateErr);
+      }
+
+      // 3. Local cache file update
       try {
         saveRecruiterBatchesToFile();
+        if (updatedCount > 0) {
+          fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
+        }
       } catch (localErr) {
         console.warn('Warning: Firestore saved successfully but local file cache write failed:', localErr);
       }
     } else {
       // Local-only persistence
+      for (const rec of analysisRecords) {
+        if (rec.batchId === batchId) {
+          rec.batchName = cleanBatchName;
+        }
+      }
       try {
         saveRecruiterBatchesToFile();
+        fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
       } catch (localErr) {
         console.error('Local persistence failed:', localErr);
         // Rollback in-memory addition
@@ -3602,32 +3664,6 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
       });
     }
 
-    const extractedCandidates: { filename: string; text: string }[] = [];
-    for (const file of allFiles) {
-      try {
-        const rawText = await extractTextFromBuffer(file.buffer, file.originalname, file.mimetype);
-        if (rawText && rawText.trim().length > 5) {
-          const cleanedText = cleanAndStructureExtractedText(rawText);
-          extractedCandidates.push({
-            filename: file.originalname,
-            text: cleanedText
-          });
-        }
-      } catch (err: any) {
-        console.warn(`Failed to extract text from ${file.originalname}:`, err.message);
-      }
-    }
-
-    if (extractedCandidates.length === 0) {
-      return res.status(422).json({
-        error: isEn
-          ? 'No readable text could be extracted from any of the provided CVs.'
-          : 'Không thể trích xuất văn bản đọc được từ bất kỳ CV nào đã cung cấp.',
-      });
-    }
-
-    const ai = getGeminiClient();
-
     const requestId = 'req_batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const batchId = (req.body?.batchId as string)?.trim() || ('batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
     const batchName = (req.body?.batchName as string)?.trim() || undefined;
@@ -3637,17 +3673,124 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
     const userEmailVal = currentUser?.email || (actorUsername.includes('@') ? actorUsername : `${actorUsername}@system.local`);
 
     const auditResults: { expected: number; saved: number; failed: number; recordIds: string[] } = {
-      expected: extractedCandidates.length,
+      expected: allFiles.length,
       saved: 0,
       failed: 0,
       recordIds: [],
     };
 
+    const firstLine = jdText.trim().split('\n')[0] || '';
+    const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+
+    const extractedCandidates: { filename: string; text: string; fileIndex: number }[] = [];
+    const failedExtractionResults: any[] = [];
+
+    for (let i = 0; i < allFiles.length; i++) {
+      const file = allFiles[i];
+      const extractStartTime = Date.now();
+      let rawText = '';
+      let extractError: any = null;
+
+      try {
+        rawText = await extractTextFromBuffer(file.buffer, file.originalname, file.mimetype);
+      } catch (err: any) {
+        extractError = err;
+      }
+
+      if (!extractError && rawText && rawText.trim().length > 5) {
+        const cleanedText = cleanAndStructureExtractedText(rawText);
+        extractedCandidates.push({
+          filename: file.originalname,
+          text: cleanedText,
+          fileIndex: i,
+        });
+      } else {
+        const extractDurationMs = Date.now() - extractStartTime;
+        const candName = extractNameFromFilename(file.originalname) || file.originalname.replace(/\.[^/.]+$/, '');
+        const deterministicRecordId = `anl_${requestId}_${i}_${file.originalname.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 16)}`;
+        const safeErrMsg = (extractError?.message || (isEn ? 'Could not extract readable text from document.' : 'Không thể trích xuất nội dung văn bản từ tệp tin.')).replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
+
+        console.warn(`[Batch Extraction Failed] File: ${file.originalname}, requestId: ${requestId}, error: ${safeErrMsg}`);
+
+        const logRes = await createAnalysisRecord({
+          id: deterministicRecordId,
+          recordId: deterministicRecordId,
+          requestId,
+          source: 'recruiter_batch',
+          batchId,
+          batchName,
+          candidateId: `cand_${i + 1}`,
+          candidateName: candName,
+          fileName: file.originalname,
+          cvFileName: file.originalname,
+          jobTitle: `${jdTitleVal} - ${candName}`,
+          actorUsername,
+          createdBy,
+          userEmail: userEmailVal,
+          status: 'FAILED',
+          overallScore: null,
+          keywordScore: null,
+          experienceScore: null,
+          skillsScore: null,
+          matchLevel: 'NOT_AVAILABLE',
+          topStrengths: [],
+          missingSkills: [],
+          recommendation: '',
+          recruiterDecision: undefined,
+          engineUsed: 'CV Text Extraction Service',
+          durationMs: extractDurationMs,
+          cvTextLength: 0,
+          jdTextLength: jdText.length,
+          fullAnalysis: undefined,
+          errorCode: 'CV_EXTRACTION_FAILED',
+          errorMessage: safeErrMsg,
+        });
+
+        if (logRes.success) {
+          auditResults.saved++;
+          auditResults.recordIds.push(deterministicRecordId);
+        } else {
+          auditResults.failed++;
+          console.error(
+            `[Recruiter Batch Audit Failed (Extraction Failure)] requestId=${requestId}, file=${file.originalname}, error=${logRes.error}`
+          );
+        }
+
+        failedExtractionResults.push({
+          filename: file.originalname,
+          success: false,
+          candidateName: candName,
+          overallScore: null,
+          matchLevel: 'NOT_AVAILABLE',
+          keywordScore: null,
+          experienceScore: null,
+          skillScore: null,
+          topStrengths: [],
+          keyGaps: [],
+          shortRecommendation: isEn ? 'Text extraction failed' : 'Trích xuất văn bản thất bại',
+          errorMessage: safeErrMsg,
+          processingStatus: 'FAILED',
+          analysisRecordId: deterministicRecordId,
+        });
+      }
+    }
+
+    if (extractedCandidates.length === 0) {
+      return res.status(200).json({
+        success: true,
+        requestId,
+        batchId,
+        results: failedExtractionResults,
+        processedAt: new Date().toISOString(),
+        audit: auditResults,
+      });
+    }
+
+    const ai = getGeminiClient();
+
     const analysisResults = await processBatchInPool(extractedCandidates, 3, async (candidate, candIdx) => {
       const candStartTime = Date.now();
-      const deterministicRecordId = `anl_${requestId}_${candIdx}_${candidate.filename.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 16)}`;
-      const firstLine = jdText.trim().split('\n')[0] || '';
-      const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+      const deterministicRecordId = `anl_${requestId}_${candidate.fileIndex}_${candidate.filename.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 16)}`;
 
       try {
         const cacheKey = getHashKey({
@@ -3911,7 +4054,9 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
       }
     });
 
-    analysisResults.sort((a, b) => {
+    const combinedResults = [...analysisResults, ...failedExtractionResults];
+
+    combinedResults.sort((a, b) => {
       const aValid = a.success !== false && typeof a.overallScore === 'number' && Number.isFinite(a.overallScore);
       const bValid = b.success !== false && typeof b.overallScore === 'number' && Number.isFinite(b.overallScore);
 
@@ -3933,7 +4078,9 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
 
     res.json({
       success: true,
-      results: analysisResults,
+      requestId,
+      batchId,
+      results: combinedResults,
       processedAt: new Date().toISOString(),
       audit: auditResults,
     });

@@ -258,6 +258,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [isSavedBatchesModalOpen, setIsSavedBatchesModalOpen] = useState<boolean>(false);
   const [isRecruiterGuideOpen, setIsRecruiterGuideOpen] = useState<boolean>(false);
   const [activeSavedBatch, setActiveSavedBatch] = useState<RecruiterBatchDetail | null>(null);
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  const [auditWarning, setAuditWarning] = useState<{ expected: number; saved: number; failed: number; requestId: string } | null>(null);
+  const [hasCopiedRequestId, setHasCopiedRequestId] = useState<boolean>(false);
   const [batchError, setBatchError] = useState<string>('');
   const [batchNotice, setBatchNotice] = useState<string>('');
 
@@ -515,9 +518,13 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
     setIsLoading(true);
     setErrorMsg('');
+    setAuditWarning(null);
     setResults([]);
     setSelectedCandidate(null);
     setActiveSavedBatch(null);
+
+    const generatedBatchId = 'batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    setCurrentBatchId(generatedBatchId);
 
     // Simulated progress steps to reassure the recruiter of background processing
     const totalFiles = uploadedFiles.length;
@@ -528,6 +535,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       const formData = new FormData();
       formData.append('jdText', jdText);
       formData.append('lang', lang);
+      formData.append('batchId', generatedBatchId);
 
       uploadedFiles.forEach(file => {
         formData.append('files', file);
@@ -592,6 +600,21 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
       if (!response.ok) {
         throw new Error(data.error || (isEn ? "Batch analysis failed." : "Lỗi xử lý hàng loạt."));
+      }
+
+      if (data.batchId) {
+        setCurrentBatchId(data.batchId);
+      }
+
+      if (data.audit && data.audit.failed > 0) {
+        setAuditWarning({
+          expected: data.audit.expected,
+          saved: data.audit.saved,
+          failed: data.audit.failed,
+          requestId: data.requestId || 'N/A',
+        });
+      } else {
+        setAuditWarning(null);
       }
 
       setProgressPercent(100);
@@ -1418,6 +1441,58 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       )}
 
       {/* Local Notification Toasts */}
+      {auditWarning && auditWarning.failed > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-xs font-medium text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-fade-in">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-amber-950">
+                {isEn
+                  ? `Analysis completed, but ${auditWarning.failed}/${auditWarning.expected} results were not saved to the Admin audit log.`
+                  : `Phân tích đã hoàn tất nhưng ${auditWarning.failed}/${auditWarning.expected} kết quả chưa được lưu vào nhật ký Admin.`}
+              </p>
+              <p className="text-[11px] text-amber-800 mt-1">
+                {isEn ? 'Request ID: ' : 'Mã yêu cầu: '}
+                <code className="bg-amber-200/70 text-amber-950 px-1.5 py-0.5 rounded font-mono font-bold text-xs select-all">
+                  {auditWarning.requestId}
+                </code>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                if (auditWarning.requestId) {
+                  navigator.clipboard.writeText(auditWarning.requestId);
+                  setHasCopiedRequestId(true);
+                  setTimeout(() => setHasCopiedRequestId(false), 2500);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-amber-200/80 hover:bg-amber-200 text-amber-950 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-amber-300"
+            >
+              {hasCopiedRequestId ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>{isEn ? 'Copied' : 'Đã sao chép'}</span>
+                </>
+              ) : (
+                <>
+                  <span>{isEn ? 'Copy Request ID' : 'Sao chép mã'}</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuditWarning(null)}
+              className="p-1.5 rounded-xl hover:bg-amber-200/60 text-amber-800 transition-all cursor-pointer"
+              aria-label="Dismiss warning"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {batchNotice && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 text-xs font-black flex items-center gap-2 shadow-xs animate-fade-in">
           <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -3246,6 +3321,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           isOpen={isSaveBatchModalOpen}
           onClose={() => setIsSaveBatchModalOpen(false)}
           onSaveSuccess={handleSaveSuccess}
+          batchId={currentBatchId || activeSavedBatch?.id || null}
           jdText={jdText}
           jdFileName={jdFileName}
           results={results}
