@@ -105,7 +105,7 @@ const VIETNAMESE_NAME_TOKENS = new Set([
 
 // Neutral technical terms & acronyms (case-insensitive)
 const NEUTRAL_TECH_TOKENS = new Set([
-  'sla', 'kpi', 'cab', 'cmdb', 'itsm', 'itil', 'devops', 'cicd', 'ci/cd',
+  'sla', 'kpi', 'cab', 'cmdb', 'itsm', 'itil', 'devops', 'cicd', 'ci/cd', 'it', 'ci', 'cd',
   'api', 'sql', 'aws', 'azure', 'gcp', 'ui', 'ux', 'qa', 'qc', 'pr',
   'root', 'cause', 'analysis', 'major', 'incident', 'asset', 'management',
   'system', 'outage', 'okr', 'scrum', 'agile', 'kanban', 'jira', 'confluence',
@@ -148,7 +148,7 @@ export const detectContentLanguage = (text: string): DetectedLanguage => {
   let enScore = 0;
   let neutralCount = 0;
 
-  const diacriticRegex = /[àáảãạăắằẳẵặânấầnẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i;
+  const diacriticRegex = /[àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/i;
 
   for (const token of tokens) {
     if (NEUTRAL_TECH_TOKENS.has(token)) {
