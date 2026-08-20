@@ -1,6 +1,5 @@
 # Hướng dẫn sử dụng RoleMatch2 dành cho Nhà tuyển dụng
 
-> **Trạng thái:** Bản nháp để review — chưa được đưa vào repository  
 > **Phạm vi đối chiếu:** source code tại commit `e6770b2`  
 > **Mục tiêu:** giúp nhà tuyển dụng đọc đúng báo cáo phân tích AI và đưa ra quyết định có kiểm chứng.
 
