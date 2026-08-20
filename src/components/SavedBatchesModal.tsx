@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Search, Filter, Calendar, Users, AlertCircle, Loader2, Layers, RefreshCw, FolderOpen } from 'lucide-react';
+import { X, Search, Filter, Calendar, Users, AlertCircle, Loader2, Layers, RefreshCw, FolderOpen, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RecruiterBatchSummary, RecruiterBatchDetail } from '../types';
 
@@ -82,6 +82,18 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  
+  const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'single' | 'bulk' | null;
+    batchId?: string;
+    batchName?: string;
+    candidateCount?: number;
+    batchCount?: number;
+    isOpen: boolean;
+  }>({ type: null, isOpen: false });
+  const [bulkConfirmInput, setBulkConfirmInput] = useState('');
 
   const isMountedRef = useRef(true);
   const listAbortControllerRef = useRef<AbortController | null>(null);
@@ -210,9 +222,62 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
     }
   };
 
+  // Delete handlers
+  const handleDeleteBatch = async (batchId: string) => {
+    setDeletingBatchId(batchId);
+    setErrorMsg('');
+    try {
+      const authToken = token || localStorage.getItem('auth_token');
+      const response = await fetch(`/api/recruiter/batches/${batchId}`, {
+        method: 'DELETE',
+        headers: {
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+        },
+      });
+
+      if (!response.ok) {
+        const errText = await getResponseError(response, isEn);
+        throw new Error(errText);
+      }
+      
+      setBatches(prev => prev.filter(b => b.id !== batchId));
+      setConfirmDialog({ type: null, isOpen: false });
+    } catch (err: unknown) {
+      setErrorMsg(getCaughtErrorMsg(err, isEn));
+    } finally {
+      setDeletingBatchId(null);
+    }
+  };
+
+  const handleDeleteAllBatches = async () => {
+    setIsDeletingAll(true);
+    setErrorMsg('');
+    try {
+      const authToken = token || localStorage.getItem('auth_token');
+      const response = await fetch(`/api/recruiter/batches`, {
+        method: 'DELETE',
+        headers: {
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+        },
+      });
+
+      if (!response.ok) {
+        const errText = await getResponseError(response, isEn);
+        throw new Error(errText);
+      }
+      
+      setBatches([]);
+      setConfirmDialog({ type: null, isOpen: false });
+      setBulkConfirmInput('');
+    } catch (err: unknown) {
+      setErrorMsg(getCaughtErrorMsg(err, isEn));
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   // Select and load specific batch detail
   const handleSelectBatch = async (batchId: string, status: string) => {
-    if (status !== 'READY') return; // Requirement 3: Only READY can be opened
     if (loadingBatchId === batchId) return;
 
     if (detailAbortControllerRef.current) {
@@ -330,6 +395,14 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setConfirmDialog({ type: 'bulk', batchCount: batches.length, isOpen: true })}
+                disabled={batches.length === 0 || isDeletingAll || isLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 hover:border-rose-300 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {isEn ? 'Delete All' : 'Xóa tất cả'}
+              </button>
               <button
                 id="saved-batches-refresh-btn"
                 onClick={() => fetchBatches()}
@@ -449,7 +522,19 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
                           <h4 className="font-black text-slate-900 text-sm sm:text-base group-hover:text-indigo-600 transition-colors line-clamp-1">
                             {batch.batchName}
                           </h4>
-                          <div className="shrink-0">
+                          <div className="shrink-0 flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setConfirmDialog({ type: 'single', batchId: batch.id, batchName: batch.batchName, candidateCount: batch.candidateCount, isOpen: true });
+                              }}
+                              disabled={isCurrentLoading}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-rose-100 rounded-lg transition-colors cursor-pointer"
+                              aria-label={isEn ? `Delete ${batch.batchName}` : `Xóa đợt tuyển dụng: ${batch.batchName}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                             {isCurrentLoading ? (
                               <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
                             ) : (
@@ -511,6 +596,79 @@ export const SavedBatchesModal: React.FC<SavedBatchesModalProps> = ({
               </div>
             )}
           </div>
+          {/* Confirmation Dialog */}
+          <AnimatePresence>
+            {confirmDialog.isOpen && (
+              <div 
+                className="absolute inset-0 z-[101] bg-white/95 backdrop-blur-sm flex items-center justify-center p-6"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="bg-white border border-slate-200 p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center"
+                >
+                  <div className="mx-auto w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-4">
+                    <Trash2 className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mb-2">
+                    {confirmDialog.type === 'single' 
+                      ? (isEn ? 'Delete batch?' : 'Xóa đợt tuyển dụng?')
+                      : (isEn ? 'Delete all saved batches?' : 'Xóa tất cả đợt tuyển dụng đã lưu?')
+                    }
+                  </h3>
+                  <p className="text-sm text-slate-600 mb-6 font-medium">
+                    {confirmDialog.type === 'single'
+                      ? (isEn 
+                          ? `Are you sure you want to delete "${confirmDialog.batchName}" with ${confirmDialog.candidateCount} saved candidates? This action cannot be undone.`
+                          : `Bạn có chắc muốn xóa "${confirmDialog.batchName}" cùng danh sách ${confirmDialog.candidateCount} ứng viên đã lưu? Hành động này không thể hoàn tác.`
+                        )
+                      : (isEn
+                          ? `You are about to permanently delete ${confirmDialog.batchCount} saved batches. This action cannot be undone.`
+                          : `Bạn sắp xóa vĩnh viễn ${confirmDialog.batchCount} đợt tuyển dụng đã lưu. Hành động này không thể hoàn tác.`
+                        )
+                    }
+                  </p>
+
+                  {confirmDialog.type === 'bulk' && (
+                    <div className="mb-6">
+                      <p className="text-xs font-bold text-slate-700 mb-2">
+                        {isEn ? 'Type "XÓA TẤT CẢ" to confirm' : 'Nhập "XÓA TẤT CẢ" để xác nhận'}
+                      </p>
+                      <input
+                        type="text"
+                        value={bulkConfirmInput}
+                        onChange={(e) => setBulkConfirmInput(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-center font-bold tracking-widest focus:outline-none focus:border-indigo-500"
+                        placeholder="XÓA TẤT CẢ"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setConfirmDialog({ type: null, isOpen: false })}
+                      disabled={deletingBatchId !== null || isDeletingAll}
+                      className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors"
+                    >
+                      {isEn ? 'Cancel' : 'Hủy'}
+                    </button>
+                    <button
+                      onClick={() => confirmDialog.type === 'single' ? handleDeleteBatch(confirmDialog.batchId!) : handleDeleteAllBatches()}
+                      disabled={(confirmDialog.type === 'bulk' && bulkConfirmInput !== 'XÓA TẤT CẢ') || deletingBatchId !== null || isDeletingAll}
+                      className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+                    >
+                      {deletingBatchId || isDeletingAll 
+                        ? (isEn ? 'Deleting...' : 'Đang xóa...')
+                        : (isEn ? 'Delete batch' : 'Xóa đợt tuyển dụng')
+                      }
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
     </AnimatePresence>,

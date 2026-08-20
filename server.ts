@@ -125,6 +125,20 @@ const AUDIT_LOGS_FILE = path.join(DATA_DIR, 'audit_logs.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'app_settings.json');
 const RECRUITER_BATCHES_FILE = path.join(DATA_DIR, 'recruiter-batches.json');
 
+let analysesFileWriter: (records: AnalysisRecordItem[]) => void = (records: AnalysisRecordItem[]) => {
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+    return;
+  }
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(ANALYSES_FILE, JSON.stringify(records, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('[Analysis Log] Error writing analyses to file:', err);
+  }
+};
+
 export interface AppSettings {
   limitEnabled: boolean;
   dailyLimit: number;
@@ -350,15 +364,17 @@ function loadAllDataFromFiles() {
     }
 
     // Load Analyses
-    if (fs.existsSync(ANALYSES_FILE)) {
-      const raw = fs.readFileSync(ANALYSES_FILE, 'utf-8');
-      const loaded = JSON.parse(raw);
-      if (Array.isArray(loaded)) {
-        analysisRecords.length = 0;
-        analysisRecords.push(...loaded);
+    if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+      if (fs.existsSync(ANALYSES_FILE)) {
+        const raw = fs.readFileSync(ANALYSES_FILE, 'utf-8');
+        const loaded = JSON.parse(raw);
+        if (Array.isArray(loaded)) {
+          analysisRecords.length = 0;
+          analysisRecords.push(...loaded);
+        }
+      } else {
+        analysesFileWriter(analysisRecords);
       }
-    } else {
-      fs.writeFileSync(ANALYSES_FILE, JSON.stringify(analysisRecords, null, 2), 'utf-8');
     }
 
     // Load Audit Logs
@@ -2984,9 +3000,94 @@ app.get('/api/recruiter/batches/:id', async (req, res) => {
     });
   } catch (err: any) {
     console.error('API /api/recruiter/batches/:id GET Error:', err);
-    return res.status(500).json({
-      error: 'Lỗi hệ thống khi mở chi tiết đợt tuyển dụng.'
+    return res.status(500).json({ error: 'Lỗi server nội bộ.' });
+  }
+});
+
+// 4. DELETE /api/recruiter/batches/:id - Delete a batch
+app.delete('/api/recruiter/batches/:id', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) return res.status(401).json({ error: 'Vui lòng đăng nhập.' });
+
+    const batchId = req.params.id;
+    const batchIndex = recruiterBatches.findIndex(b => b.id === batchId);
+    if (batchIndex === -1) return res.status(404).json({ error: 'Không tìm thấy đợt tuyển dụng.' });
+    
+    const batch = recruiterBatches[batchIndex];
+    if (batch.createdBy.userId !== currentUser.id && currentUser.role !== 'admin') return res.status(403).json({ error: 'Truy cập bị từ chối.' });
+
+    // Firestore deletion
+    if (db) {
+       // Delete candidates subcollection
+       const candidatesCol = collection(db, 'recruiter_batches', batchId, 'candidates');
+       const candidatesSnap = await getDocs(candidatesCol);
+       for (const cDoc of candidatesSnap.docs) {
+         await deleteDoc(cDoc.ref);
+       }
+       // Delete batch document
+       await deleteDoc(doc(db, 'recruiter_batches', batchId));
+    }
+    
+    // Update local state
+    recruiterBatches.splice(batchIndex, 1);
+    saveRecruiterBatchesToFile();
+    
+    recordAuditLog({
+        userEmail: currentUser.email || '',
+        userRole: currentUser.role,
+        action: 'RECRUITER_BATCH_DELETED',
+        category: 'SYSTEM',
+        status: 'success',
+        details: `Deleted batch ${batchId}`
     });
+
+    res.json({ success: true, deletedId: batchId });
+  } catch (err) {
+    console.error('API /api/recruiter/batches/:id DELETE Error:', err);
+    res.status(500).json({ error: 'Lỗi server nội bộ.' });
+  }
+});
+
+// 5. DELETE /api/recruiter/batches - Delete all batches of user
+app.delete('/api/recruiter/batches', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) return res.status(401).json({ error: 'Vui lòng đăng nhập.' });
+
+    const userBatches = recruiterBatches.filter(b => b.createdBy.userId === currentUser.id);
+    const deletedCount = userBatches.length;
+
+    for (const batch of userBatches) {
+        // Firestore deletion
+        if (db) {
+            const candidatesCol = collection(db, 'recruiter_batches', batch.id, 'candidates');
+            const candidatesSnap = await getDocs(candidatesCol);
+            for (const cDoc of candidatesSnap.docs) {
+              await deleteDoc(cDoc.ref);
+            }
+            await deleteDoc(doc(db, 'recruiter_batches', batch.id));
+        }
+    }
+
+    // Update local state
+    const newBatches = recruiterBatches.filter(b => b.createdBy.userId !== currentUser.id);
+    recruiterBatches.length = 0;
+    recruiterBatches.push(...newBatches);
+    saveRecruiterBatchesToFile();
+    
+    recordAuditLog({
+        userEmail: currentUser.email || '',
+        userRole: currentUser.role,
+        action: 'RECRUITER_BATCHES_BULK_DELETED',
+        category: 'SYSTEM',
+        status: 'success',
+        details: `Deleted ${deletedCount} batches`
+    });
+
+    res.json({ success: true, deletedCount });
+  } catch (err) {
+    res.status(500).json({ error: 'Lỗi server nội bộ.' });
   }
 });
 
