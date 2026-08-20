@@ -524,6 +524,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     setActiveSavedBatch(null);
 
     const generatedBatchId = 'batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    const generatedRequestId = 'req_batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
     setCurrentBatchId(generatedBatchId);
 
     // Simulated progress steps to reassure the recruiter of background processing
@@ -536,6 +537,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       formData.append('jdText', jdText);
       formData.append('lang', lang);
       formData.append('batchId', generatedBatchId);
+      formData.append('requestId', generatedRequestId);
 
       uploadedFiles.forEach(file => {
         formData.append('files', file);
@@ -589,6 +591,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       const response = await fetch('/api/batch-analyze', {
         method: 'POST',
         headers: {
+          'X-Request-Id': generatedRequestId,
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: formData

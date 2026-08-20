@@ -156,6 +156,13 @@ export interface UserAccount {
   failedLoginAttempts?: number;
   lockedAt?: string;
   dailyAnalysisCount?: { [dateStr: string]: number };
+  candidateUnits?: number;
+  recruiterUnits?: number;
+  totalUnits?: number;
+  dailyLimit?: number;
+  limitEnabled?: boolean;
+  dateKey?: string;
+  resetAt?: string;
 }
 
 export interface AIModelStatus {

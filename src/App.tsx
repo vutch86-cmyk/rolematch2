@@ -38,11 +38,17 @@ const LOCAL_STORAGE_CV_KEY = 'cv_matcher_cvText';
 const LOCAL_STORAGE_JD_KEY = 'cv_matcher_jdText';
 const LOCAL_STORAGE_HISTORY_KEY = 'cv_matcher_history';
 
-async function fetchWithRetry(url: string, options: RequestInit, retries = 2, delayMs = 1200): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, requestId?: string, retries = 2, delayMs = 1200): Promise<Response> {
   let lastError: any = null;
+  const headers = new Headers(options.headers || {});
+  if (requestId && !headers.has('X-Request-Id')) {
+    headers.set('X-Request-Id', requestId);
+  }
+  const updatedOptions = { ...options, headers };
+
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(url, options);
+      const res = await fetch(url, updatedOptions);
       if (res.ok) {
         return res;
       }
@@ -255,11 +261,14 @@ export default function App() {
       setError(null);
     }
 
+    const requestId = 'req_cand_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
     try {
       const res = await fetchWithRetry('/api/analyze-cv', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Request-Id': requestId,
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
@@ -267,12 +276,27 @@ export default function App() {
           jdText,
           clarifyingAnswers,
           lang,
+          requestId,
         }),
-      });
+      }, requestId);
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === 'AUTH_REQUIRED') {
+          setIsLoginModalOpen(true);
+          throw new Error(lang === 'vi' ? 'Vui lòng đăng nhập để thực hiện phân tích.' : 'Please log in to perform analysis.');
+        }
+        if (data.code === 'DAILY_AI_LIMIT_EXCEEDED') {
+          const resetTime = data.resetAt ? new Date(data.resetAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+          const msg = lang === 'vi'
+            ? `Bạn đã đạt giới hạn sử dụng AI trong ngày (${data.used}/${data.dailyLimit} lượt). Còn lại: ${data.remaining}. Làm mới lúc: ${resetTime}.`
+            : `Daily AI usage limit reached (${data.used}/${data.dailyLimit}). Remaining: ${data.remaining}. Resets at: ${resetTime}.`;
+          throw new Error(msg);
+        }
+        if (data.code === 'QUOTA_SERVICE_UNAVAILABLE') {
+          throw new Error(lang === 'vi' ? 'Dịch vụ kiểm soát lượt tạm thời không khả dụng. Vui lòng thử lại sau.' : 'Quota control service temporarily unavailable. Please try again later.');
+        }
         const errMsg = typeof data.error === 'string'
           ? data.error
           : (data.error?.message || data.message || (lang === 'vi' ? 'Có lỗi xảy ra khi gọi API phân tích.' : 'An error occurred while calling analysis API.'));
