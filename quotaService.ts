@@ -86,9 +86,9 @@ export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boole
     if (snap.exists()) {
       const data = snap.data();
       return {
-        limitEnabled: !!data.limitEnabled,
-        dailyLimit: typeof data.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
-        timezone: data.timezone || 'Asia/Ho_Chi_Minh'
+        limitEnabled: typeof data?.limitEnabled === 'boolean' ? data.limitEnabled : true,
+        dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
+        timezone: data?.timezone || 'Asia/Ho_Chi_Minh'
       };
     }
   } catch (err: any) {
@@ -96,9 +96,9 @@ export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boole
     throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
 
-  // Default settings if document doesn't exist yet
+  // Default settings if document doesn't exist yet: fail-closed default with limitEnabled = true
   const defaultSettings = {
-    limitEnabled: false,
+    limitEnabled: true,
     dailyLimit: 10,
     timezone: 'Asia/Ho_Chi_Minh'
   };
@@ -109,12 +109,12 @@ export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boole
       ...defaultSettings,
       updatedAt: new Date().toISOString(),
       updatedBy: 'system'
-    }, { merge: true });
-  } catch (e) {
-    // Ignore setting write errors during initial read
+    });
+    return defaultSettings;
+  } catch (err: any) {
+    console.error('Failed to create default ai quota settings in system_settings:', err);
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
-
-  return defaultSettings;
 }
 
 export async function updateAiQuotaSettings(db: any, { limitEnabled, dailyLimit, userEmail }: { limitEnabled?: boolean; dailyLimit?: number; userEmail?: string }) {
@@ -207,7 +207,7 @@ export async function reserveAiQuota(
       let needWriteSettings = false;
       if (!settingsDoc.exists()) {
         settings = {
-          limitEnabled: false,
+          limitEnabled: true,
           dailyLimit: 10,
           timezone: 'Asia/Ho_Chi_Minh',
           updatedAt: new Date().toISOString(),
@@ -218,7 +218,7 @@ export async function reserveAiQuota(
         settings = settingsDoc.data();
       }
 
-      const limitEnabled = !!settings.limitEnabled;
+      const limitEnabled = settings.limitEnabled !== undefined ? !!settings.limitEnabled : true;
       const dailyLimit = typeof settings.dailyLimit === 'number' && Number.isFinite(settings.dailyLimit) && settings.dailyLimit >= 1
         ? Math.floor(settings.dailyLimit)
         : 10;

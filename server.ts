@@ -142,14 +142,153 @@ let analysesFileWriter: (records: AnalysisRecordItem[]) => void = (records: Anal
 
 // Legacy appSettings removed in favor of Firestore-backed getAiQuotaSettings / updateAiQuotaSettings
 
-function ensureDefaultUsers(users: StoredUser[]): StoredUser[] {
-  const adminHash = bcrypt.hashSync('admin123', 10);
-  const user1Hash = bcrypt.hashSync('user123', 10);
+export class AuthDatabaseUnavailableError extends Error {
+  code = 'AUTH_DATABASE_UNAVAILABLE';
+  constructor(message = 'Authentication service is temporarily unavailable.') {
+    super(message);
+    this.name = 'AuthDatabaseUnavailableError';
+  }
+}
+
+// Bcrypt hash validation: starts with $2a$, $2b$, $2x$, or $2y$, followed by 2 digits cost, followed by $, followed by 53 base64 characters (. and / allowed)
+const BCRYPT_HASH_REGEX = /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+
+function isValidIsoDate(str: any): boolean {
+  if (typeof str !== 'string' || !str.trim()) return false;
+  const time = Date.parse(str);
+  return !Number.isNaN(time);
+}
+
+export function isStoredUserDocument(value: unknown): value is StoredUser {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const candidate = value as Record<string, any>;
+
+  // Required fields
+  if (typeof candidate.id !== 'string' || !candidate.id.trim()) {
+    return false;
+  }
+  if (typeof candidate.username !== 'string' || !candidate.username.trim()) {
+    return false;
+  }
+  if (typeof candidate.passwordHash !== 'string' || !BCRYPT_HASH_REGEX.test(candidate.passwordHash)) {
+    return false;
+  }
+  if (typeof candidate.fullName !== 'string' || !candidate.fullName.trim()) {
+    return false;
+  }
+  if (candidate.role !== 'admin' && candidate.role !== 'normal') {
+    return false;
+  }
+  if (!isValidIsoDate(candidate.createdAt)) {
+    return false;
+  }
+
+  // Optional fields
+  if (candidate.isLocked !== undefined && typeof candidate.isLocked !== 'boolean') {
+    return false;
+  }
+  if (
+    candidate.failedLoginAttempts !== undefined &&
+    !(typeof candidate.failedLoginAttempts === 'number' && Number.isInteger(candidate.failedLoginAttempts) && candidate.failedLoginAttempts >= 0)
+  ) {
+    return false;
+  }
+  if (candidate.lockedAt !== undefined && !isValidIsoDate(candidate.lockedAt)) {
+    return false;
+  }
+  if (candidate.email !== undefined && typeof candidate.email !== 'string') {
+    return false;
+  }
+  if (candidate.dailyAnalysisCount !== undefined) {
+    if (!candidate.dailyAnalysisCount || typeof candidate.dailyAnalysisCount !== 'object' || Array.isArray(candidate.dailyAnalysisCount)) {
+      return false;
+    }
+    for (const key of Object.keys(candidate.dailyAnalysisCount)) {
+      const val = candidate.dailyAnalysisCount[key];
+      if (typeof val !== 'number' || !Number.isInteger(val) || val < 0) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+export function normalizeStoredUsers(values: unknown[]): StoredUser[] {
+  if (!Array.isArray(values)) {
+    console.warn('[normalizeStoredUsers] Input is not an array:', { type: typeof values });
+    return [];
+  }
+
+  const validUsers: StoredUser[] = [];
+  const seenUsernames = new Set<string>();
+
+  for (const raw of values) {
+    if (!raw || typeof raw !== 'object') {
+      console.warn('[normalizeStoredUsers] Filtered out non-object entry:', { type: typeof raw });
+      continue;
+    }
+
+    const candidate: Record<string, any> = {
+      ...(raw as Record<string, any>),
+      id: (raw as any).id || (raw as any)._id || ''
+    };
+
+    if (!isStoredUserDocument(candidate)) {
+      const safeLog: Record<string, any> = {
+        id: typeof candidate.id === 'string' ? candidate.id : undefined,
+        username: typeof candidate.username === 'string' ? candidate.username : undefined,
+        role: candidate.role,
+        hasPasswordHash: typeof candidate.passwordHash === 'string' && candidate.passwordHash.length > 0,
+        reason: 'Document failed strict StoredUser schema validation'
+      };
+      console.warn('[normalizeStoredUsers] Filtered out invalid user doc:', safeLog);
+      continue;
+    }
+
+    const lowerUsername = candidate.username.toLowerCase().trim();
+    if (seenUsernames.has(lowerUsername)) {
+      console.warn('[normalizeStoredUsers] Filtered out duplicate username:', { username: candidate.username, id: candidate.id });
+      continue;
+    }
+
+    seenUsernames.add(lowerUsername);
+    validUsers.push({
+      id: candidate.id,
+      username: candidate.username,
+      passwordHash: candidate.passwordHash,
+      fullName: candidate.fullName,
+      role: candidate.role,
+      createdAt: candidate.createdAt,
+      ...(candidate.isLocked !== undefined ? { isLocked: candidate.isLocked } : {}),
+      ...(candidate.failedLoginAttempts !== undefined ? { failedLoginAttempts: candidate.failedLoginAttempts } : {}),
+      ...(candidate.lockedAt !== undefined ? { lockedAt: candidate.lockedAt } : {}),
+      ...(candidate.email !== undefined ? { email: candidate.email } : {}),
+      ...(candidate.dailyAnalysisCount !== undefined ? { dailyAnalysisCount: { ...candidate.dailyAnalysisCount } } : {})
+    });
+  }
+
+  return validUsers;
+}
+
+const SEED_ADMIN_HASH = '$2b$10$3vzYSF/.B9xDoTWHtHYRm.qYv3MZppm2z1MYr7lx9dHkIxsDH7is.';
+const SEED_USER1_HASH = '$2b$10$P3vSKlhjQy/6C/C18cvT7.PR2ttn/v7zjKyzRqfZOF6nnJNwExenG';
+
+export function ensureDefaultUsers(users: StoredUser[]): StoredUser[] {
+  const normalized = normalizeStoredUsers(users);
+
+  // Default test users are ONLY seeded when ENABLE_TEST_USER_SEED === 'true'
+  if (process.env.ENABLE_TEST_USER_SEED !== 'true') {
+    return normalized;
+  }
+
   const defaults: StoredUser[] = [
     {
       id: 'usr_admin_001',
       username: 'admin',
-      passwordHash: adminHash,
+      passwordHash: SEED_ADMIN_HASH,
       fullName: 'Quản trị viên (Admin)',
       role: 'admin',
       createdAt: '2026-08-11T00:00:00.000Z',
@@ -157,70 +296,74 @@ function ensureDefaultUsers(users: StoredUser[]): StoredUser[] {
     {
       id: 'usr_normal_001',
       username: 'user1',
-      passwordHash: user1Hash,
+      passwordHash: SEED_USER1_HASH,
       fullName: 'Người dùng Nguyễn Văn A',
       role: 'normal',
       createdAt: '2026-08-11T00:00:00.000Z',
     },
   ];
 
-  const result = [...users];
+  const result = [...normalized];
   for (const def of defaults) {
-    if (!result.some(u => u.username.toLowerCase().trim() === def.username.toLowerCase().trim())) {
+    const exists = result.some(u =>
+      typeof u.username === 'string' &&
+      u.username.toLowerCase().trim() === def.username.toLowerCase().trim()
+    ) || result.some(u => u.id === def.id);
+
+    if (!exists) {
       result.push(def);
     }
   }
   return result;
 }
 
-function loadUsers(): StoredUser[] {
+export function loadUsers(): StoredUser[] {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(USERS_FILE)) {
-      const defaultUsers: StoredUser[] = [
-        {
-          id: 'usr_admin_001',
-          username: 'admin',
-          passwordHash: '$2b$10$3vzYSF/.B9xDoTWHtHYRm.qYv3MZppm2z1MYr7lx9dHkIxsDH7is.',
-          fullName: 'Quản trị viên (Admin)',
-          role: 'admin',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'usr_normal_001',
-          username: 'user1',
-          passwordHash: '$2b$10$P3vSKlhjQy/6C/C18cvT7.PR2ttn/v7zjKyzRqfZOF6nnJNwExenG',
-          fullName: 'Người dùng Nguyễn Văn A',
-          role: 'normal',
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      fs.writeFileSync(USERS_FILE, JSON.stringify(defaultUsers, null, 2), 'utf-8');
-      return defaultUsers;
+      if (process.env.ENABLE_TEST_USER_SEED === 'true') {
+        const defaultUsers: StoredUser[] = [
+          {
+            id: 'usr_admin_001',
+            username: 'admin',
+            passwordHash: SEED_ADMIN_HASH,
+            fullName: 'Quản trị viên (Admin)',
+            role: 'admin',
+            createdAt: '2026-08-11T00:00:00.000Z',
+          },
+          {
+            id: 'usr_normal_001',
+            username: 'user1',
+            passwordHash: SEED_USER1_HASH,
+            fullName: 'Người dùng Nguyễn Văn A',
+            role: 'normal',
+            createdAt: '2026-08-11T00:00:00.000Z',
+          },
+        ];
+        fs.writeFileSync(USERS_FILE, JSON.stringify(defaultUsers, null, 2), 'utf-8');
+        return defaultUsers;
+      }
+      return [];
     }
     const raw = fs.readFileSync(USERS_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    return ensureDefaultUsers(Array.isArray(parsed) ? parsed : []);
+    const valid = normalizeStoredUsers(Array.isArray(parsed) ? parsed : []);
+    return ensureDefaultUsers(valid);
   } catch (err) {
-    console.error('Error loading users database:', err);
-    return ensureDefaultUsers([]);
+    console.error('Error loading users database from file:', err);
+    return [];
   }
 }
 
-function saveUsers(users: StoredUser[]): void {
+export function saveUsers(users: StoredUser[]): void {
+  const validUsers = normalizeStoredUsers(users);
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-    // Also save to Firestore asynchronously
-    if (db) {
-      for (const u of users) {
-        setDoc(doc(db, 'users', u.id), u).catch(err => console.error('Error saving user to Firestore:', err));
-      }
-    }
+    fs.writeFileSync(USERS_FILE, JSON.stringify(validUsers, null, 2), 'utf-8');
   } catch (err) {
     console.error('Error saving users database:', err);
   }
@@ -267,58 +410,60 @@ function verifyToken(token: string): StoredUser | null {
   }
 }
 
-function isValidUserDoc(u: any): boolean {
-  if (!u || typeof u !== 'object') return false;
-  if (!u.id || typeof u.id !== 'string' || !u.id.trim()) return false;
-  if (u.id === 'system_settings_ai_quota' || u.id.startsWith('reservation_') || u.id.includes('_2026-')) return false;
-  if (!u.username || typeof u.username !== 'string' || !u.username.trim()) return false;
-  if (u.role !== 'admin' && u.role !== 'normal') return false;
-  return true;
-}
-
-async function loadUsersAsync(): Promise<StoredUser[]> {
+export async function loadUsersAsync(): Promise<StoredUser[]> {
   if (db) {
     try {
       const usersCol = collection(db, 'users');
       const usersSnapshot = await getDocs(usersCol);
-      if (!usersSnapshot.empty) {
-        const rawUsers = usersSnapshot.docs.map(doc => doc.data() as any);
-        const validUsers = rawUsers.filter(isValidUserDoc) as StoredUser[];
-        const validatedUsers = ensureDefaultUsers(validUsers);
-        try {
-          if (!fs.existsSync(DATA_DIR)) {
-            fs.mkdirSync(DATA_DIR, { recursive: true });
-          }
-          fs.writeFileSync(USERS_FILE, JSON.stringify(validatedUsers, null, 2), 'utf-8');
-        } catch (e) {
-          // ignore
+      const rawUsers = usersSnapshot.docs.map(docSnap => ({
+        ...docSnap.data(),
+        id: docSnap.data()?.id || docSnap.id
+      }));
+      const validUsers = normalizeStoredUsers(rawUsers);
+      const finalUsers = ensureDefaultUsers(validUsers);
+      try {
+        if (!fs.existsSync(DATA_DIR)) {
+          fs.mkdirSync(DATA_DIR, { recursive: true });
         }
-        return validatedUsers;
+        fs.writeFileSync(USERS_FILE, JSON.stringify(finalUsers, null, 2), 'utf-8');
+      } catch (e) {
+        // ignore cache write error
       }
-    } catch (err) {
+      return finalUsers;
+    } catch (err: any) {
       console.error('Error loading users from Firestore:', err);
+      // Fail closed when db is configured - DO NOT fallback to local users
+      throw new AuthDatabaseUnavailableError('Authentication service is temporarily unavailable.');
     }
   }
-  return loadUsers();
+
+  // Only use local fallback if explicitly enabled AND db is not configured
+  if (process.env.ALLOW_LOCAL_AUTH_FALLBACK === 'true') {
+    return loadUsers();
+  }
+
+  throw new AuthDatabaseUnavailableError('Authentication database is not configured.');
 }
 
-async function saveUsersAsync(users: StoredUser[]): Promise<void> {
+export async function saveUsersAsync(users: StoredUser[]): Promise<void> {
+  const validUsers = normalizeStoredUsers(users);
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+    fs.writeFileSync(USERS_FILE, JSON.stringify(validUsers, null, 2), 'utf-8');
   } catch (e) {
     // ignore
   }
 
   if (db) {
     try {
-      for (const u of users) {
+      for (const u of validUsers) {
         await setDoc(doc(db, 'users', u.id), u);
       }
     } catch (err) {
       console.error('Error saving users to Firestore:', err);
+      throw new AuthDatabaseUnavailableError('Failed to persist user updates to authentication database.');
     }
   }
 }
@@ -400,7 +545,7 @@ async function syncFromFirestore() {
     // 1. Sync Users
     const usersCol = collection(db, 'users');
     const usersSnapshot = await getDocs(usersCol);
-    if (usersSnapshot.empty) {
+    if (usersSnapshot.empty && process.env.ENABLE_TEST_USER_SEED === 'true') {
       const defaultUsers: StoredUser[] = [
         {
           id: 'usr_admin_001',
@@ -514,7 +659,11 @@ async function syncFromFirestore() {
 
     // Now read from Firestore to populate our local variables!
     const updatedUsersSnapshot = await getDocs(usersCol);
-    const loadedUsers = updatedUsersSnapshot.docs.map(doc => doc.data() as any).filter(isValidUserDoc) as StoredUser[];
+    const rawUsers = updatedUsersSnapshot.docs.map(docSnap => ({
+      ...docSnap.data(),
+      id: docSnap.data()?.id || docSnap.id
+    }));
+    const loadedUsers = normalizeStoredUsers(rawUsers);
     const validatedLoadedUsers = ensureDefaultUsers(loadedUsers);
     fs.writeFileSync(USERS_FILE, JSON.stringify(validatedLoadedUsers, null, 2), 'utf-8');
 
@@ -1609,8 +1758,21 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const cleanUsername = String(username).toLowerCase().trim();
-    const users = await loadUsersAsync();
-    const user = users.find((u) => u.username.toLowerCase() === cleanUsername);
+    let users: StoredUser[];
+    try {
+      users = await loadUsersAsync();
+    } catch (err: any) {
+      if (err instanceof AuthDatabaseUnavailableError || err?.code === 'AUTH_DATABASE_UNAVAILABLE') {
+        return res.status(503).json({
+          success: false,
+          code: 'AUTH_DATABASE_UNAVAILABLE',
+          error: 'Dịch vụ xác thực tạm thời không khả dụng. Vui lòng thử lại sau.'
+        });
+      }
+      throw err;
+    }
+
+    const user = users.find((u) => typeof u.username === 'string' && u.username.toLowerCase().trim() === cleanUsername);
 
     if (!user) {
       recordAuditLog({
@@ -1649,11 +1811,8 @@ app.post('/api/auth/login', async (req, res) => {
 
     let isPasswordValid = false;
     try {
-      if (user.passwordHash) {
+      if (user.passwordHash && typeof user.passwordHash === 'string') {
         isPasswordValid = bcrypt.compareSync(String(password), user.passwordHash);
-      }
-      if (!isPasswordValid && user.password) {
-        isPasswordValid = user.password === String(password);
       }
     } catch (err) {
       console.error('Bcrypt comparison error:', err);
@@ -1665,7 +1824,17 @@ app.post('/api/auth/login', async (req, res) => {
         if (user.failedLoginAttempts >= 5) {
           user.isLocked = true;
           user.lockedAt = new Date().toISOString();
-          await saveUsersAsync(users);
+          try {
+            await saveUsersAsync(users);
+          } catch (saveErr: any) {
+            if (saveErr instanceof AuthDatabaseUnavailableError || saveErr?.code === 'AUTH_DATABASE_UNAVAILABLE') {
+              return res.status(503).json({
+                success: false,
+                code: 'AUTH_DATABASE_UNAVAILABLE',
+                error: 'Dịch vụ xác thực tạm thời không khả dụng. Vui lòng thử lại sau.'
+              });
+            }
+          }
 
           recordAuditLog({
             userEmail: user.username,
@@ -1686,7 +1855,17 @@ app.post('/api/auth/login', async (req, res) => {
             error: 'Tài khoản của bạn đã bị TỰ ĐỘNG KHÓA do nhập sai mật khẩu quá 5 lần. Vui lòng liên hệ Admin để mở khóa.',
           });
         } else {
-          await saveUsersAsync(users);
+          try {
+            await saveUsersAsync(users);
+          } catch (saveErr: any) {
+            if (saveErr instanceof AuthDatabaseUnavailableError || saveErr?.code === 'AUTH_DATABASE_UNAVAILABLE') {
+              return res.status(503).json({
+                success: false,
+                code: 'AUTH_DATABASE_UNAVAILABLE',
+                error: 'Dịch vụ xác thực tạm thời không khả dụng. Vui lòng thử lại sau.'
+              });
+            }
+          }
           const remaining = 5 - user.failedLoginAttempts;
 
           recordAuditLog({
@@ -1752,7 +1931,17 @@ app.post('/api/auth/login', async (req, res) => {
     // Login successful: reset failed login count for normal users
     if (user.role !== 'admin' && (user.failedLoginAttempts || 0) > 0) {
       user.failedLoginAttempts = 0;
-      await saveUsersAsync(users);
+      try {
+        await saveUsersAsync(users);
+      } catch (saveErr: any) {
+        if (saveErr instanceof AuthDatabaseUnavailableError || saveErr?.code === 'AUTH_DATABASE_UNAVAILABLE') {
+          return res.status(503).json({
+            success: false,
+            code: 'AUTH_DATABASE_UNAVAILABLE',
+            error: 'Dịch vụ xác thực tạm thời không khả dụng. Vui lòng thử lại sau.'
+          });
+        }
+      }
     }
 
     const token = generateToken(user);
@@ -1795,6 +1984,13 @@ app.post('/api/auth/login', async (req, res) => {
     return res.json({ success: true, user: safeUser, token });
   } catch (err: any) {
     console.error('Login route error:', err);
+    if (err instanceof AuthDatabaseUnavailableError || err?.code === 'AUTH_DATABASE_UNAVAILABLE') {
+      return res.status(503).json({
+        success: false,
+        code: 'AUTH_DATABASE_UNAVAILABLE',
+        error: 'Dịch vụ xác thực tạm thời không khả dụng. Vui lòng thử lại sau.'
+      });
+    }
     return res.status(500).json({ success: false, error: 'Lỗi hệ thống trong quá trình đăng nhập. Vui lòng thử lại.' });
   }
 });
@@ -1934,9 +2130,26 @@ app.get('/api/admin/users', async (req, res) => {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
   }
 
-  const users = await loadUsersAsync();
+  let users: StoredUser[];
+  try {
+    users = await loadUsersAsync();
+  } catch (err: any) {
+    if (err instanceof AuthDatabaseUnavailableError || err?.code === 'AUTH_DATABASE_UNAVAILABLE') {
+      return res.status(503).json({ success: false, code: 'AUTH_DATABASE_UNAVAILABLE', error: 'Dịch vụ xác thực tạm thời không khả dụng.' });
+    }
+    return res.status(500).json({ success: false, error: 'Lỗi tải danh sách người dùng.' });
+  }
+
   const dateKey = getDateKey();
-  const settings = await getAiQuotaSettings(db).catch(() => ({ limitEnabled: false, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' }));
+  let settings: { limitEnabled: boolean; dailyLimit: number; timezone: string };
+  try {
+    settings = await getAiQuotaSettings(db);
+  } catch (err: any) {
+    if (err?.message === 'QUOTA_SERVICE_UNAVAILABLE') {
+      return res.status(503).json({ success: false, code: 'QUOTA_SERVICE_UNAVAILABLE', error: 'Dịch vụ quota tạm thời không khả dụng.' });
+    }
+    return res.status(500).json({ success: false, error: 'Lỗi tải cấu hình quota.' });
+  }
 
   const safeUsers = await Promise.all(users.map(async (u) => {
     let candidateUnits = 0;
@@ -2499,10 +2712,28 @@ app.get('/api/admin/stats', async (req, res) => {
     return res.status(403).json({ error: 'Quyền truy cập bị từ chối. Yêu cầu tài khoản Admin.' });
   }
 
-  const users = await loadUsersAsync();
+  let users: StoredUser[];
+  try {
+    users = await loadUsersAsync();
+  } catch (err: any) {
+    if (err instanceof AuthDatabaseUnavailableError || err?.code === 'AUTH_DATABASE_UNAVAILABLE') {
+      return res.status(503).json({ success: false, code: 'AUTH_DATABASE_UNAVAILABLE', error: 'Dịch vụ xác thực tạm thời không khả dụng.' });
+    }
+    return res.status(500).json({ success: false, error: 'Lỗi tải danh sách người dùng.' });
+  }
+
   const memory = process.memoryUsage();
   const now = Date.now();
-  const aiQuota = await getAiQuotaSettings(db).catch(() => ({ limitEnabled: false, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' }));
+
+  let aiQuota: { limitEnabled: boolean; dailyLimit: number; timezone: string };
+  try {
+    aiQuota = await getAiQuotaSettings(db);
+  } catch (err: any) {
+    if (err?.message === 'QUOTA_SERVICE_UNAVAILABLE') {
+      return res.status(503).json({ success: false, code: 'QUOTA_SERVICE_UNAVAILABLE', error: 'Dịch vụ quota tạm thời không khả dụng.' });
+    }
+    return res.status(500).json({ success: false, error: 'Lỗi tải cấu hình quota.' });
+  }
 
   const activeSessionsList: any[] = [];
   for (const [token, session] of activeSessions.entries()) {
