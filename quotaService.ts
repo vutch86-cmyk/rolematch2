@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, runTransaction, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, runTransaction } from 'firebase/firestore';
 import crypto from 'crypto';
 
 export interface QuotaReservationResult {
@@ -92,26 +92,11 @@ export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boole
       };
     }
   } catch (err: any) {
-    // Fallback to users collection if permission denied
-    if (err?.code === 'permission-denied' || err?.message?.includes('permission') || err?.message?.includes('Missing or insufficient permissions')) {
-      try {
-        const fallbackRef = doc(db, 'users', 'system_settings_ai_quota');
-        const snap = await getDoc(fallbackRef);
-        if (snap.exists()) {
-          const data = snap.data();
-          return {
-            limitEnabled: !!data.limitEnabled,
-            dailyLimit: typeof data.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
-            timezone: data.timezone || 'Asia/Ho_Chi_Minh'
-          };
-        }
-      } catch (e) {
-        console.error('Fallback getAiQuotaSettings failed:', e);
-      }
-    }
+    console.error('Error fetching ai quota settings from system_settings:', err);
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
 
-  // Default settings
+  // Default settings if document doesn't exist yet
   const defaultSettings = {
     limitEnabled: false,
     dailyLimit: 10,
@@ -119,14 +104,14 @@ export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boole
   };
 
   try {
-    const settingsRef = doc(db, 'users', 'system_settings_ai_quota');
+    const settingsRef = doc(db, 'system_settings', 'ai_quota');
     await setDoc(settingsRef, {
       ...defaultSettings,
       updatedAt: new Date().toISOString(),
       updatedBy: 'system'
     }, { merge: true });
   } catch (e) {
-    // Ignore setting write errors during read
+    // Ignore setting write errors during initial read
   }
 
   return defaultSettings;
@@ -147,13 +132,8 @@ export async function updateAiQuotaSettings(db: any, { limitEnabled, dailyLimit,
     const settingsRef = doc(db, 'system_settings', 'ai_quota');
     await setDoc(settingsRef, updated);
   } catch (err: any) {
-    if (err?.code === 'permission-denied' || err?.message?.includes('permission') || err?.message?.includes('Missing or insufficient permissions')) {
-      const fallbackRef = doc(db, 'users', 'system_settings_ai_quota');
-      await setDoc(fallbackRef, updated);
-    } else {
-      console.error('Error updating ai quota settings:', err);
-      throw new Error('QUOTA_SERVICE_UNAVAILABLE');
-    }
+    console.error('Error updating ai quota settings in system_settings:', err);
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
   }
 
   return updated;
@@ -203,27 +183,16 @@ export async function reserveAiQuota(
   const usageDocId = getUsageDocId(userId, dateKey);
   const requestIdHash = hashRequestId(userId, dateKey, requestId);
 
-  const runQuotaTransaction = async (useFallbackCollection: boolean) => {
-    const settingsRef = useFallbackCollection
-      ? doc(db, 'users', 'system_settings_ai_quota')
-      : doc(db, 'system_settings', 'ai_quota');
+  const settingsRef = doc(db, 'system_settings', 'ai_quota');
+  const usageRef = doc(db, 'ai_usage', usageDocId);
+  const reservationRef = doc(db, 'ai_reservations', requestIdHash);
 
-    const usageRef = useFallbackCollection
-      ? doc(db, 'users', usageDocId)
-      : doc(db, 'ai_usage', usageDocId);
-
-    const reservationRef = useFallbackCollection
-      ? doc(db, 'users', `reservation_${requestIdHash}`)
-      : doc(db, 'ai_reservations', requestIdHash);
-
-    const legacyUserRef = doc(db, 'users', userId);
-
+  try {
     return await runTransaction(db, async (transaction) => {
       // 1. ALL READS FIRST (MANDATORY ORDER)
       const reservationDoc = await transaction.get(reservationRef);
       const settingsDoc = await transaction.get(settingsRef);
       const usageDoc = await transaction.get(usageRef);
-      const legacyUserDoc = (useFallbackCollection || usageDoc.exists()) ? null : await transaction.get(legacyUserRef);
 
       // 2. CHECK EXISTING RESERVATION (Idempotency)
       if (reservationDoc.exists()) {
@@ -264,13 +233,6 @@ export async function reserveAiQuota(
         candidateUnitsBefore = Number.isFinite(Number(u.candidateUnits)) && Number(u.candidateUnits) >= 0 ? Math.floor(Number(u.candidateUnits)) : 0;
         recruiterUnitsBefore = Number.isFinite(Number(u.recruiterUnits)) && Number(u.recruiterUnits) >= 0 ? Math.floor(Number(u.recruiterUnits)) : 0;
         if (u.username) username = String(u.username);
-      } else if (legacyUserDoc && legacyUserDoc.exists()) {
-        const lu = legacyUserDoc.data() || {};
-        if (lu.candidateUnits || lu.recruiterUnits) {
-          candidateUnitsBefore = Number.isFinite(Number(lu.candidateUnits)) && Number(lu.candidateUnits) >= 0 ? Math.floor(Number(lu.candidateUnits)) : 0;
-          recruiterUnitsBefore = Number.isFinite(Number(lu.recruiterUnits)) && Number(lu.recruiterUnits) >= 0 ? Math.floor(Number(lu.recruiterUnits)) : 0;
-        }
-        if (lu.username) username = String(lu.username);
       }
 
       const usedBefore = candidateUnitsBefore + recruiterUnitsBefore;
@@ -352,19 +314,7 @@ export async function reserveAiQuota(
 
       return successResult;
     });
-  };
-
-  try {
-    return await runQuotaTransaction(false);
   } catch (err: any) {
-    if (err?.code === 'permission-denied' || err?.message?.includes('permission') || err?.message?.includes('Missing or insufficient permissions')) {
-      try {
-        return await runQuotaTransaction(true);
-      } catch (fallbackErr: any) {
-        console.error('[reserveAiQuota] Fallback transaction failed:', fallbackErr);
-        throw new Error('QUOTA_SERVICE_UNAVAILABLE');
-      }
-    }
     console.error('Error in reserveAiQuota transaction:', err);
     if (err?.message === 'AUTH_REQUIRED' || err?.message === 'INVALID_UNITS' || err?.message === 'INVALID_SOURCE' || err?.message === 'INVALID_REQUEST_ID') {
       throw err;
@@ -388,13 +338,8 @@ export async function resetUserQuotaForDate(db: any, userId: string, dateKey?: s
     updatedAt: new Date().toISOString()
   };
 
-  try {
-    const primaryUsageRef = doc(db, 'ai_usage', usageDocId);
-    await setDoc(primaryUsageRef, resetData, { merge: true });
-  } catch (err: any) {
-    const fallbackUsageRef = doc(db, 'users', usageDocId);
-    await setDoc(fallbackUsageRef, resetData, { merge: true });
-  }
+  const primaryUsageRef = doc(db, 'ai_usage', usageDocId);
+  await setDoc(primaryUsageRef, resetData, { merge: true });
 
   return true;
 }

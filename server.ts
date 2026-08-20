@@ -267,14 +267,24 @@ function verifyToken(token: string): StoredUser | null {
   }
 }
 
+function isValidUserDoc(u: any): boolean {
+  if (!u || typeof u !== 'object') return false;
+  if (!u.id || typeof u.id !== 'string' || !u.id.trim()) return false;
+  if (u.id === 'system_settings_ai_quota' || u.id.startsWith('reservation_') || u.id.includes('_2026-')) return false;
+  if (!u.username || typeof u.username !== 'string' || !u.username.trim()) return false;
+  if (u.role !== 'admin' && u.role !== 'normal') return false;
+  return true;
+}
+
 async function loadUsersAsync(): Promise<StoredUser[]> {
   if (db) {
     try {
       const usersCol = collection(db, 'users');
       const usersSnapshot = await getDocs(usersCol);
       if (!usersSnapshot.empty) {
-        const users = usersSnapshot.docs.map(doc => doc.data() as StoredUser);
-        const validatedUsers = ensureDefaultUsers(users);
+        const rawUsers = usersSnapshot.docs.map(doc => doc.data() as any);
+        const validUsers = rawUsers.filter(isValidUserDoc) as StoredUser[];
+        const validatedUsers = ensureDefaultUsers(validUsers);
         try {
           if (!fs.existsSync(DATA_DIR)) {
             fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -504,8 +514,9 @@ async function syncFromFirestore() {
 
     // Now read from Firestore to populate our local variables!
     const updatedUsersSnapshot = await getDocs(usersCol);
-    const loadedUsers = updatedUsersSnapshot.docs.map(doc => doc.data() as StoredUser);
-    fs.writeFileSync(USERS_FILE, JSON.stringify(loadedUsers, null, 2), 'utf-8');
+    const loadedUsers = updatedUsersSnapshot.docs.map(doc => doc.data() as any).filter(isValidUserDoc) as StoredUser[];
+    const validatedLoadedUsers = ensureDefaultUsers(loadedUsers);
+    fs.writeFileSync(USERS_FILE, JSON.stringify(validatedLoadedUsers, null, 2), 'utf-8');
 
     const updatedAnalysisSnapshot = await getDocs(analysisCol);
     const loadedAnalysis = updatedAnalysisSnapshot.docs.map(doc => doc.data() as AnalysisRecordItem);
@@ -1940,23 +1951,9 @@ app.get('/api/admin/users', async (req, res) => {
         const usageSnap = await getDoc(usageRef);
         if (usageSnap.exists()) {
           rawUsageData = usageSnap.data();
-        } else {
-          const fallbackRef = doc(db, 'users', usageDocId);
-          const fallbackSnap = await getDoc(fallbackRef);
-          if (fallbackSnap.exists()) {
-            rawUsageData = fallbackSnap.data();
-          }
         }
       } catch (e) {
-        try {
-          const fallbackRef = doc(db, 'users', usageDocId);
-          const fallbackSnap = await getDoc(fallbackRef);
-          if (fallbackSnap.exists()) {
-            rawUsageData = fallbackSnap.data();
-          }
-        } catch (fErr) {
-          console.error(`Error loading usage for user ${u.id}:`, fErr);
-        }
+        console.error(`Error loading usage for user ${u.id}:`, e);
       }
 
       if (rawUsageData) {
@@ -2637,18 +2634,7 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
           await deleteDoc(dSnap.ref);
         }
       } catch (resErr) {
-        // Fallback for reservation deletion if primary collection permission issue
-        try {
-          const fallbackQuery = query(collection(db, 'users'), where('userId', '==', userId), where('dateKey', '==', dateKey));
-          const fallbackSnap = await getDocs(fallbackQuery);
-          for (const dSnap of fallbackSnap.docs) {
-            if (dSnap.id.startsWith('reservation_')) {
-              await deleteDoc(dSnap.ref);
-            }
-          }
-        } catch (fErr) {
-          console.warn('[reset-limit] Reservation deletion warning:', fErr);
-        }
+        console.warn('[reset-limit] Reservation deletion warning:', resErr);
       }
     } catch (err) {
       console.error('Error resetting quota in Firestore:', err);

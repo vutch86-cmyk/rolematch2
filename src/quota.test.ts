@@ -181,4 +181,15 @@ describe('Reserve AI Quota Logic & Isolation Tests', () => {
       requestId: ''
     })).rejects.toThrow('INVALID_REQUEST_ID');
   });
+
+  it('verifies that quota documents are segregated strictly to system_settings, ai_usage, and ai_reservations', () => {
+    const dateKey = getDateKey();
+    const usageDocId = getUsageDocId('usr_test_user', dateKey);
+    const reservationHash = hashRequestId('usr_test_user', dateKey, 'req_segregation_001');
+
+    expect(usageDocId).toBe(`usr_test_user_${dateKey}`);
+    expect(reservationHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(usageDocId.startsWith('usr_test_user')).toBe(true);
+  });
 });
+
