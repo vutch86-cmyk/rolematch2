@@ -848,13 +848,8 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4">
           <p className="font-medium text-slate-700">
             {lang === 'vi'
-              ? 'Trợ Lý Tối Ưu CV & Phân Tích JD — Tiêu Chuẩn Tuyển Dụng Cao Cấp'
-              : 'CV Optimization & JD Analysis Assistant — Professional Recruitment Standards'}
-          </p>
-          <p className="mt-1 text-slate-400">
-            {lang === 'vi'
-              ? 'Tuân thủ nghiêm ngặt nguyên tắc trung thực dữ liệu, không bịa đặt thành tích, bảo vệ thông tin ứng viên.'
-              : 'Strict adherence to data honesty, no fabricated achievements, preserving candidate privacy.'}
+              ? 'RoleMatch — AI hỗ trợ phân tích CV & JD minh bạch, bảo mật và có trách nhiệm.'
+              : 'RoleMatch — AI-powered CV & JD analysis with transparency, security, and accountability.'}
           </p>
         </div>
       </footer>

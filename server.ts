@@ -18,6 +18,7 @@ import {
   SavedBatchCandidate,
   RecruiterBatchDetail
 } from './src/types';
+import { reserveAiQuota } from './quotaService';
 
 dotenv.config();
 
@@ -3739,6 +3740,9 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
   const isEn = lang === 'en';
 
   try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) return res.status(401).json({ error: isEn ? 'Unauthorized' : 'Chưa đăng nhập.' });
+
     const rawJdText = req.body?.jdText || '';
     const jdText = cleanAndStructureExtractedText(rawJdText);
     if (!jdText || !jdText.trim()) {
@@ -3816,46 +3820,60 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
     const requestId = 'req_batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const batchId = (req.body?.batchId as string)?.trim() || ('batch_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
     const batchName = (req.body?.batchName as string)?.trim() || undefined;
-    const currentUser = getUserFromRequest(req);
     const actorUsername = currentUser ? currentUser.username : 'user_batch_hr';
     const createdBy = currentUser ? currentUser.username : actorUsername;
     const userEmailVal = currentUser?.email || (actorUsername.includes('@') ? actorUsername : `${actorUsername}@system.local`);
 
-    const auditResults: { expected: number; saved: number; failed: number; recordIds: string[] } = {
-      expected: allFiles.length,
-      saved: 0,
-      failed: 0,
-      recordIds: [],
-    };
-
-    const firstLine = jdText.trim().split('\n')[0] || '';
-    const jdTitleVal = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
-
     const extractedCandidates: { filename: string; text: string; fileIndex: number }[] = [];
     const failedExtractionResults: any[] = [];
-
+    
     for (let i = 0; i < allFiles.length; i++) {
-      const file = allFiles[i];
-      const extractStartTime = Date.now();
-      let rawText = '';
-      let extractError: any = null;
+        const file = allFiles[i];
+        try {
+            const rawText = await extractTextFromBuffer(file.buffer, file.originalname, file.mimetype);
+            if (rawText && rawText.trim().length > 5) {
+                extractedCandidates.push({
+                    filename: file.originalname,
+                    text: cleanAndStructureExtractedText(rawText),
+                    fileIndex: i
+                });
+            } else {
+                failedExtractionResults.push({ filename: file.originalname, error: 'Empty/Short content' });
+            }
+        } catch (err) {
+            failedExtractionResults.push({ filename: file.originalname, error: err });
+        }
+    }
 
-      try {
-        rawText = await extractTextFromBuffer(file.buffer, file.originalname, file.mimetype);
-      } catch (err: any) {
-        extractError = err;
-      }
+    const requestedUnits = extractedCandidates.length;
+    if (requestedUnits === 0) {
+        return res.status(400).json({ error: isEn ? 'No readable CVs found.' : 'Không tìm thấy CV nào có nội dung đọc được.' });
+    }
 
-      if (!extractError && rawText && rawText.trim().length > 5) {
-        const cleanedText = cleanAndStructureExtractedText(rawText);
-        extractedCandidates.push({
-          filename: file.originalname,
-          text: cleanedText,
-          fileIndex: i,
+    try {
+      const quotaRes = await reserveAiQuota(db, {
+        user: currentUser,
+        units: requestedUnits,
+        source: 'recruiter_batch',
+        requestId: crypto.randomUUID()
+      });
+      if (!quotaRes.allowed) {
+        return res.status(429).json({
+          success: false,
+          code: 'DAILY_AI_LIMIT_EXCEEDED',
+          dailyLimit: quotaRes.dailyLimit,
+          used: quotaRes.usedBefore,
+          requested: requestedUnits,
+          remaining: quotaRes.remaining,
+          resetAt: quotaRes.resetAt
         });
-      } else {
-        const extractDurationMs = Date.now() - extractStartTime;
-        const candName = extractNameFromFilename(file.originalname) || file.originalname.replace(/\.[^/.]+$/, '');
+      }
+    } catch (err: any) {
+      if (err.message === 'QUOTA_SERVICE_UNAVAILABLE') {
+        return res.status(503).json({ error: isEn ? 'Quota service unavailable.' : 'Dịch vụ kiểm soát lượt tạm thời không khả dụng.' });
+      }
+      throw err;
+    }
         const deterministicRecordId = `anl_${requestId}_${i}_${file.originalname.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 16)}`;
         const safeErrMsg = (extractError?.message || (isEn ? 'Could not extract readable text from document.' : 'Không thể trích xuất nội dung văn bản từ tệp tin.')).replace(/(api[_-]?key|token|password|secret)=[^&\s]+/gi, '$1=***');
 
@@ -5483,9 +5501,34 @@ app.post('/api/analyze-cv', async (req, res) => {
   try {
     const { cvText: rawCvText, jdText: rawJdText, clarifyingAnswers, lang = 'vi' } = req.body;
 
-    const limitCheck = await checkAnalysisLimitAndIncrement(req, res, (lang || 'vi') as 'vi' | 'en');
-    if (!limitCheck.allowed) {
-      return;
+    const user = getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: lang === 'en' ? 'Please log in.' : 'Vui lòng đăng nhập.' });
+    }
+
+    try {
+      const quotaRes = await reserveAiQuota(db, {
+        user,
+        units: 1,
+        source: 'candidate',
+        requestId: crypto.randomUUID()
+      });
+      if (!quotaRes.allowed) {
+        return res.status(429).json({
+          success: false,
+          code: 'DAILY_AI_LIMIT_EXCEEDED',
+          dailyLimit: quotaRes.dailyLimit,
+          used: quotaRes.usedBefore,
+          requested: 1,
+          remaining: quotaRes.remaining,
+          resetAt: quotaRes.resetAt
+        });
+      }
+    } catch (err: any) {
+      if (err.message === 'QUOTA_SERVICE_UNAVAILABLE') {
+        return res.status(503).json({ error: lang === 'en' ? 'Quota service unavailable.' : 'Dịch vụ kiểm soát lượt tạm thời không khả dụng.' });
+      }
+      throw err;
     }
 
     if (!rawCvText || !rawCvText.trim() || !rawJdText || !rawJdText.trim()) {
