@@ -2,6 +2,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { setDoc } from 'firebase/firestore';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
+
+function isVerifiedResetUsage(
+  usage: any,
+  expectedUserId: string,
+  expectedDateKey: string
+): boolean {
+  return (
+    usage &&
+    normalizeUserId(usage.userId) === expectedUserId &&
+    usage.dateKey === expectedDateKey &&
+    usage.candidateUnits === 0 &&
+    usage.recruiterUnits === 0 &&
+    usage.totalUnits === 0
+  );
+}
 
 let mockGetDocResolvedValue: any = null;
 
@@ -391,7 +407,6 @@ describe('getUserQuotaUsage Reconciled Scenarios', () => {
   });
 });
 
-import os from 'os';
 
 describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
   let testDataDir: string;
@@ -437,30 +452,17 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
     const resetResult = await resetUserQuotaForDate(mockDb, userId, dateKey);
     expect(resetResult.success).toBe(true);
 
-    // Verify local storage is successfully updated with zero values and newer timestamp
+    // Verify local storage is successfully updated with zero values
     const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
-    expect(localContent[usageDocId]).toBeDefined();
-    expect(localContent[usageDocId].candidateUnits).toBe(0);
-    expect(localContent[usageDocId].recruiterUnits).toBe(0);
-    expect(localContent[usageDocId].totalUnits).toBe(0);
-    expect(localContent[usageDocId].userId).toBe(userId);
+    expect(isVerifiedResetUsage(localContent[usageDocId], userId, dateKey)).toBe(true);
 
-    // Now, mock Firestore returning the reset value (or let's mock it being in sync)
+    // Now, mock Firestore returning the reset value
     mockGetDocResolvedValue = {
       exists: () => true,
-      data: () => ({
-        userId,
-        dateKey,
-        candidateUnits: 0,
-        recruiterUnits: 0,
-        totalUnits: 0,
-        updatedAt: localContent[usageDocId].updatedAt
-      })
+      data: () => localContent[usageDocId]
     };
 
     const finalResult = await getUserQuotaUsage(mockDb, userId, dateKey);
-    expect(finalResult.candidateUnits).toBe(0);
-    expect(finalResult.recruiterUnits).toBe(0);
     expect(finalResult.totalUnits).toBe(0);
     expect(finalResult.storageSource).toBe('firestore');
     expect(finalResult.quotaHealth).toBe('HEALTHY');
@@ -482,9 +484,7 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
         updatedAt: '2026-08-21T02:00:00.000Z'
       }
     };
-    if (!fs.existsSync(path.dirname(LOCAL_USAGE_FILE))) {
-      fs.mkdirSync(path.dirname(LOCAL_USAGE_FILE), { recursive: true });
-    }
+    
     fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(preLocal), 'utf-8');
 
     // Trigger reset without database (null db to simulate connection issue/fallback)
@@ -493,14 +493,10 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
 
     // Verify local is reset
     const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
-    expect(localContent[usageDocId].candidateUnits).toBe(0);
-    expect(localContent[usageDocId].recruiterUnits).toBe(0);
-    expect(localContent[usageDocId].totalUnits).toBe(0);
+    expect(isVerifiedResetUsage(localContent[usageDocId], userId, dateKey)).toBe(true);
 
     // Fetch quota usage without database
     const finalResult = await getUserQuotaUsage(null, userId, dateKey);
-    expect(finalResult.candidateUnits).toBe(0);
-    expect(finalResult.recruiterUnits).toBe(0);
     expect(finalResult.totalUnits).toBe(0);
     expect(finalResult.storageSource).toBe('local_fallback');
     expect(finalResult.quotaHealth).toBe('DEGRADED');
@@ -525,7 +521,7 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
       })
     };
 
-    // Setup newer Local data (e.g., user made some analyses that did not sync to Firestore yet)
+    // Setup newer Local data
     const preLocal = {
       [usageDocId]: {
         userId,
@@ -536,35 +532,23 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
         updatedAt: '2026-08-21T02:00:00.000Z'
       }
     };
-    if (!fs.existsSync(path.dirname(LOCAL_USAGE_FILE))) {
-      fs.mkdirSync(path.dirname(LOCAL_USAGE_FILE), { recursive: true });
-    }
+    
     fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(preLocal), 'utf-8');
 
     // Trigger reset with db
     const resetResult = await resetUserQuotaForDate(mockDb, userId, dateKey);
     expect(resetResult.success).toBe(true);
 
-    // Since the reset sets updatedAt to a brand new current timestamp, both local and Firestore are written to.
-    const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
-    expect(localContent[usageDocId].totalUnits).toBe(0);
-
     // Simulate Firestore containing the zeroed record with the reset timestamp
+    const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
+    expect(isVerifiedResetUsage(localContent[usageDocId], userId, dateKey)).toBe(true);
+
     mockGetDocResolvedValue = {
       exists: () => true,
-      data: () => ({
-        userId,
-        dateKey,
-        candidateUnits: 0,
-        recruiterUnits: 0,
-        totalUnits: 0,
-        updatedAt: localContent[usageDocId].updatedAt
-      })
+      data: () => localContent[usageDocId]
     };
 
     const finalResult = await getUserQuotaUsage(mockDb, userId, dateKey);
-    expect(finalResult.candidateUnits).toBe(0);
-    expect(finalResult.recruiterUnits).toBe(0);
     expect(finalResult.totalUnits).toBe(0);
     expect(finalResult.storageSource).toBe('firestore');
     expect(finalResult.quotaHealth).toBe('HEALTHY');

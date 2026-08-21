@@ -2866,7 +2866,16 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
     
     if (!result.success) {
       if (result.local.success || result.firestore.success) {
-        await recordAuditLog(db, currentUser, 'AI_QUOTA_RESET', `Reset không thành công toàn diện: Local=${result.local.success}, Firestore=${result.firestore.success}.`, 'failure');
+        recordAuditLog({
+          userEmail: currentUser.username || currentUser.email || 'admin',
+          userRole: 'admin',
+          action: 'RESET_USER_QUOTA',
+          category: 'SYSTEM',
+          status: 'error',
+          details: `Reset quota thất bại một phần cho ${dbUser.username}. Local=${result.local.success}, Firestore=${result.firestore.success}.`,
+          ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || req.ip || '127.0.0.1',
+          userAgent: req.headers['user-agent'] || 'Unknown'
+        });
         return res.status(503).json({
           success: false,
           code: 'QUOTA_RESET_PARTIAL_FAILURE',
@@ -2875,7 +2884,16 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
           firestore: { success: result.firestore.success }
         });
       } else {
-        await recordAuditLog(db, currentUser, 'AI_QUOTA_RESET', `Reset thất bại hoàn toàn. Local=${result.local.success}, Firestore=${result.firestore.success}.`, 'failure');
+        recordAuditLog({
+          userEmail: currentUser.username || currentUser.email || 'admin',
+          userRole: 'admin',
+          action: 'RESET_USER_QUOTA',
+          category: 'SYSTEM',
+          status: 'error',
+          details: `Reset quota thất bại hoàn toàn cho ${dbUser.username}. Local=${result.local.success}, Firestore=${result.firestore.success}.`,
+          ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || req.ip || '127.0.0.1',
+          userAgent: req.headers['user-agent'] || 'Unknown'
+        });
         return res.status(500).json({ success: false, error: 'Reset quota thất bại.' });
       }
     }
@@ -2894,13 +2912,40 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
     }
 
     const postResetQuota = await getUserQuotaUsage(db, userId, dateKey);
+
+    if (
+      postResetQuota.candidateUnits !== 0 ||
+      postResetQuota.recruiterUnits !== 0 ||
+      postResetQuota.totalUnits !== 0
+    ) {
+      recordAuditLog({
+        userEmail: currentUser.username || currentUser.email || 'admin',
+        userRole: 'admin',
+        action: 'RESET_USER_QUOTA',
+        category: 'SYSTEM',
+        status: 'error',
+        details: `Reset quota thất bại xác minh sau reset cho ${dbUser.username}.`,
+        ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || req.ip || '127.0.0.1',
+        userAgent: req.headers['user-agent'] || 'Unknown'
+      });
+      return res.status(500).json({ success: false, error: 'Reset quota thất bại xác minh.' });
+    }
     
-    await recordAuditLog(db, currentUser, 'AI_QUOTA_RESET', 
-      `Before: Cand ${preResetQuota.candidateUnits}, Batch ${preResetQuota.recruiterUnits}, Total ${preResetQuota.totalUnits}/${preResetQuota.dailyLimit}. ` +
-      `After: Cand ${postResetQuota.candidateUnits}, Batch ${postResetQuota.recruiterUnits}, Total ${postResetQuota.totalUnits}/${postResetQuota.dailyLimit}. ` +
-      `Storage: ${result.storageSource}.`, 
-      'success'
-    );
+    recordAuditLog({
+      userEmail: currentUser.username || currentUser.email || 'admin',
+      userRole: 'admin',
+      action: 'RESET_USER_QUOTA',
+      category: 'SYSTEM',
+      status: 'success',
+      details: `Trước: Cand ${preResetQuota.candidateUnits}, Batch ${preResetQuota.recruiterUnits}, Total ${preResetQuota.totalUnits}/${preResetQuota.dailyLimit}. Sau: Cand ${postResetQuota.candidateUnits}, Batch ${postResetQuota.recruiterUnits}, Total ${postResetQuota.totalUnits}/${postResetQuota.dailyLimit}. Nguồn: ${result.storageSource}.`,
+      ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || req.ip || '127.0.0.1',
+      userAgent: req.headers['user-agent'] || 'Unknown'
+    });
+
+    if (dbUser.dailyAnalysisCount) {
+      dbUser.dailyAnalysisCount[dateKey] = 0;
+      await saveUsersAsync(users);
+    }
 
     return res.json({
       success: true,
@@ -2919,46 +2964,6 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
     console.error('[reset-limit] Error:', err);
     return res.status(500).json({ success: false, error: 'Đã có lỗi xảy ra.' });
   }
-
-  // Synchronize old user field if it's used elsewhere for safety
-  if (dbUser.dailyAnalysisCount) {
-    dbUser.dailyAnalysisCount[dateKey] = 0;
-    await saveUsersAsync(users);
-  }
-
-  // Retrieve fresh unified quota details
-  const freshQuota = await getUserQuotaUsage(usedDb, userId, dateKey);
-
-  // Write Audit Log
-  try {
-    recordAuditLog({
-      userEmail: currentUser.username || currentUser.email || 'admin',
-      userRole: currentUser.role,
-      action: 'RESET_USER_QUOTA',
-      category: 'SYSTEM',
-      status: 'success',
-      details: `Đặt lại lượt phân tích AI cho user ${dbUser.username} (${userId}) ngày ${dateKey}. Quota nguồn: ${freshQuota.storageSource}.`,
-      ipAddress: req.ip || '127.0.0.1',
-      userAgent: req.headers['user-agent'] || 'Unknown'
-    });
-  } catch (logErr) {
-    console.warn('Audit log write failure on quota reset:', logErr);
-  }
-
-  res.json({
-    success: true,
-    message: `Đã đặt lại số lượt phân tích AI của tài khoản ${dbUser.username || dbUser.fullName || userId}.`,
-    userId,
-    username: dbUser.username || dbUser.fullName || userId,
-    dateKey,
-    candidateUnits: freshQuota.candidateUnits,
-    recruiterUnits: freshQuota.recruiterUnits,
-    totalUnits: freshQuota.totalUnits,
-    dailyLimit: freshQuota.dailyLimit,
-    remainingUnits: freshQuota.remainingUnits,
-    storageSource: freshQuota.storageSource,
-    quotaHealth: freshQuota.quotaHealth
-  });
 });
 
 // ==========================================

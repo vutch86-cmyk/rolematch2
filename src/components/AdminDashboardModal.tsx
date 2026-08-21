@@ -126,7 +126,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
   // AI Limit Config States
   const [limitEnabled, setLimitEnabled] = useState<boolean>(false);
-  const [dailyLimit, setDailyLimit] = useState<number>(5);
+  const [dailyLimit, setDailyLimit] = useState<number>(10);
 
   // --- USERS STATE ---
   const [users, setUsers] = useState<UserAccount[]>([]);

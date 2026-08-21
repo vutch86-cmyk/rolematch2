@@ -90,15 +90,11 @@ function getLocalUsageMap(): Record<string, any> {
 }
 
 function saveLocalUsageRecord(usageDocId: string, usageData: any): void {
-  try {
-    const file = getLocalUsageFile();
-    ensureDataDir(path.dirname(file));
-    const map = getLocalUsageMap();
-    map[usageDocId] = usageData;
-    fs.writeFileSync(file, JSON.stringify(map, null, 2), 'utf-8');
-  } catch (e) {
-    console.warn('Error saving local ai usage record:', e);
-  }
+  const file = getLocalUsageFile();
+  ensureDataDir(path.dirname(file));
+  const map = getLocalUsageMap();
+  map[usageDocId] = usageData;
+  fs.writeFileSync(file, JSON.stringify(map, null, 2), 'utf-8');
 }
 
 export function getDateKey(date: Date = new Date()): string {
