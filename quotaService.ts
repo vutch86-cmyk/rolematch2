@@ -463,3 +463,103 @@ export async function resetUserQuotaForDate(db: any, userId: string, dateKey?: s
 
   return true;
 }
+
+export interface UserQuotaUsageResult {
+  candidateUnits: number;
+  recruiterUnits: number;
+  totalUnits: number;
+  dailyLimit: number;
+  remainingUnits: number;
+  limitEnabled: boolean;
+  storageSource: 'firestore' | 'local_fallback';
+  quotaHealth: 'HEALTHY' | 'DEGRADED' | 'ERROR' | 'MISSING';
+}
+
+export async function getUserQuotaUsage(db: any, userId: string, dateKey?: string): Promise<UserQuotaUsageResult> {
+  const dk = dateKey || getDateKey();
+  const cleanId = normalizeUserId(userId);
+  const usageDocId = getUsageDocId(cleanId, dk);
+
+  // Get quota settings
+  let settings = { limitEnabled: true, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' };
+  try {
+    settings = await getAiQuotaSettings(db);
+  } catch (err) {
+    settings = getLocalSettings();
+  }
+
+  const limitEnabled = settings.limitEnabled;
+  const dailyLimit = settings.dailyLimit;
+
+  // Try reading from Firestore if db is available
+  if (db) {
+    try {
+      const usageRef = doc(db, 'ai_usage', usageDocId);
+      const usageSnap = await getDoc(usageRef);
+      if (usageSnap.exists()) {
+        const u = usageSnap.data() || {};
+        const candidateUnits = Number.isFinite(Number(u.candidateUnits)) && Number(u.candidateUnits) >= 0 ? Math.floor(Number(u.candidateUnits)) : 0;
+        const recruiterUnits = Number.isFinite(Number(u.recruiterUnits)) && Number(u.recruiterUnits) >= 0 ? Math.floor(Number(u.recruiterUnits)) : 0;
+        const totalUnits = Number.isFinite(Number(u.totalUnits)) && Number(u.totalUnits) >= 0 ? Math.floor(Number(u.totalUnits)) : (candidateUnits + recruiterUnits);
+
+        const healthStatus = getQuotaHealth(u);
+
+        return {
+          candidateUnits,
+          recruiterUnits,
+          totalUnits,
+          dailyLimit,
+          remainingUnits: limitEnabled ? Math.max(0, dailyLimit - totalUnits) : dailyLimit,
+          limitEnabled,
+          storageSource: 'firestore',
+          quotaHealth: healthStatus === 'HEALTHY' ? 'HEALTHY' : 'ERROR'
+        };
+      } else {
+        // Document does not exist yet (meaning no usage yet), but db is healthy
+        return {
+          candidateUnits: 0,
+          recruiterUnits: 0,
+          totalUnits: 0,
+          dailyLimit,
+          remainingUnits: dailyLimit,
+          limitEnabled,
+          storageSource: 'firestore',
+          quotaHealth: 'HEALTHY'
+        };
+      }
+    } catch (err: any) {
+      console.warn(`Firestore read failed for user quota of ${cleanId}, falling back to local storage:`, err?.message);
+    }
+  }
+
+  // Fallback to local storage (ai_usage.json)
+  const usageMap = getLocalUsageMap();
+  const u = usageMap[usageDocId];
+  if (u) {
+    const candidateUnits = Number.isFinite(Number(u.candidateUnits)) && Number(u.candidateUnits) >= 0 ? Math.floor(Number(u.candidateUnits)) : 0;
+    const recruiterUnits = Number.isFinite(Number(u.recruiterUnits)) && Number(u.recruiterUnits) >= 0 ? Math.floor(Number(u.recruiterUnits)) : 0;
+    const totalUnits = Number.isFinite(Number(u.totalUnits)) && Number(u.totalUnits) >= 0 ? Math.floor(Number(u.totalUnits)) : (candidateUnits + recruiterUnits);
+
+    return {
+      candidateUnits,
+      recruiterUnits,
+      totalUnits,
+      dailyLimit,
+      remainingUnits: limitEnabled ? Math.max(0, dailyLimit - totalUnits) : dailyLimit,
+      limitEnabled,
+      storageSource: 'local_fallback',
+      quotaHealth: 'DEGRADED'
+    };
+  }
+
+  return {
+    candidateUnits: 0,
+    recruiterUnits: 0,
+    totalUnits: 0,
+    dailyLimit,
+    remainingUnits: dailyLimit,
+    limitEnabled,
+    storageSource: 'local_fallback',
+    quotaHealth: 'DEGRADED'
+  };
+}

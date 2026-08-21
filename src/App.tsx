@@ -532,10 +532,7 @@ export default function App() {
             <p className="mt-2 text-sm text-slate-600 leading-relaxed">
               {lang === 'vi' ? (
                 <>
-                  Nhập CV và JD của vị trí ứng tuyển để nhận kết quả phân tích rành mạch theo 3 tính năng cốt lõi: 
-                  <strong> Trích xuất từ khóa JD & đối chiếu</strong>, 
-                  <strong> Viết lại bullet point chuẩn công thức Action + Tool + Outcome</strong>, và 
-                  <strong> Đánh giá khắt khe trong 10 giây từ Nhà tuyển dụng</strong>.
+                  Nhập CV và JD để đánh giá mức độ phù hợp, xác định điểm mạnh, khoảng trống cần cải thiện và nhận đề xuất giúp CV thuyết phục hơn với nhà tuyển dụng.
                 </>
               ) : (
                 <>

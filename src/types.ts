@@ -98,7 +98,7 @@ export interface UserQuotaInfo {
   limitEnabled: boolean;
   dateKey: string;
   resetAt: string;
-  quotaHealth: 'HEALTHY' | 'NORMALIZED' | 'ERROR';
+  quotaHealth: 'HEALTHY' | 'DEGRADED' | 'NORMALIZED' | 'ERROR';
 }
 
 export interface CandidateAuditMetadata {
@@ -182,7 +182,7 @@ export interface UserAccount {
   limitEnabled?: boolean;
   dateKey?: string;
   resetAt?: string;
-  quotaHealth?: 'HEALTHY' | 'NORMALIZED' | 'ERROR';
+  quotaHealth?: 'HEALTHY' | 'DEGRADED' | 'NORMALIZED' | 'ERROR';
 }
 
 export interface AIModelStatus {

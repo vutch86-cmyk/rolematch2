@@ -18,7 +18,7 @@ import {
   SavedBatchCandidate,
   RecruiterBatchDetail
 } from './src/types';
-import { reserveAiQuota, getAiQuotaSettings, updateAiQuotaSettings, getDateKey, getResetAt, normalizeUserId, getUsageDocId, getQuotaHealth, resetUserQuotaForDate } from './quotaService';
+import { reserveAiQuota, getAiQuotaSettings, updateAiQuotaSettings, getDateKey, getResetAt, normalizeUserId, getUsageDocId, getQuotaHealth, resetUserQuotaForDate, getUserQuotaUsage } from './quotaService';
 
 dotenv.config();
 
@@ -2163,44 +2163,9 @@ app.get('/api/admin/users', async (req, res) => {
   }
 
   const dateKey = getDateKey();
-  let settings = { limitEnabled: true, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' };
-  try {
-    settings = await getAiQuotaSettings(db);
-  } catch (err: any) {
-    console.warn('Error fetching quota settings for admin users endpoint:', err?.message);
-  }
 
   const safeUsers = await Promise.all(users.map(async (u) => {
-    let candidateUnits = 0;
-    let recruiterUnits = 0;
-    let totalUnits = 0;
-    let rawUsageData: any = null;
-
-    if (u.dailyAnalysisCount && typeof u.dailyAnalysisCount[dateKey] === 'number') {
-      candidateUnits = Math.max(0, Math.floor(u.dailyAnalysisCount[dateKey]));
-      totalUnits = candidateUnits;
-    }
-
-    if (db) {
-      const usageDocId = getUsageDocId(u.id, dateKey);
-      try {
-        const usageRef = doc(db, 'ai_usage', usageDocId);
-        const usageSnap = await getDoc(usageRef);
-        if (usageSnap.exists()) {
-          rawUsageData = usageSnap.data();
-        }
-      } catch (e) {
-        // silent fallback
-      }
-
-      if (rawUsageData) {
-        candidateUnits = Number.isFinite(Number(rawUsageData.candidateUnits)) && Number(rawUsageData.candidateUnits) >= 0 ? Math.floor(Number(rawUsageData.candidateUnits)) : candidateUnits;
-        recruiterUnits = Number.isFinite(Number(rawUsageData.recruiterUnits)) && Number(rawUsageData.recruiterUnits) >= 0 ? Math.floor(Number(rawUsageData.recruiterUnits)) : 0;
-        totalUnits = candidateUnits + recruiterUnits;
-      }
-    }
-
-    const quotaHealth = getQuotaHealth(rawUsageData || { candidateUnits, recruiterUnits, totalUnits });
+    const quotaResult = await getUserQuotaUsage(db, u.id, dateKey);
 
     return {
       id: u.id,
@@ -2211,14 +2176,15 @@ app.get('/api/admin/users', async (req, res) => {
       failedLoginAttempts: u.failedLoginAttempts || 0,
       isLocked: !!u.isLocked,
       lockedAt: u.lockedAt,
-      candidateUnits,
-      recruiterUnits,
-      totalUnits,
-      dailyLimit: settings.dailyLimit,
-      limitEnabled: settings.limitEnabled,
+      candidateUnits: quotaResult.candidateUnits,
+      recruiterUnits: quotaResult.recruiterUnits,
+      totalUnits: quotaResult.totalUnits,
+      dailyLimit: quotaResult.dailyLimit,
+      limitEnabled: quotaResult.limitEnabled,
+      storageSource: quotaResult.storageSource,
       dateKey,
       resetAt: getResetAt(),
-      quotaHealth
+      quotaHealth: quotaResult.quotaHealth
     };
   }));
 

@@ -2070,11 +2070,11 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                       <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
                                         qHealth === 'HEALTHY'
                                           ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                                          : qHealth === 'NORMALIZED'
+                                          : qHealth === 'DEGRADED' || qHealth === 'NORMALIZED'
                                           ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                                           : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
                                       }`}>
-                                        {qHealth}
+                                        {qHealth === 'DEGRADED' ? 'DEGRADED (Local Fallback)' : qHealth}
                                       </span>
                                     </div>
                                   );
