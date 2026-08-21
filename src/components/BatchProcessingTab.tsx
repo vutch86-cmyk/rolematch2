@@ -2476,10 +2476,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           </div>
 
           {/* Interactive Table / Cards Leaderboard */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8">
             
             {/* Left Hand: Leaders List Grid */}
-            <div className={isDetailExpanded ? 'hidden' : 'xl:col-span-5 space-y-4'}>
+            <div className={isDetailExpanded ? 'hidden' : 'lg:col-span-4 xl:col-span-5 space-y-4 min-w-0'}>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                   {isEn ? 'Ranked Candidates:' : 'Xếp hạng danh sách ứng viên:'}
                 </span>
@@ -2694,7 +2694,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </div>
 
             {/* Right Hand: Selected Candidate Deep Dive */}
-            <div className={isDetailExpanded ? 'xl:col-span-12' : 'xl:col-span-7'}>
+            <div className={isDetailExpanded ? 'lg:col-span-12 min-w-0' : 'lg:col-span-8 xl:col-span-7 min-w-0'}>
               <AnimatePresence mode="wait">
                 {selectedCandidate ? (
                   selectedCandidate.success === false || !!selectedCandidate.errorMessage ? (
@@ -2703,7 +2703,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="bg-white rounded-3xl p-5 sm:p-6 lg:p-7 border border-rose-200 shadow-sm space-y-6 xl:sticky xl:top-6"
+                      className="bg-white rounded-3xl p-5 sm:p-6 lg:p-7 border border-rose-200 shadow-sm space-y-6 lg:sticky lg:top-6"
                     >
                       <div className="flex items-start justify-between border-b border-rose-100 pb-4">
                         <div>
@@ -2747,7 +2747,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                        className={'bg-white rounded-3xl border border-slate-200 shadow-sm xl:sticky xl:top-6 ' + (
+                        className={'bg-white rounded-3xl border border-slate-200 shadow-sm lg:sticky lg:top-6 ' + (
                           isDetailExpanded 
                             ? 'p-8 xl:p-10 space-y-8 max-w-[1400px] w-full mx-auto' 
                             : 'p-5 sm:p-6 lg:p-7 space-y-6'
@@ -2803,7 +2803,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             onClick={() => setIsDetailExpanded(!isDetailExpanded)}
                             aria-label={isDetailExpanded ? (isEn ? 'Collapse detail' : 'Thu gọn chi tiết') : (isEn ? 'Expand detail' : 'Mở rộng chi tiết')}
                             title={isDetailExpanded ? (isEn ? 'Collapse' : 'Thu gọn') : (isEn ? 'Expand' : 'Mở rộng')}
-                            className={'hidden xl:flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer ' + (
+                            className={'hidden lg:flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer ' + (
                               isDetailExpanded ? 'text-sm px-4 py-2 rounded-xl' : 'text-xs px-3 py-2 rounded-xl'
                             )}
                           >

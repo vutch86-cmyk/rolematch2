@@ -153,23 +153,24 @@ export function getQuotaHealth(usage: any): 'HEALTHY' | 'NORMALIZED' | 'ERROR' {
 }
 
 export async function getAiQuotaSettings(db: any): Promise<{ limitEnabled: boolean; dailyLimit: number; timezone: string }> {
-  if (db) {
-    try {
-      const settingsRef = doc(db, 'system_settings', 'ai_quota');
-      const snap = await getDoc(settingsRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        const res = {
-          limitEnabled: typeof data?.limitEnabled === 'boolean' ? data.limitEnabled : true,
-          dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
-          timezone: data?.timezone || 'Asia/Ho_Chi_Minh'
-        };
-        saveLocalSettings(res);
-        return res;
-      }
-    } catch (err: any) {
-      console.warn('Firestore settings fetch not available, falling back to local settings file:', err?.message);
+  if (!db) {
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
+  }
+  try {
+    const settingsRef = doc(db, 'system_settings', 'ai_quota');
+    const snap = await getDoc(settingsRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      const res = {
+        limitEnabled: typeof data?.limitEnabled === 'boolean' ? data.limitEnabled : true,
+        dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
+        timezone: data?.timezone || 'Asia/Ho_Chi_Minh'
+      };
+      saveLocalSettings(res);
+      return res;
     }
+  } catch (err: any) {
+    console.warn('Firestore settings fetch not available, falling back to local settings file:', err?.message);
   }
 
   return getLocalSettings();
@@ -179,6 +180,9 @@ export async function updateAiQuotaSettings(
   db: any,
   { limitEnabled, dailyLimit, userEmail }: { limitEnabled?: boolean; dailyLimit?: number; userEmail?: string }
 ): Promise<{ limitEnabled: boolean; dailyLimit: number; timezone: string }> {
+  if (!db) {
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
+  }
   const current = await getAiQuotaSettings(db);
   const updated = {
     ...current,
@@ -241,6 +245,10 @@ export async function reserveAiQuota(
   const dateKey = getDateKey();
   const usageDocId = getUsageDocId(userId, dateKey);
   const requestIdHash = hashRequestId(userId, dateKey, requestId);
+
+  if (!db) {
+    throw new Error('QUOTA_SERVICE_UNAVAILABLE');
+  }
 
   // Try Firestore transaction if db is available
   if (db) {
