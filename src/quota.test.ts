@@ -1,4 +1,25 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+
+let mockGetDocResolvedValue: any = null;
+
+vi.mock('firebase/firestore', () => {
+  return {
+    doc: vi.fn((db, colName, docId) => ({ db, colName, docId })),
+    getDoc: vi.fn(async () => {
+      if (mockGetDocResolvedValue) {
+        return mockGetDocResolvedValue;
+      }
+      return {
+        exists: () => false,
+        data: () => null
+      };
+    }),
+    setDoc: vi.fn(),
+    runTransaction: vi.fn()
+  };
+});
 import {
   reserveAiQuota,
   getAiQuotaSettings,
@@ -9,7 +30,8 @@ import {
   getUsageDocId,
   getQuotaHealth,
   hashRequestId,
-  resetUserQuotaForDate
+  resetUserQuotaForDate,
+  getUserQuotaUsage
 } from '../quotaService';
 import { parseApiResponseSafely, ApiParseError } from './utils/apiResponse';
 
@@ -190,6 +212,176 @@ describe('Reserve AI Quota Logic & Isolation Tests', () => {
     expect(usageDocId).toBe(`usr_test_user_${dateKey}`);
     expect(reservationHash).toMatch(/^[a-f0-9]{64}$/);
     expect(usageDocId.startsWith('usr_test_user')).toBe(true);
+  });
+});
+
+describe('getUserQuotaUsage Reconciled Scenarios', () => {
+  const LOCAL_USAGE_FILE = path.join(process.cwd(), 'data', 'ai_usage.json');
+  let originalLocalUsage: string | null = null;
+
+  beforeEach(() => {
+    mockGetDocResolvedValue = null;
+    // Backup local usage
+    if (fs.existsSync(LOCAL_USAGE_FILE)) {
+      originalLocalUsage = fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8');
+    } else {
+      originalLocalUsage = null;
+    }
+    // Clear local usage for clean testing
+    if (fs.existsSync(LOCAL_USAGE_FILE)) {
+      fs.unlinkSync(LOCAL_USAGE_FILE);
+    }
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    mockGetDocResolvedValue = null;
+    // Restore local usage
+    if (originalLocalUsage !== null) {
+      fs.writeFileSync(LOCAL_USAGE_FILE, originalLocalUsage, 'utf-8');
+    } else if (fs.existsSync(LOCAL_USAGE_FILE)) {
+      fs.unlinkSync(LOCAL_USAGE_FILE);
+    }
+  });
+
+  it('Trường hợp A: user mới, chưa dùng quota (Firestore: no doc, Local: no record)', async () => {
+    const mockDb = { type: 'mock_db' };
+    mockGetDocResolvedValue = {
+      exists: () => false,
+      data: () => null
+    };
+
+    const result = await getUserQuotaUsage(mockDb, 'usr_new_user');
+    expect(result.candidateUnits).toBe(0);
+    expect(result.recruiterUnits).toBe(0);
+    expect(result.totalUnits).toBe(0);
+    expect(result.storageSource).toBe('firestore');
+    expect(result.quotaHealth).toBe('HEALTHY');
+  });
+
+  it('Trường hợp B: quota chỉ tồn tại ở Firestore (Firestore: 2/3, Local: no record)', async () => {
+    const mockDb = { type: 'mock_db' };
+    mockGetDocResolvedValue = {
+      exists: () => true,
+      data: () => ({
+        candidateUnits: 2,
+        recruiterUnits: 0,
+        totalUnits: 2,
+        updatedAt: '2026-08-21T01:00:00.000Z'
+      })
+    };
+
+    const result = await getUserQuotaUsage(mockDb, 'usr_fs_only');
+    expect(result.candidateUnits).toBe(2);
+    expect(result.recruiterUnits).toBe(0);
+    expect(result.totalUnits).toBe(2);
+    expect(result.storageSource).toBe('firestore');
+    expect(result.quotaHealth).toBe('HEALTHY');
+  });
+
+  it('Trường hợp C: Firestore không có document nhưng local fallback có quota (Firestore: no doc, Local: 3/3)', async () => {
+    const mockDb = { type: 'mock_db' };
+    mockGetDocResolvedValue = {
+      exists: () => false,
+      data: () => null
+    };
+
+    const dateKey = getDateKey();
+    const usageDocId = getUsageDocId('usr_local_only', dateKey);
+
+    // Setup local usage
+    const localUsage = {
+      [usageDocId]: {
+        userId: 'usr_local_only',
+        candidateUnits: 3,
+        recruiterUnits: 0,
+        totalUnits: 3,
+        updatedAt: '2026-08-21T02:00:00.000Z'
+      }
+    };
+    // Ensure parent directory exists
+    const dir = path.dirname(LOCAL_USAGE_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(localUsage), 'utf-8');
+
+    const result = await getUserQuotaUsage(mockDb, 'usr_local_only');
+    expect(result.candidateUnits).toBe(3);
+    expect(result.recruiterUnits).toBe(0);
+    expect(result.totalUnits).toBe(3);
+    expect(result.storageSource).toBe('local_fallback');
+    expect(result.quotaHealth).toBe('DEGRADED');
+  });
+
+  it('Trường hợp D: Firestore cũ hơn local (Firestore: 1/3, Local: 3/3)', async () => {
+    const mockDb = { type: 'mock_db' };
+    mockGetDocResolvedValue = {
+      exists: () => true,
+      data: () => ({
+        candidateUnits: 1,
+        recruiterUnits: 0,
+        totalUnits: 1,
+        updatedAt: '2026-08-21T03:00:00.000Z'
+      })
+    };
+
+    const dateKey = getDateKey();
+    const usageDocId = getUsageDocId('usr_old_fs', dateKey);
+
+    // Setup local usage (newer updatedAt)
+    const localUsage = {
+      [usageDocId]: {
+        userId: 'usr_old_fs',
+        candidateUnits: 3,
+        recruiterUnits: 0,
+        totalUnits: 3,
+        updatedAt: '2026-08-21T04:00:00.000Z'
+      }
+    };
+    fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(localUsage), 'utf-8');
+
+    const result = await getUserQuotaUsage(mockDb, 'usr_old_fs');
+    expect(result.candidateUnits).toBe(3);
+    expect(result.recruiterUnits).toBe(0);
+    expect(result.totalUnits).toBe(3);
+    expect(result.storageSource).toBe('local_fallback');
+    expect(result.quotaHealth).toBe('DEGRADED');
+  });
+
+  it('Trường hợp E: Firestore mới hơn local (Firestore: 1/2/3, Local: 1/0/1)', async () => {
+    const mockDb = { type: 'mock_db' };
+    mockGetDocResolvedValue = {
+      exists: () => true,
+      data: () => ({
+        candidateUnits: 1,
+        recruiterUnits: 2,
+        totalUnits: 3,
+        updatedAt: '2026-08-21T05:00:00.000Z'
+      })
+    };
+
+    const dateKey = getDateKey();
+    const usageDocId = getUsageDocId('usr_new_fs', dateKey);
+
+    // Setup local usage (older updatedAt)
+    const localUsage = {
+      [usageDocId]: {
+        userId: 'usr_new_fs',
+        candidateUnits: 1,
+        recruiterUnits: 0,
+        totalUnits: 1,
+        updatedAt: '2026-08-21T04:00:00.000Z'
+      }
+    };
+    fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(localUsage), 'utf-8');
+
+    const result = await getUserQuotaUsage(mockDb, 'usr_new_fs');
+    expect(result.candidateUnits).toBe(1);
+    expect(result.recruiterUnits).toBe(2);
+    expect(result.totalUnits).toBe(3);
+    expect(result.storageSource).toBe('firestore');
+    expect(result.quotaHealth).toBe('HEALTHY');
   });
 });
 

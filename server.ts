@@ -2164,8 +2164,16 @@ app.get('/api/admin/users', async (req, res) => {
 
   const dateKey = getDateKey();
 
+  // Preload settings once
+  let preloadedSettings = { limitEnabled: true, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' };
+  try {
+    preloadedSettings = await getAiQuotaSettings(db);
+  } catch (err: any) {
+    console.warn('Error preloading settings for admin users endpoint:', err?.message);
+  }
+
   const safeUsers = await Promise.all(users.map(async (u) => {
-    const quotaResult = await getUserQuotaUsage(db, u.id, dateKey);
+    const quotaResult = await getUserQuotaUsage(db, u.id, dateKey, preloadedSettings);
 
     return {
       id: u.id,

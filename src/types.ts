@@ -99,6 +99,7 @@ export interface UserQuotaInfo {
   dateKey: string;
   resetAt: string;
   quotaHealth: 'HEALTHY' | 'DEGRADED' | 'NORMALIZED' | 'ERROR';
+  storageSource: 'firestore' | 'local_fallback';
 }
 
 export interface CandidateAuditMetadata {
@@ -183,6 +184,7 @@ export interface UserAccount {
   dateKey?: string;
   resetAt?: string;
   quotaHealth?: 'HEALTHY' | 'DEGRADED' | 'NORMALIZED' | 'ERROR';
+  storageSource?: 'firestore' | 'local_fallback';
 }
 
 export interface AIModelStatus {

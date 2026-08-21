@@ -417,7 +417,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
           setLimitEnabled(data.appSettings.limitEnabled);
           setDailyLimit(data.appSettings.dailyLimit);
         }
-        fetchStats();
+        await Promise.all([fetchStats(), fetchUsers()]);
       } else {
         setErrorMsg(formatAdminError(data.error, 'Lỗi khi cập nhật cấu hình.'));
       }
