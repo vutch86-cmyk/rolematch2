@@ -481,7 +481,7 @@ export default function App() {
 
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8 space-y-8">
 
         {/* Mode Switcher Tabs */}
         <div className="bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-4 max-w-2xl mx-auto">
@@ -853,7 +853,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
           <p className="font-medium text-slate-700">
             {lang === 'vi'
               ? 'RoleMatch — AI hỗ trợ phân tích CV & JD minh bạch, bảo mật và có trách nhiệm.'
