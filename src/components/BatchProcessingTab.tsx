@@ -231,11 +231,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [expandedMissingSkills, setExpandedMissingSkills] = useState<boolean>(false);
 
   // Dynamic typography and spacing variables depending on isDetailExpanded
-  const detailTitleClass = isDetailExpanded ? 'text-2xl lg:text-3xl leading-tight' : 'text-lg lg:text-xl';
   const detailBodyClass = isDetailExpanded ? 'text-base leading-7 text-slate-700' : 'text-sm leading-6 text-slate-700';
   const detailSecondaryClass = isDetailExpanded ? 'text-sm leading-6' : 'text-xs leading-5';
   const detailSectionTitleClass = isDetailExpanded ? 'text-sm' : 'text-xs';
-  const detailBadgeClass = isDetailExpanded ? 'text-xs px-3 py-1' : 'text-[11px] px-2.5 py-0.5';
   const detailTagClass = isDetailExpanded ? 'text-xs px-3 py-1.5 rounded-xl' : 'text-[11px] px-2.5 py-1 rounded-lg';
 
   useEffect(() => {
@@ -2475,19 +2473,21 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </div>
           </div>
 
+          {/* Section Header for Candidates */}
+          <div className={isDetailExpanded ? 'hidden' : 'flex items-center justify-between pb-2.5'}>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {isEn ? 'Ranked Candidates:' : 'Xếp hạng danh sách ứng viên:'}
+            </span>
+            <span className="text-[11px] font-bold text-slate-400">
+              {filteredResults.length} {isEn ? 'candidates' : 'ứng viên'}
+            </span>
+          </div>
+
           {/* Interactive Table / Cards Leaderboard */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Left Hand: Leaders List Grid */}
             <div className={isDetailExpanded ? 'hidden' : 'lg:col-span-5 space-y-4 min-w-0'}>
-              <div className="flex items-center justify-between pb-0.5">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  {isEn ? 'Ranked Candidates:' : 'Xếp hạng danh sách ứng viên:'}
-                </span>
-                <span className="text-[11px] font-bold text-slate-400">
-                  {filteredResults.length} {isEn ? 'candidates' : 'ứng viên'}
-                </span>
-              </div>
 
               {filteredResults.length === 0 ? (
                 <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center text-slate-500 text-xs">
@@ -2767,7 +2767,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             </span>
                             {detailRankNum !== null && (
                               <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                Rank #{detailRankNum}
+                                {isEn ? `Rank #${detailRankNum}` : `Hạng #${detailRankNum}`}
                               </span>
                             )}
                             {typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore) && (
@@ -2861,7 +2861,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 flex items-center justify-between">
                             <span className="text-xs text-slate-500 font-medium">{isEn ? 'Overall Match' : 'Độ tương thích'}</span>
                             <span className="text-sm font-bold text-slate-900">
@@ -2874,12 +2874,12 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               {getMatchLevelLabel(selectedCandidate.matchLevel)}
                             </span>
                           </div>
-                          <div className="bg-indigo-50/80 p-2.5 rounded-lg border border-indigo-100 flex items-center justify-between sm:col-span-1">
-                            <span className="text-xs text-indigo-900 font-medium flex items-center gap-1">
+                          <div className="bg-indigo-50/80 p-2.5 rounded-lg border border-indigo-100 flex items-center justify-between sm:col-span-2 min-w-0 flex-wrap gap-2">
+                            <span className="text-xs text-indigo-900 font-medium flex items-center gap-1 shrink-0">
                               <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                               {isEn ? 'AI Rec:' : 'Đề xuất:'}
                             </span>
-                            <span className="text-xs font-bold text-indigo-700 truncate">
+                            <span className="text-xs font-bold text-indigo-700 min-w-0 break-words whitespace-normal leading-relaxed">
                               {getAiRecommendationText(selectedCandidate)}
                             </span>
                           </div>
@@ -3042,7 +3042,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                               <div className={'bg-indigo-50/50 rounded-xl border border-indigo-100/80 flex flex-col justify-between p-3 space-y-1.5'}>
                                 <div className={'flex items-center gap-1.5 font-bold text-indigo-950 ' + detailSectionTitleClass}>
                                   <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                                  <span>{isEn ? 'First Impression' : 'Ấn tượng đầu tiên'}</span>
+                                  <span>{isEn ? '10-Second First Impression' : 'Ấn tượng 10s đầu tiên'}</span>
                                 </div>
                                 <p className={'text-slate-700 font-medium max-w-[72ch] break-words ' + detailBodyClass}>
                                   "{quickScanData.firstImpression10s}"
