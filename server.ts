@@ -2852,13 +2852,24 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
     return res.status(404).json({ error: 'Không tìm thấy tài khoản người dùng.' });
   }
 
+  if (dbUser.role !== 'normal') {
+    return res.status(400).json({ error: 'Chỉ có thể đặt lại số lượt cho tài khoản có quyền người dùng thường (normal).' });
+  }
+
   const userId = normalizeUserId(dbUser.id);
   const dateKey = getDateKey();
 
-  if (db) {
-    try {
-      await resetUserQuotaForDate(db, userId, dateKey);
+  let usedDb: any = db;
+  let storageSource: 'firestore' | 'local_fallback' = 'firestore';
+  let quotaHealth: 'HEALTHY' | 'DEGRADED' | 'NORMALIZED' | 'ERROR' = 'HEALTHY';
 
+  try {
+    await resetUserQuotaForDate(db, userId, dateKey);
+    if (!db) {
+      storageSource = 'local_fallback';
+      quotaHealth = 'DEGRADED';
+      usedDb = null;
+    } else {
       try {
         const resQuery = query(collection(db, 'ai_reservations'), where('userId', '==', userId), where('dateKey', '==', dateKey));
         const resSnap = await getDocs(resQuery);
@@ -2868,18 +2879,58 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
       } catch (resErr) {
         console.warn('[reset-limit] Reservation deletion warning:', resErr);
       }
-    } catch (err) {
-      console.error('Error resetting quota in Firestore:', err);
-      return res.status(503).json({ success: false, code: 'QUOTA_SERVICE_UNAVAILABLE', error: 'Không thể reset quota do lỗi kết nối cơ sở dữ liệu.' });
+    }
+  } catch (err: any) {
+    console.error('Error resetting quota in Firestore, trying local fallback reset:', err);
+    try {
+      await resetUserQuotaForDate(null, userId, dateKey);
+      storageSource = 'local_fallback';
+      quotaHealth = 'DEGRADED';
+      usedDb = null;
+    } catch (localErr) {
+      return res.status(500).json({ success: false, error: 'Không thể đặt lại hạn mức do lỗi lưu trữ hệ thống.' });
     }
   }
 
+  // Synchronize old user field if it's used elsewhere for safety
   if (dbUser.dailyAnalysisCount) {
     dbUser.dailyAnalysisCount[dateKey] = 0;
     await saveUsersAsync(users);
   }
 
-  res.json({ success: true, message: `Đã đặt lại giới hạn lượt phân tích của người dùng "${dbUser.fullName}" về 0.` });
+  // Retrieve fresh unified quota details
+  const freshQuota = await getUserQuotaUsage(usedDb, userId, dateKey);
+
+  // Write Audit Log
+  try {
+    recordAuditLog({
+      userEmail: currentUser.username || currentUser.email || 'admin',
+      userRole: currentUser.role,
+      action: 'RESET_USER_QUOTA',
+      category: 'SYSTEM',
+      status: 'success',
+      details: `Đặt lại lượt phân tích AI cho user ${dbUser.username} (${userId}) ngày ${dateKey}. Quota nguồn: ${freshQuota.storageSource}.`,
+      ipAddress: req.ip || '127.0.0.1',
+      userAgent: req.headers['user-agent'] || 'Unknown'
+    });
+  } catch (logErr) {
+    console.warn('Audit log write failure on quota reset:', logErr);
+  }
+
+  res.json({
+    success: true,
+    message: `Đã đặt lại số lượt phân tích AI của tài khoản ${dbUser.username || dbUser.fullName || userId}.`,
+    userId,
+    username: dbUser.username || dbUser.fullName || userId,
+    dateKey,
+    candidateUnits: freshQuota.candidateUnits,
+    recruiterUnits: freshQuota.recruiterUnits,
+    totalUnits: freshQuota.totalUnits,
+    dailyLimit: freshQuota.dailyLimit,
+    remainingUnits: freshQuota.remainingUnits,
+    storageSource: freshQuota.storageSource,
+    quotaHealth: freshQuota.quotaHealth
+  });
 });
 
 // ==========================================

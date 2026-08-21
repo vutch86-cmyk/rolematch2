@@ -8,5 +8,29 @@
     "recruiterUnits": 0,
     "totalUnits": 2,
     "updatedAt": "2026-08-21T01:41:51.212Z"
+  },
+  "usr_reset_fs_2026-08-21": {
+    "userId": "usr_reset_fs",
+    "dateKey": "2026-08-21",
+    "candidateUnits": 0,
+    "recruiterUnits": 0,
+    "totalUnits": 0,
+    "updatedAt": "2026-08-21T04:57:41.211Z"
+  },
+  "usr_reset_local_only_2026-08-21": {
+    "userId": "usr_reset_local_only",
+    "dateKey": "2026-08-21",
+    "candidateUnits": 0,
+    "recruiterUnits": 0,
+    "totalUnits": 0,
+    "updatedAt": "2026-08-21T04:57:41.220Z"
+  },
+  "usr_reset_unsynced_2026-08-21": {
+    "userId": "usr_reset_unsynced",
+    "dateKey": "2026-08-21",
+    "candidateUnits": 0,
+    "recruiterUnits": 0,
+    "totalUnits": 0,
+    "updatedAt": "2026-08-21T04:57:41.228Z"
   }
 }

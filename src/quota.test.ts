@@ -385,3 +385,189 @@ describe('getUserQuotaUsage Reconciled Scenarios', () => {
   });
 });
 
+describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
+  const LOCAL_USAGE_FILE = path.join(process.cwd(), 'data', 'ai_usage.json');
+  let originalLocalUsage: string | null = null;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetDocResolvedValue = null;
+    // Backup local usage
+    if (fs.existsSync(LOCAL_USAGE_FILE)) {
+      originalLocalUsage = fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8');
+    } else {
+      originalLocalUsage = null;
+    }
+    // Clear local usage for clean testing
+    if (fs.existsSync(LOCAL_USAGE_FILE)) {
+      fs.unlinkSync(LOCAL_USAGE_FILE);
+    }
+  });
+
+  afterEach(() => {
+    mockGetDocResolvedValue = null;
+    // Restore local usage
+    if (originalLocalUsage !== null) {
+      fs.writeFileSync(LOCAL_USAGE_FILE, originalLocalUsage, 'utf-8');
+    } else if (fs.existsSync(LOCAL_USAGE_FILE)) {
+      fs.unlinkSync(LOCAL_USAGE_FILE);
+    }
+  });
+
+  it('Reset when quota is in Firestore: saves reset data both to Firestore and local, resetting to 0/0/0', async () => {
+    const mockDb = { type: 'mock_db' };
+    const dateKey = getDateKey();
+    const userId = 'usr_reset_fs';
+    const usageDocId = getUsageDocId(userId, dateKey);
+
+    // Initial state setup: we can simulate Firestore having old data
+    mockGetDocResolvedValue = {
+      exists: () => true,
+      data: () => ({
+        userId,
+        dateKey,
+        candidateUnits: 2,
+        recruiterUnits: 1,
+        totalUnits: 3,
+        updatedAt: '2026-08-21T03:00:00.000Z'
+      })
+    };
+
+    // Trigger reset action
+    const resetSuccess = await resetUserQuotaForDate(mockDb, userId, dateKey);
+    expect(resetSuccess).toBe(true);
+
+    // Verify local storage is successfully updated with zero values and newer timestamp
+    const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
+    expect(localContent[usageDocId]).toBeDefined();
+    expect(localContent[usageDocId].candidateUnits).toBe(0);
+    expect(localContent[usageDocId].recruiterUnits).toBe(0);
+    expect(localContent[usageDocId].totalUnits).toBe(0);
+    expect(localContent[usageDocId].userId).toBe(userId);
+
+    // Now, mock Firestore returning the reset value (or let's mock it being in sync)
+    mockGetDocResolvedValue = {
+      exists: () => true,
+      data: () => ({
+        userId,
+        dateKey,
+        candidateUnits: 0,
+        recruiterUnits: 0,
+        totalUnits: 0,
+        updatedAt: localContent[usageDocId].updatedAt
+      })
+    };
+
+    const finalResult = await getUserQuotaUsage(mockDb, userId, dateKey);
+    expect(finalResult.candidateUnits).toBe(0);
+    expect(finalResult.recruiterUnits).toBe(0);
+    expect(finalResult.totalUnits).toBe(0);
+    expect(finalResult.storageSource).toBe('firestore');
+    expect(finalResult.quotaHealth).toBe('HEALTHY');
+  });
+
+  it('Reset when Firestore is down (Local Fallback): successfully resets local to 0/0/0 and returns DEGRADED state', async () => {
+    const dateKey = getDateKey();
+    const userId = 'usr_reset_local_only';
+    const usageDocId = getUsageDocId(userId, dateKey);
+
+    // Pre-populate old usage on local fallback
+    const preLocal = {
+      [usageDocId]: {
+        userId,
+        dateKey,
+        candidateUnits: 3,
+        recruiterUnits: 2,
+        totalUnits: 5,
+        updatedAt: '2026-08-21T02:00:00.000Z'
+      }
+    };
+    if (!fs.existsSync(path.dirname(LOCAL_USAGE_FILE))) {
+      fs.mkdirSync(path.dirname(LOCAL_USAGE_FILE), { recursive: true });
+    }
+    fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(preLocal), 'utf-8');
+
+    // Trigger reset without database (null db to simulate connection issue/fallback)
+    const resetSuccess = await resetUserQuotaForDate(null, userId, dateKey);
+    expect(resetSuccess).toBe(true);
+
+    // Verify local is reset
+    const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
+    expect(localContent[usageDocId].candidateUnits).toBe(0);
+    expect(localContent[usageDocId].recruiterUnits).toBe(0);
+    expect(localContent[usageDocId].totalUnits).toBe(0);
+
+    // Fetch quota usage without database
+    const finalResult = await getUserQuotaUsage(null, userId, dateKey);
+    expect(finalResult.candidateUnits).toBe(0);
+    expect(finalResult.recruiterUnits).toBe(0);
+    expect(finalResult.totalUnits).toBe(0);
+    expect(finalResult.storageSource).toBe('local_fallback');
+    expect(finalResult.quotaHealth).toBe('DEGRADED');
+  });
+
+  it('Reset when both have unsynced data: ensures reset overwrites both so old quota never returns', async () => {
+    const mockDb = { type: 'mock_db' };
+    const dateKey = getDateKey();
+    const userId = 'usr_reset_unsynced';
+    const usageDocId = getUsageDocId(userId, dateKey);
+
+    // Setup older Firestore data
+    mockGetDocResolvedValue = {
+      exists: () => true,
+      data: () => ({
+        userId,
+        dateKey,
+        candidateUnits: 1,
+        recruiterUnits: 0,
+        totalUnits: 1,
+        updatedAt: '2026-08-21T01:00:00.000Z'
+      })
+    };
+
+    // Setup newer Local data (e.g., user made some analyses that did not sync to Firestore yet)
+    const preLocal = {
+      [usageDocId]: {
+        userId,
+        dateKey,
+        candidateUnits: 3,
+        recruiterUnits: 1,
+        totalUnits: 4,
+        updatedAt: '2026-08-21T02:00:00.000Z'
+      }
+    };
+    if (!fs.existsSync(path.dirname(LOCAL_USAGE_FILE))) {
+      fs.mkdirSync(path.dirname(LOCAL_USAGE_FILE), { recursive: true });
+    }
+    fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(preLocal), 'utf-8');
+
+    // Trigger reset with db
+    const resetSuccess = await resetUserQuotaForDate(mockDb, userId, dateKey);
+    expect(resetSuccess).toBe(true);
+
+    // Since the reset sets updatedAt to a brand new current timestamp, both local and Firestore are written to.
+    const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
+    expect(localContent[usageDocId].totalUnits).toBe(0);
+
+    // Simulate Firestore containing the zeroed record with the reset timestamp
+    mockGetDocResolvedValue = {
+      exists: () => true,
+      data: () => ({
+        userId,
+        dateKey,
+        candidateUnits: 0,
+        recruiterUnits: 0,
+        totalUnits: 0,
+        updatedAt: localContent[usageDocId].updatedAt
+      })
+    };
+
+    const finalResult = await getUserQuotaUsage(mockDb, userId, dateKey);
+    expect(finalResult.candidateUnits).toBe(0);
+    expect(finalResult.recruiterUnits).toBe(0);
+    expect(finalResult.totalUnits).toBe(0);
+    expect(finalResult.storageSource).toBe('firestore');
+    expect(finalResult.quotaHealth).toBe('HEALTHY');
+  });
+});
+

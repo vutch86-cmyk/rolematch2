@@ -304,6 +304,9 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
 
+  const [resetConfirmUser, setResetConfirmUser] = useState<UserAccount | null>(null);
+  const [isResettingUser, setIsResettingUser] = useState<string | null>(null);
+
   const formatAdminError = (err: any, defaultMsg: string): string => {
     let msg = typeof err === 'string' ? err : err?.message || defaultMsg;
     if (
@@ -428,7 +431,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
   // Reset user analysis count
   const handleResetUserLimit = async (userId: string) => {
-    if (!token) return;
+    if (!token || isResettingUser) return;
+    setIsResettingUser(userId);
     setErrorMsg('');
     setSuccessMsg('');
     try {
@@ -437,13 +441,15 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       });
       if (ok && data.success) {
         setSuccessMsg(data.message || 'Đã đặt lại giới hạn thành công!');
-        fetchUsers();
-        fetchStats();
+        await Promise.all([fetchUsers(), fetchStats()]);
       } else {
-        setErrorMsg(formatAdminError(data.error, 'Lỗi khi đặt lại giới hạn.'));
+        setErrorMsg(formatAdminError(data.error || data.message, 'Lỗi khi đặt lại giới hạn.'));
       }
     } catch (err: any) {
       setErrorMsg(formatAdminError(err, 'Lỗi kết nối.'));
+    } finally {
+      setIsResettingUser(null);
+      setResetConfirmUser(null);
     }
   };
 
@@ -2141,20 +2147,25 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               </button>
                             )}
 
-                            {!isAdmin && (() => {
-                              const todayStr = new Date().toISOString().split('T')[0];
-                              const todayRuns = u.dailyAnalysisCount?.[todayStr] || 0;
-                              return todayRuns > 0 ? (
-                                <button
-                                  onClick={() => handleResetUserLimit(u.id)}
-                                  className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 font-bold text-xs transition-colors cursor-pointer animate-fade-in"
-                                  title="Đặt lại lượt chạy phân tích của người dùng này về 0"
-                                >
-                                  <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-                                  <span>{lang === 'vi' ? 'Reset Lượt AI' : 'Reset AI Runs'}</span>
-                                </button>
-                              ) : null;
-                            })()}
+                            {u.role === 'normal' && (
+                              <button
+                                onClick={() => setResetConfirmUser(u)}
+                                disabled={isResettingUser === u.id}
+                                className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold text-xs transition-colors cursor-pointer ${
+                                  isResettingUser === u.id
+                                    ? 'bg-slate-800 text-slate-500 border border-slate-700 opacity-50 cursor-not-allowed'
+                                    : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                                }`}
+                                title={lang === 'vi' ? 'Đặt lại lượt phân tích AI hôm nay' : 'Reset today AI usage'}
+                              >
+                                <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isResettingUser === u.id ? 'animate-spin' : ''}`} />
+                                <span>
+                                  {isResettingUser === u.id
+                                    ? (lang === 'vi' ? 'Đang đặt lại...' : 'Resetting...')
+                                    : (lang === 'vi' ? 'Reset AI' : 'Reset AI Usage')}
+                                </span>
+                              </button>
+                            )}
 
                             <button
                               onClick={() => {
@@ -3841,6 +3852,78 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                 className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl cursor-pointer"
               >
                 Đóng Báo Cáo
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* SUB-MODAL: CONFIRM RESET AI USAGE */}
+      {resetConfirmUser && (
+        <div className="fixed inset-0 z-[120] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md bg-slate-950 border border-indigo-500/30 rounded-3xl overflow-hidden shadow-2xl shadow-indigo-500/5 flex flex-col"
+          >
+            <div className="p-5 bg-gradient-to-r from-indigo-950/40 to-slate-900 border-b border-indigo-500/20 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                <RefreshCw className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-100 text-sm">
+                  {lang === 'vi' ? 'Xác Nhận Đặt Lại Lượt AI' : 'Confirm AI Quota Reset'}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {lang === 'vi' ? 'Hành động yêu cầu quyền Admin' : 'Admin authority required'}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                {lang === 'vi' ? (
+                  <>
+                    Bạn có chắc chắn muốn đặt lại số lượt phân tích AI hôm nay của tài khoản{' '}
+                    <strong className="text-indigo-300">"{resetConfirmUser.username}"</strong>?
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to reset today's AI analysis usage for account{' '}
+                    <strong className="text-indigo-300">"{resetConfirmUser.username}"</strong>?
+                  </>
+                )}
+              </p>
+
+              <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-1">
+                <p className="text-xs text-indigo-300 font-semibold flex items-center gap-1">
+                  💡 {lang === 'vi' ? 'Thông tin bổ sung:' : 'Additional information:'}
+                </p>
+                <p className="text-xs text-slate-400 leading-normal">
+                  {lang === 'vi'
+                    ? 'Thao tác này sẽ đặt lại số lượt đã sử dụng tại cả tab Ứng viên và Nhà tuyển dụng về 0. Giới hạn hằng ngày của tài khoản vẫn giữ nguyên.'
+                    : 'This action resets used units on both Candidate and Recruiter tabs to 0. Daily limits of the account will remain unchanged.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-900/50 border-t border-slate-800 flex items-center justify-end gap-3 shrink-0">
+              <button
+                onClick={() => setResetConfirmUser(null)}
+                disabled={isResettingUser === resetConfirmUser.id}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {lang === 'vi' ? 'Hủy' : 'Cancel'}
+              </button>
+              <button
+                onClick={() => handleResetUserLimit(resetConfirmUser.id)}
+                disabled={isResettingUser === resetConfirmUser.id}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResettingUser === resetConfirmUser.id && (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                )}
+                {lang === 'vi' ? 'Xác Nhận Reset' : 'Confirm Reset'}
               </button>
             </div>
           </motion.div>
