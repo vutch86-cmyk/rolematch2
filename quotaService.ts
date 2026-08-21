@@ -16,14 +16,21 @@ export interface QuotaReservationResult {
   code?: 'DAILY_AI_LIMIT_EXCEEDED' | 'QUOTA_SERVICE_UNAVAILABLE';
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const LOCAL_SETTINGS_FILE = path.join(DATA_DIR, 'app_settings.json');
-const LOCAL_USAGE_FILE = path.join(DATA_DIR, 'ai_usage.json');
+function getLocalUsageFile(): string {
+  const DATA_DIR = process.env.TEST_DATA_DIR || path.join(process.cwd(), 'data');
+  return path.join(DATA_DIR, 'ai_usage.json');
+}
 
-function ensureDataDir(): void {
+function getLocalSettingsFile(): string {
+  const DATA_DIR = process.env.TEST_DATA_DIR || path.join(process.cwd(), 'data');
+  return path.join(DATA_DIR, 'app_settings.json');
+}
+
+function ensureDataDir(dataDir?: string): void {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const dir = dataDir || process.env.TEST_DATA_DIR || path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
   } catch (e) {
     // ignore
@@ -32,13 +39,14 @@ function ensureDataDir(): void {
 
 function getLocalSettings(): { limitEnabled: boolean; dailyLimit: number; timezone: string } {
   try {
-    ensureDataDir();
-    if (fs.existsSync(LOCAL_SETTINGS_FILE)) {
-      const raw = fs.readFileSync(LOCAL_SETTINGS_FILE, 'utf-8');
+    const file = getLocalSettingsFile();
+    ensureDataDir(path.dirname(file));
+    if (fs.existsSync(file)) {
+      const raw = fs.readFileSync(file, 'utf-8');
       const data = JSON.parse(raw);
       return {
         limitEnabled: typeof data?.limitEnabled === 'boolean' ? data.limitEnabled : true,
-        dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 10,
+        dailyLimit: typeof data?.dailyLimit === 'number' && data.dailyLimit >= 1 ? Math.floor(data.dailyLimit) : 5,
         timezone: data?.timezone || 'Asia/Ho_Chi_Minh'
       };
     }
@@ -47,15 +55,16 @@ function getLocalSettings(): { limitEnabled: boolean; dailyLimit: number; timezo
   }
   return {
     limitEnabled: true,
-    dailyLimit: 10,
+    dailyLimit: 5,
     timezone: 'Asia/Ho_Chi_Minh'
   };
 }
 
 function saveLocalSettings(settings: { limitEnabled: boolean; dailyLimit: number; timezone?: string }): void {
   try {
-    ensureDataDir();
-    fs.writeFileSync(LOCAL_SETTINGS_FILE, JSON.stringify({
+    const file = getLocalSettingsFile();
+    ensureDataDir(path.dirname(file));
+    fs.writeFileSync(file, JSON.stringify({
       limitEnabled: settings.limitEnabled,
       dailyLimit: settings.dailyLimit,
       timezone: settings.timezone || 'Asia/Ho_Chi_Minh',
@@ -68,9 +77,10 @@ function saveLocalSettings(settings: { limitEnabled: boolean; dailyLimit: number
 
 function getLocalUsageMap(): Record<string, any> {
   try {
-    ensureDataDir();
-    if (fs.existsSync(LOCAL_USAGE_FILE)) {
-      const raw = fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8');
+    const file = getLocalUsageFile();
+    ensureDataDir(path.dirname(file));
+    if (fs.existsSync(file)) {
+      const raw = fs.readFileSync(file, 'utf-8');
       return JSON.parse(raw) || {};
     }
   } catch (e) {
@@ -81,10 +91,11 @@ function getLocalUsageMap(): Record<string, any> {
 
 function saveLocalUsageRecord(usageDocId: string, usageData: any): void {
   try {
-    ensureDataDir();
+    const file = getLocalUsageFile();
+    ensureDataDir(path.dirname(file));
     const map = getLocalUsageMap();
     map[usageDocId] = usageData;
-    fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(map, null, 2), 'utf-8');
+    fs.writeFileSync(file, JSON.stringify(map, null, 2), 'utf-8');
   } catch (e) {
     console.warn('Error saving local ai usage record:', e);
   }
@@ -436,7 +447,25 @@ export async function reserveAiQuota(
   };
 }
 
-export async function resetUserQuotaForDate(db: any, userId: string, dateKey?: string): Promise<boolean> {
+export interface QuotaResetResult {
+  success: boolean;
+  dateKey: string;
+  userId: string;
+  local: {
+    attempted: boolean;
+    success: boolean;
+    error?: string;
+  };
+  firestore: {
+    attempted: boolean;
+    success: boolean;
+    error?: string;
+  };
+  storageSource: 'firestore' | 'local_fallback' | 'partial' | 'unavailable';
+  quotaHealth: 'HEALTHY' | 'DEGRADED' | 'NORMALIZED' | 'ERROR';
+}
+
+export async function resetUserQuotaForDate(db: any, userId: string, dateKey?: string): Promise<QuotaResetResult> {
   const cleanId = normalizeUserId(userId);
   const dk = dateKey || getDateKey();
   const usageDocId = getUsageDocId(cleanId, dk);
@@ -450,18 +479,74 @@ export async function resetUserQuotaForDate(db: any, userId: string, dateKey?: s
     updatedAt: new Date().toISOString()
   };
 
-  saveLocalUsageRecord(usageDocId, resetData);
+  const result: QuotaResetResult = {
+    success: false,
+    dateKey: dk,
+    userId: cleanId,
+    local: { attempted: true, success: false },
+    firestore: { attempted: false, success: false },
+    storageSource: 'unavailable',
+    quotaHealth: 'ERROR'
+  };
 
+  // Reset Local
+  try {
+    saveLocalUsageRecord(usageDocId, resetData);
+    // Verify
+    const map = getLocalUsageMap();
+    if (map[usageDocId] && map[usageDocId].totalUnits === 0) {
+      result.local.success = true;
+    } else {
+      result.local.error = 'Verification failed: Local data not reset';
+    }
+  } catch (err: any) {
+    result.local.error = err?.message;
+  }
+
+  // Reset Firestore
   if (db) {
+    result.firestore.attempted = true;
     try {
       const primaryUsageRef = doc(db, 'ai_usage', usageDocId);
       await setDoc(primaryUsageRef, resetData, { merge: true });
+      // Verify
+      const snap = await getDoc(primaryUsageRef);
+      if (snap.exists() && snap.data()?.totalUnits === 0) {
+        result.firestore.success = true;
+      } else {
+        result.firestore.error = 'Verification failed: Firestore data not reset';
+      }
     } catch (err: any) {
-      console.warn('Unable to sync quota reset to Firestore:', err?.message);
+      result.firestore.error = err?.message;
     }
   }
 
-  return true;
+  // Determine Final Success
+  const firestoreRequired = !!db;
+  
+  if (firestoreRequired) {
+    if (result.firestore.success && result.local.success) {
+      result.success = true;
+      result.storageSource = 'firestore';
+      result.quotaHealth = 'HEALTHY';
+    } else if (result.firestore.success) {
+      result.storageSource = 'partial';
+      result.quotaHealth = 'NORMALIZED';
+    } else if (result.local.success) {
+      // Local succeeded, but Firestore failed, still partial
+      result.storageSource = 'partial';
+      result.quotaHealth = 'DEGRADED';
+    }
+  } else {
+    // Only local attempted
+    if (result.local.success) {
+      result.success = true;
+      result.storageSource = 'local_fallback';
+      result.quotaHealth = 'DEGRADED';
+    }
+  }
+
+  return result;
 }
 
 export interface UserQuotaUsageResult {

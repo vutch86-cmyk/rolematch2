@@ -2165,7 +2165,7 @@ app.get('/api/admin/users', async (req, res) => {
   const dateKey = getDateKey();
 
   // Preload settings once
-  let preloadedSettings = { limitEnabled: true, dailyLimit: 10, timezone: 'Asia/Ho_Chi_Minh' };
+  let preloadedSettings = { limitEnabled: true, dailyLimit: 5, timezone: 'Asia/Ho_Chi_Minh' };
   try {
     preloadedSettings = await getAiQuotaSettings(db);
   } catch (err: any) {
@@ -2725,7 +2725,7 @@ app.get('/api/admin/stats', async (req, res) => {
 
   let aiQuota: { limitEnabled: boolean; dailyLimit: number; timezone: string } = {
     limitEnabled: true,
-    dailyLimit: 10,
+    dailyLimit: 5,
     timezone: 'Asia/Ho_Chi_Minh'
   };
   try {
@@ -2859,17 +2859,29 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
   const userId = normalizeUserId(dbUser.id);
   const dateKey = getDateKey();
 
-  let usedDb: any = db;
-  let storageSource: 'firestore' | 'local_fallback' = 'firestore';
-  let quotaHealth: 'HEALTHY' | 'DEGRADED' | 'NORMALIZED' | 'ERROR' = 'HEALTHY';
+  const preResetQuota = await getUserQuotaUsage(db, userId, dateKey);
 
   try {
-    await resetUserQuotaForDate(db, userId, dateKey);
-    if (!db) {
-      storageSource = 'local_fallback';
-      quotaHealth = 'DEGRADED';
-      usedDb = null;
-    } else {
+    const result = await resetUserQuotaForDate(db, userId, dateKey);
+    
+    if (!result.success) {
+      if (result.local.success || result.firestore.success) {
+        await recordAuditLog(db, currentUser, 'AI_QUOTA_RESET', `Reset không thành công toàn diện: Local=${result.local.success}, Firestore=${result.firestore.success}.`, 'failure');
+        return res.status(503).json({
+          success: false,
+          code: 'QUOTA_RESET_PARTIAL_FAILURE',
+          error: 'Quota chỉ được reset tại một nguồn, không đảm bảo tính toàn vẹn.',
+          local: { success: result.local.success },
+          firestore: { success: result.firestore.success }
+        });
+      } else {
+        await recordAuditLog(db, currentUser, 'AI_QUOTA_RESET', `Reset thất bại hoàn toàn. Local=${result.local.success}, Firestore=${result.firestore.success}.`, 'failure');
+        return res.status(500).json({ success: false, error: 'Reset quota thất bại.' });
+      }
+    }
+
+    // Reservation cleanup
+    if (db) {
       try {
         const resQuery = query(collection(db, 'ai_reservations'), where('userId', '==', userId), where('dateKey', '==', dateKey));
         const resSnap = await getDocs(resQuery);
@@ -2880,16 +2892,32 @@ app.post('/api/admin/users/:id/reset-limit', async (req, res) => {
         console.warn('[reset-limit] Reservation deletion warning:', resErr);
       }
     }
+
+    const postResetQuota = await getUserQuotaUsage(db, userId, dateKey);
+    
+    await recordAuditLog(db, currentUser, 'AI_QUOTA_RESET', 
+      `Before: Cand ${preResetQuota.candidateUnits}, Batch ${preResetQuota.recruiterUnits}, Total ${preResetQuota.totalUnits}/${preResetQuota.dailyLimit}. ` +
+      `After: Cand ${postResetQuota.candidateUnits}, Batch ${postResetQuota.recruiterUnits}, Total ${postResetQuota.totalUnits}/${postResetQuota.dailyLimit}. ` +
+      `Storage: ${result.storageSource}.`, 
+      'success'
+    );
+
+    return res.json({
+      success: true,
+      userId: dbUser.id,
+      username: dbUser.username,
+      candidateUnits: postResetQuota.candidateUnits,
+      recruiterUnits: postResetQuota.recruiterUnits,
+      totalUnits: postResetQuota.totalUnits,
+      dailyLimit: postResetQuota.dailyLimit,
+      remainingUnits: postResetQuota.remainingUnits,
+      storageSource: result.storageSource,
+      quotaHealth: result.quotaHealth
+    });
+
   } catch (err: any) {
-    console.error('Error resetting quota in Firestore, trying local fallback reset:', err);
-    try {
-      await resetUserQuotaForDate(null, userId, dateKey);
-      storageSource = 'local_fallback';
-      quotaHealth = 'DEGRADED';
-      usedDb = null;
-    } catch (localErr) {
-      return res.status(500).json({ success: false, error: 'Không thể đặt lại hạn mức do lỗi lưu trữ hệ thống.' });
-    }
+    console.error('[reset-limit] Error:', err);
+    return res.status(500).json({ success: false, error: 'Đã có lỗi xảy ra.' });
   }
 
   // Synchronize old user field if it's used elsewhere for safety

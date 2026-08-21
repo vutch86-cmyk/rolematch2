@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { setDoc } from 'firebase/firestore';
 import fs from 'fs';
 import path from 'path';
 
@@ -16,7 +17,12 @@ vi.mock('firebase/firestore', () => {
         data: () => null
       };
     }),
-    setDoc: vi.fn(),
+    setDoc: vi.fn(async (ref, data) => {
+      mockGetDocResolvedValue = {
+        exists: () => true,
+        data: () => data
+      };
+    }),
     runTransaction: vi.fn()
   };
 });
@@ -385,33 +391,27 @@ describe('getUserQuotaUsage Reconciled Scenarios', () => {
   });
 });
 
+import os from 'os';
+
 describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
-  const LOCAL_USAGE_FILE = path.join(process.cwd(), 'data', 'ai_usage.json');
-  let originalLocalUsage: string | null = null;
+  let testDataDir: string;
+  let LOCAL_USAGE_FILE: string;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDocResolvedValue = null;
-    // Backup local usage
-    if (fs.existsSync(LOCAL_USAGE_FILE)) {
-      originalLocalUsage = fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8');
-    } else {
-      originalLocalUsage = null;
-    }
-    // Clear local usage for clean testing
-    if (fs.existsSync(LOCAL_USAGE_FILE)) {
-      fs.unlinkSync(LOCAL_USAGE_FILE);
-    }
+    
+    // Create temporary directory
+    testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'quota-test-'));
+    LOCAL_USAGE_FILE = path.join(testDataDir, 'ai_usage.json');
+    process.env.TEST_DATA_DIR = testDataDir;
   });
 
   afterEach(() => {
     mockGetDocResolvedValue = null;
-    // Restore local usage
-    if (originalLocalUsage !== null) {
-      fs.writeFileSync(LOCAL_USAGE_FILE, originalLocalUsage, 'utf-8');
-    } else if (fs.existsSync(LOCAL_USAGE_FILE)) {
-      fs.unlinkSync(LOCAL_USAGE_FILE);
-    }
+    // Cleanup temporary directory
+    fs.rmSync(testDataDir, { recursive: true, force: true });
+    delete process.env.TEST_DATA_DIR;
   });
 
   it('Reset when quota is in Firestore: saves reset data both to Firestore and local, resetting to 0/0/0', async () => {
@@ -434,8 +434,8 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
     };
 
     // Trigger reset action
-    const resetSuccess = await resetUserQuotaForDate(mockDb, userId, dateKey);
-    expect(resetSuccess).toBe(true);
+    const resetResult = await resetUserQuotaForDate(mockDb, userId, dateKey);
+    expect(resetResult.success).toBe(true);
 
     // Verify local storage is successfully updated with zero values and newer timestamp
     const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
@@ -488,8 +488,8 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
     fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(preLocal), 'utf-8');
 
     // Trigger reset without database (null db to simulate connection issue/fallback)
-    const resetSuccess = await resetUserQuotaForDate(null, userId, dateKey);
-    expect(resetSuccess).toBe(true);
+    const resetResult = await resetUserQuotaForDate(null, userId, dateKey);
+    expect(resetResult.success).toBe(true);
 
     // Verify local is reset
     const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
@@ -542,8 +542,8 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
     fs.writeFileSync(LOCAL_USAGE_FILE, JSON.stringify(preLocal), 'utf-8');
 
     // Trigger reset with db
-    const resetSuccess = await resetUserQuotaForDate(mockDb, userId, dateKey);
-    expect(resetSuccess).toBe(true);
+    const resetResult = await resetUserQuotaForDate(mockDb, userId, dateKey);
+    expect(resetResult.success).toBe(true);
 
     // Since the reset sets updatedAt to a brand new current timestamp, both local and Firestore are written to.
     const localContent = JSON.parse(fs.readFileSync(LOCAL_USAGE_FILE, 'utf-8'));
@@ -568,6 +568,47 @@ describe('AI Quota Reset Action Synchronization & Reconciliation Tests', () => {
     expect(finalResult.totalUnits).toBe(0);
     expect(finalResult.storageSource).toBe('firestore');
     expect(finalResult.quotaHealth).toBe('HEALTHY');
+  });
+
+  it('Partial failure: Firestore fails, Local succeeds', async () => {
+    const mockDb = { type: 'mock_db' };
+    const dateKey = getDateKey();
+    const userId = 'usr_reset_partial_fs_fail';
+    const usageDocId = getUsageDocId(userId, dateKey);
+
+    // Mock Firestore setDoc to fail
+    vi.mocked(setDoc).mockRejectedValueOnce(new Error('Firestore write failed'));
+    
+    // Trigger reset
+    const result = await resetUserQuotaForDate(mockDb, userId, dateKey);
+    
+    expect(result.success).toBe(false);
+    expect(result.local.success).toBe(true);
+    expect(result.firestore.success).toBe(false);
+    expect(result.storageSource).toBe('partial');
+    expect(result.quotaHealth).toBe('DEGRADED');
+  });
+
+  it('Partial failure: Local fails, Firestore succeeds', async () => {
+    const mockDb = { type: 'mock_db' };
+    const dateKey = getDateKey();
+    const userId = 'usr_reset_partial_local_fail';
+    const usageDocId = getUsageDocId(userId, dateKey);
+
+    // Mock saveLocalUsageRecord to fail (via renaming file)
+    vi.spyOn(fs, 'writeFileSync').mockImplementationOnce(() => { throw new Error('Local write failed'); });
+    
+    // Trigger reset
+    const result = await resetUserQuotaForDate(mockDb, userId, dateKey);
+    
+    expect(result.success).toBe(false);
+    expect(result.local.success).toBe(false);
+    expect(result.firestore.success).toBe(true);
+    expect(result.storageSource).toBe('partial');
+    expect(result.quotaHealth).toBe('NORMALIZED');
+    
+    // Cleanup mock
+    vi.restoreAllMocks();
   });
 });
 
