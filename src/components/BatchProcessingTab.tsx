@@ -231,11 +231,11 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [expandedMissingSkills, setExpandedMissingSkills] = useState<boolean>(false);
 
   // Dynamic typography and spacing variables depending on isDetailExpanded
-  const detailTitleClass = isDetailExpanded ? 'text-2xl xl:text-3xl leading-tight' : 'text-lg';
-  const detailBodyClass = isDetailExpanded ? 'text-base leading-7 text-slate-700' : 'text-xs leading-relaxed text-slate-600';
-  const detailSecondaryClass = isDetailExpanded ? 'text-sm leading-6' : 'text-[11px] leading-relaxed';
-  const detailSectionTitleClass = isDetailExpanded ? 'text-sm' : 'text-[11px]';
-  const detailBadgeClass = isDetailExpanded ? 'text-xs px-3 py-1' : 'text-[10px] px-2.5 py-0.5';
+  const detailTitleClass = isDetailExpanded ? 'text-2xl lg:text-3xl leading-tight' : 'text-lg lg:text-xl';
+  const detailBodyClass = isDetailExpanded ? 'text-base leading-7 text-slate-700' : 'text-sm leading-6 text-slate-700';
+  const detailSecondaryClass = isDetailExpanded ? 'text-sm leading-6' : 'text-xs leading-5';
+  const detailSectionTitleClass = isDetailExpanded ? 'text-sm' : 'text-xs';
+  const detailBadgeClass = isDetailExpanded ? 'text-xs px-3 py-1' : 'text-[11px] px-2.5 py-0.5';
   const detailTagClass = isDetailExpanded ? 'text-xs px-3 py-1.5 rounded-xl' : 'text-[11px] px-2.5 py-1 rounded-lg';
 
   useEffect(() => {
@@ -2476,13 +2476,18 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           </div>
 
           {/* Interactive Table / Cards Leaderboard */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Left Hand: Leaders List Grid */}
-            <div className={isDetailExpanded ? 'hidden' : 'lg:col-span-4 xl:col-span-5 space-y-4 min-w-0'}>
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+            <div className={isDetailExpanded ? 'hidden' : 'lg:col-span-5 space-y-4 min-w-0'}>
+              <div className="flex items-center justify-between pb-0.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   {isEn ? 'Ranked Candidates:' : 'Xếp hạng danh sách ứng viên:'}
                 </span>
+                <span className="text-[11px] font-bold text-slate-400">
+                  {filteredResults.length} {isEn ? 'candidates' : 'ứng viên'}
+                </span>
+              </div>
 
               {filteredResults.length === 0 ? (
                 <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center text-slate-500 text-xs">
@@ -2694,7 +2699,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </div>
 
             {/* Right Hand: Selected Candidate Deep Dive */}
-            <div className={isDetailExpanded ? 'lg:col-span-12 min-w-0' : 'lg:col-span-8 xl:col-span-7 min-w-0'}>
+            <div className={isDetailExpanded ? 'lg:col-span-12 min-w-0' : 'lg:col-span-7 min-w-0'}>
               <AnimatePresence mode="wait">
                 {selectedCandidate ? (
                   selectedCandidate.success === false || !!selectedCandidate.errorMessage ? (
@@ -2703,14 +2708,14 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                      className="bg-white rounded-3xl p-5 sm:p-6 lg:p-7 border border-rose-200 shadow-sm space-y-6 lg:sticky lg:top-6"
+                      className="bg-white rounded-2xl p-5 sm:p-6 border border-rose-200 shadow-sm space-y-5 lg:sticky lg:top-6"
                     >
-                      <div className="flex items-start justify-between border-b border-rose-100 pb-4">
+                      <div className="flex items-start justify-between border-b border-rose-100 pb-3.5">
                         <div>
-                          <span className="text-[11px] font-black uppercase tracking-wider text-rose-600 block mb-1">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 block mb-1">
                             {isEn ? 'Processing Error' : 'Xử lý thất bại'}
                           </span>
-                          <h3 className="text-lg font-black text-slate-900">
+                          <h3 className="text-lg font-bold text-slate-900">
                             {getCandidateDisplayName(selectedCandidate, results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
                           </h3>
                         </div>
@@ -2720,14 +2725,14 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             onClick={() => { setSelectedCandidate(null); setIsDetailExpanded(false); }}
                             aria-label={isEn ? 'Close details' : 'Đóng chi tiết'}
                             title={isEn ? 'Close' : 'Đóng'}
-                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                           >
-                            <X className="w-5 h-5" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
 
-                      <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-sm text-rose-800 space-y-2 leading-6">
+                      <div className="p-4 bg-rose-50 rounded-xl border border-rose-200 text-xs text-rose-800 space-y-2 leading-relaxed">
                         <div className="font-bold flex items-center gap-1.5 text-rose-900">
                           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                           <span>{isEn ? 'CV File Error Content:' : 'Nội dung lỗi xử lý CV:'}</span>
@@ -2747,38 +2752,54 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 10 }}
-                        className={'bg-white rounded-3xl border border-slate-200 shadow-sm lg:sticky lg:top-6 ' + (
-                          isDetailExpanded 
-                            ? 'p-8 xl:p-10 space-y-8 max-w-[1400px] w-full mx-auto' 
-                            : 'p-5 sm:p-6 lg:p-7 space-y-6'
-                        )}
-                      >
-                        {/* Detail Card Top Header */}
-                        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-                          <div>
-                            <span className={'font-black uppercase tracking-wider text-slate-400 block mb-1 ' + (isDetailExpanded ? 'text-xs' : 'text-[11px]')}>
+                      className={'bg-white rounded-2xl border border-slate-200 shadow-sm lg:sticky lg:top-6 ' + (
+                        isDetailExpanded 
+                          ? 'p-6 lg:p-8 space-y-6 max-w-[1400px] w-full mx-auto' 
+                          : 'p-5 lg:p-6 space-y-4 lg:space-y-5'
+                      )}
+                    >
+                      {/* Detail Card Top Header */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                               {isEn ? 'Candidate Analysis' : 'Phân Tích Chi Tiết Ứng Viên'}
                             </span>
-                            <h3 className={'font-black text-slate-900 ' + detailTitleClass}>
-                              {getCandidateDisplayName(selectedCandidate, detailRankNum || results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
-                            </h3>
+                            {detailRankNum !== null && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                Rank #{detailRankNum}
+                              </span>
+                            )}
+                            {typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore) && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-900 text-white">
+                                {selectedCandidate.overallScore}%
+                              </span>
+                            )}
+                            <span className={'px-2 py-0.5 rounded-full text-[10px] font-bold ' + getMatchLevelColor(selectedCandidate.matchLevel)}>
+                              {getMatchLevelLabel(selectedCandidate.matchLevel)}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {onOpenFullAnalysis && selectedCandidate.fullAnalysis && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const inferredTitle = getCandidateDisplayName(selectedCandidate, detailRankNum);
-                                  const firstLine = jdText.trim().split('\n')[0] || '';
-                                  const jdTitle = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
-                                  const title = `${jdTitle} - ${inferredTitle}`;
+                          <h3 className={'font-bold text-slate-900 truncate ' + (isDetailExpanded ? 'text-xl lg:text-2xl' : 'text-lg lg:text-xl')}>
+                            {getCandidateDisplayName(selectedCandidate, detailRankNum || results.findIndex(r => r.filename === selectedCandidate.filename) + 1)}
+                          </h3>
+                        </div>
 
-                                  const validScore =
-                                    typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore)
-                                      ? selectedCandidate.overallScore
-                                      : null;
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                          {onOpenFullAnalysis && selectedCandidate.fullAnalysis && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const inferredTitle = getCandidateDisplayName(selectedCandidate, detailRankNum);
+                                const firstLine = jdText.trim().split('\n')[0] || '';
+                                const jdTitle = firstLine.substring(0, 36) || (isEn ? 'Job Description' : 'Vị trí công việc');
+                                const title = `${jdTitle} - ${inferredTitle}`;
 
-                                  const item: HistoryItem = {
+                                const validScore =
+                                  typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore)
+                                    ? selectedCandidate.overallScore
+                                    : null;
+
+                                const item: HistoryItem = {
                                   id: `batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                                   title,
                                   timestamp: Date.now(),
@@ -2790,12 +2811,13 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                                 onOpenFullAnalysis(item);
                               }}
                               className={'flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all shadow-xs cursor-pointer ' + (
-                                isDetailExpanded ? 'text-sm px-4 py-2 rounded-xl' : 'text-xs px-3.5 py-2 rounded-xl'
+                                isDetailExpanded ? 'text-xs sm:text-sm px-3.5 py-2 rounded-xl' : 'text-xs px-3 py-1.5 rounded-lg'
                               )}
                               title={isEn ? 'Open complete report in Candidate tab' : 'Xem báo cáo chi tiết ở tab Ứng viên'}
                             >
-                              <Eye className="w-4 h-4" />
-                              <span>{isEn ? 'Full Report' : 'Xem Báo Cáo Chi Tiết'}</span>
+                              <Eye className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">{isEn ? 'Full Report' : 'Xem Báo Cáo Chi Tiết'}</span>
+                              <span className="sm:hidden">{isEn ? 'Report' : 'Báo cáo'}</span>
                             </button>
                           )}
                           <button
@@ -2804,17 +2826,17 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             aria-label={isDetailExpanded ? (isEn ? 'Collapse detail' : 'Thu gọn chi tiết') : (isEn ? 'Expand detail' : 'Mở rộng chi tiết')}
                             title={isDetailExpanded ? (isEn ? 'Collapse' : 'Thu gọn') : (isEn ? 'Expand' : 'Mở rộng')}
                             className={'hidden lg:flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors cursor-pointer ' + (
-                              isDetailExpanded ? 'text-sm px-4 py-2 rounded-xl' : 'text-xs px-3 py-2 rounded-xl'
+                              isDetailExpanded ? 'text-xs sm:text-sm px-3 py-2 rounded-xl' : 'text-xs px-2.5 py-1.5 rounded-lg'
                             )}
                           >
                             {isDetailExpanded ? (
                               <>
-                                <Minimize2 className="w-4 h-4" />
+                                <Minimize2 className="w-3.5 h-3.5" />
                                 <span>{isEn ? 'Collapse' : 'Thu gọn'}</span>
                               </>
                             ) : (
                               <>
-                                <Maximize2 className="w-4 h-4" />
+                                <Maximize2 className="w-3.5 h-3.5" />
                                 <span>{isEn ? 'Expand' : 'Mở rộng'}</span>
                               </>
                             )}
@@ -2824,77 +2846,65 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             onClick={() => { setSelectedCandidate(null); setIsDetailExpanded(false); }}
                             aria-label={isEn ? 'Close details' : 'Đóng chi tiết'}
                             title={isEn ? 'Close' : 'Đóng'}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                           >
-                            <X className="w-5 h-5" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
 
                       {/* SECTION A: EXECUTIVE SUMMARY */}
-                      <div className={'bg-slate-50/90 rounded-2xl border border-slate-200/80 ' + (isDetailExpanded ? 'p-6 space-y-4' : 'p-4 space-y-3')}>
+                      <div className={'bg-slate-50/80 rounded-xl border border-slate-200/80 ' + (isDetailExpanded ? 'p-5 space-y-4' : 'p-4 space-y-3')}>
                         <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
-                          <span className={'font-black uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-md ' + detailSectionTitleClass}>
+                          <span className={'font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-md ' + detailSectionTitleClass}>
                             A. {isEn ? 'Executive Summary' : 'Tóm Tắt Tổng Quan'}
                           </span>
                         </div>
 
-                        <div className="space-y-1.5">
-                          {(() => {
-                            const modalRankIdx = validRankedCandidates.findIndex(r => r.filename === selectedCandidate.filename);
-                            const modalRankNum = modalRankIdx !== -1 ? modalRankIdx + 1 : null;
-                            return (
-                              <div className={'font-black text-slate-900 flex items-center gap-2 ' + (isDetailExpanded ? 'text-lg' : 'text-sm')}>
-                                <span>{getCandidateDisplayName(selectedCandidate, modalRankNum || undefined)}</span>
-                                <span className="text-slate-400 font-normal">·</span>
-                                {modalRankNum !== null ? (
-                                  <span className="text-indigo-600 font-extrabold text-xs">
-                                    Rank #{modalRankNum}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-500 font-bold text-xs">
-                                    {!selectedCandidate.success || selectedCandidate.errorMessage ? (isEn ? 'Processing Error' : 'Xử lý thất bại') : (isEn ? 'No score' : 'Chưa có điểm')}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          <div className={'flex flex-wrap items-center gap-2 font-bold text-slate-700 ' + detailSecondaryClass}>
-                            <span>{isEn ? 'Overall match: ' : 'Độ tương thích: '} <strong className="text-slate-900 font-black">{typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore) ? `${selectedCandidate.overallScore}%` : '—'}</strong></span>
-                            <span className="text-slate-300">·</span>
-                            <span className={'font-black rounded-full ' + getMatchLevelColor(selectedCandidate.matchLevel) + ' ' + detailBadgeClass}>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 flex items-center justify-between">
+                            <span className="text-xs text-slate-500 font-medium">{isEn ? 'Overall Match' : 'Độ tương thích'}</span>
+                            <span className="text-sm font-bold text-slate-900">
+                              {typeof selectedCandidate.overallScore === 'number' && Number.isFinite(selectedCandidate.overallScore) ? `${selectedCandidate.overallScore}%` : '—'}
+                            </span>
+                          </div>
+                          <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 flex items-center justify-between">
+                            <span className="text-xs text-slate-500 font-medium">{isEn ? 'Match Level' : 'Mức độ phù hợp'}</span>
+                            <span className={'px-2 py-0.5 rounded-full text-[11px] font-bold ' + getMatchLevelColor(selectedCandidate.matchLevel)}>
                               {getMatchLevelLabel(selectedCandidate.matchLevel)}
+                            </span>
+                          </div>
+                          <div className="bg-indigo-50/80 p-2.5 rounded-lg border border-indigo-100 flex items-center justify-between sm:col-span-1">
+                            <span className="text-xs text-indigo-900 font-medium flex items-center gap-1">
+                              <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              {isEn ? 'AI Rec:' : 'Đề xuất:'}
+                            </span>
+                            <span className="text-xs font-bold text-indigo-700 truncate">
+                              {getAiRecommendationText(selectedCandidate)}
                             </span>
                           </div>
                         </div>
 
-                        <div className={'font-bold text-indigo-950 flex items-center gap-2 bg-indigo-50/80 rounded-xl border border-indigo-100 ' + (isDetailExpanded ? 'p-4 text-sm' : 'p-2.5 text-xs')}>
-                          <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <span>
-                            {isEn ? 'AI Recommendation:' : 'AI đề xuất:'} <strong className="text-indigo-700 font-black">{getAiRecommendationText(selectedCandidate)}</strong>
-                          </span>
-                        </div>
-
-                        <div className={'text-slate-700 bg-white rounded-xl border border-slate-200/60 shadow-2xs ' + (isDetailExpanded ? 'p-5 space-y-3' : 'p-3 space-y-1')}>
-                          <div className={'font-bold text-slate-900 flex items-center gap-1.5 ' + (isDetailExpanded ? 'text-sm' : 'text-xs')}>
-                            <Info className="w-3.5 h-3.5 text-indigo-600" />
-                            <span>{isEn ? 'Decision reason:' : 'Lý do:'}</span>
+                        <div className="bg-white p-3 rounded-lg border border-slate-200/60 space-y-1.5">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+                            <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <span>{isEn ? 'Decision reason:' : 'Lý do đánh giá:'}</span>
                           </div>
-                          <p className={'text-slate-600 font-medium pl-4 border-l-2 border-indigo-400 italic max-w-4xl ' + detailBodyClass}>
+                          <p className={'text-slate-600 font-medium pl-3 border-l-2 border-indigo-400 italic max-w-[72ch] break-words ' + detailBodyClass}>
                             {getDecisionReason(selectedCandidate, isEn)}
                           </p>
                         </div>
                       </div>
 
                       {/* SECTION B: SCORE BREAKDOWN */}
-                      <div className={'bg-white rounded-2xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-6 space-y-6' : 'p-4 space-y-3.5')}>
+                      <div className={'bg-white rounded-xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-5 space-y-5' : 'p-4 space-y-3.5')}>
                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                          <span className={'font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
+                          <span className={'font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
                             B. {isEn ? 'Score Breakdown' : 'Chi Tiết Điểm Số'}
                           </span>
                         </div>
 
-                        <div className={isDetailExpanded ? 'grid grid-cols-1 md:grid-cols-3 gap-6' : 'space-y-3'}>
+                        <div className={isDetailExpanded ? 'grid grid-cols-1 md:grid-cols-3 gap-5' : 'space-y-3'}>
                           {/* Keyword alignment */}
                           <div className="space-y-1">
                             <div className={'flex justify-between font-bold ' + detailSecondaryClass}>
@@ -2939,27 +2949,27 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         </div>
 
                         {/* Score breakdown auto insight sentence */}
-                        <div className={'text-slate-600 bg-slate-50/90 rounded-xl border border-slate-100 font-medium flex items-start gap-2 ' + (isDetailExpanded ? 'p-4 text-sm' : 'p-2.5 text-xs')}>
+                        <div className={'text-slate-600 bg-slate-50/90 rounded-lg border border-slate-100 font-medium flex items-start gap-2 p-3 text-xs'}>
                           <span className="shrink-0 text-sm">💡</span>
-                          <span className={'text-slate-700 leading-relaxed ' + detailSecondaryClass}>{getScoreBreakdownInsight(selectedCandidate, isEn)}</span>
+                          <span className={'text-slate-700 leading-relaxed max-w-[72ch] break-words ' + detailBodyClass}>{getScoreBreakdownInsight(selectedCandidate, isEn)}</span>
                         </div>
                       </div>
 
                       {/* SECTION C: KEY STRENGTHS & CRITICAL GAPS */}
-                      <div className={'bg-white rounded-2xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-6 space-y-6' : 'p-4 space-y-4')}>
+                      <div className={'bg-white rounded-xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-5 space-y-5' : 'p-4 space-y-3.5')}>
                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                          <span className={'font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
+                          <span className={'font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
                             {isEn ? 'C. JD Match Evidence & Gaps' : 'C. Độ phù hợp JD & Khoảng trống'}
                           </span>
                         </div>
 
-                        <div className={isDetailExpanded ? 'grid grid-cols-1 xl:grid-cols-2 gap-6' : 'space-y-3'}>
+                        <div className={isDetailExpanded ? 'grid grid-cols-1 xl:grid-cols-2 gap-5' : 'space-y-3'}>
                           {/* 1. Điểm mạnh phù hợp JD */}
-                          <div className={'bg-emerald-50/40 rounded-xl border border-emerald-500/15 ' + (isDetailExpanded ? 'p-5 space-y-2.5' : 'p-3 space-y-1')}>
-                            <span className={'font-extrabold text-emerald-900 uppercase tracking-wider block ' + detailSectionTitleClass}>
+                          <div className={'bg-emerald-50/40 rounded-xl border border-emerald-500/15 ' + (isDetailExpanded ? 'p-4 space-y-2' : 'p-3 space-y-1.5')}>
+                            <span className={'font-bold text-emerald-900 uppercase tracking-wider block ' + detailSectionTitleClass}>
                               {isEn ? 'JD Match Strength' : 'Điểm mạnh phù hợp JD'}
                             </span>
-                            <p className={'font-medium ' + detailSecondaryClass}>
+                            <p className={'font-medium max-w-[72ch] break-words ' + detailBodyClass}>
                               {selectedCandidate.fullAnalysis?.feature1?.summary?.biggestStrength || (
                                 <span className="italic text-slate-400">{isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}</span>
                               )}
@@ -2967,8 +2977,8 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                           </div>
 
                           {/* 2. Yêu cầu JD chưa có bằng chứng */}
-                          <div className={'bg-amber-50/40 rounded-xl border border-amber-500/15 ' + (isDetailExpanded ? 'p-5 space-y-3' : 'p-3 space-y-2')}>
-                            <span className={'font-extrabold text-amber-900 uppercase tracking-wider block ' + detailSectionTitleClass}>
+                          <div className={'bg-amber-50/40 rounded-xl border border-amber-500/15 ' + (isDetailExpanded ? 'p-4 space-y-2' : 'p-3 space-y-1.5')}>
+                            <span className={'font-bold text-amber-900 uppercase tracking-wider block ' + detailSectionTitleClass}>
                               {isEn ? 'Unproven JD Requirements' : 'Yêu cầu JD chưa có bằng chứng'}
                             </span>
                             {(() => {
@@ -3020,54 +3030,54 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       {(() => {
                         const quickScanData = getRecruiterQuickScan(selectedCandidate, isEn);
                         return (
-                          <div className={'bg-white rounded-2xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-6 space-y-6' : 'p-4 space-y-3.5')}>
+                          <div className={'bg-white rounded-xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-5 space-y-5' : 'p-4 space-y-3.5')}>
                             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                              <span className={'font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
+                              <span className={'font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
                                 {isEn ? 'D. Recruiter Quick Scan' : 'D. Sàng Lọc Nhanh'}
                               </span>
                             </div>
 
-                            <div className={'grid gap-4 ' + (isDetailExpanded ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2')}>
+                            <div className={'grid gap-3 ' + (isDetailExpanded ? 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2')}>
                               {/* Card 1: First Impression */}
-                              <div className={'bg-indigo-50/50 rounded-xl border border-indigo-100/80 flex flex-col justify-between ' + (isDetailExpanded ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5')}>
-                                <div className={'flex items-center gap-1.5 font-black text-indigo-950 ' + detailSecondaryClass}>
+                              <div className={'bg-indigo-50/50 rounded-xl border border-indigo-100/80 flex flex-col justify-between p-3 space-y-1.5'}>
+                                <div className={'flex items-center gap-1.5 font-bold text-indigo-950 ' + detailSectionTitleClass}>
                                   <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                                   <span>{isEn ? 'First Impression' : 'Ấn tượng đầu tiên'}</span>
                                 </div>
-                                <p className={'text-slate-700 font-medium ' + detailSecondaryClass}>
+                                <p className={'text-slate-700 font-medium max-w-[72ch] break-words ' + detailBodyClass}>
                                   "{quickScanData.firstImpression10s}"
                                 </p>
                               </div>
 
                               {/* Card 2: Immediate Strength */}
-                              <div className={'bg-emerald-50/50 rounded-xl border border-emerald-100/80 flex flex-col justify-between ' + (isDetailExpanded ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5')}>
-                                <div className={'flex items-center gap-1.5 font-black text-emerald-950 ' + detailSecondaryClass}>
+                              <div className={'bg-emerald-50/50 rounded-xl border border-emerald-100/80 flex flex-col justify-between p-3 space-y-1.5'}>
+                                <div className={'flex items-center gap-1.5 font-bold text-emerald-950 ' + detailSectionTitleClass}>
                                   <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                  <span>{isEn ? '10s Quick Scan Strength' : 'Điểm mạnh nổi bật khi đọc nhanh'}</span>
+                                  <span>{isEn ? '10s Quick Scan Strength' : 'Điểm mạnh nổi bật'}</span>
                                 </div>
-                                <p className={'text-slate-700 font-medium ' + detailSecondaryClass}>
+                                <p className={'text-slate-700 font-medium max-w-[72ch] break-words ' + detailBodyClass}>
                                   "{quickScanData.immediateStrength}"
                                 </p>
                               </div>
 
                               {/* Card 3: Biggest Doubt */}
-                              <div className={'bg-amber-50/50 rounded-xl border border-amber-100/80 flex flex-col justify-between ' + (isDetailExpanded ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5')}>
-                                <div className={'flex items-center gap-1.5 font-black text-amber-950 ' + detailSecondaryClass}>
+                              <div className={'bg-amber-50/50 rounded-xl border border-amber-100/80 flex flex-col justify-between p-3 space-y-1.5'}>
+                                <div className={'flex items-center gap-1.5 font-bold text-amber-950 ' + detailSectionTitleClass}>
                                   <AlertOctagon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                   <span>{isEn ? 'Main Recruiter Concern' : 'Nghi ngờ chính'}</span>
                                 </div>
-                                <p className={'text-slate-700 font-medium ' + detailSecondaryClass}>
+                                <p className={'text-slate-700 font-medium max-w-[72ch] break-words ' + detailBodyClass}>
                                   "{quickScanData.biggestDoubt}"
                                 </p>
                               </div>
 
                               {/* Card 4: Fastest Point Loss */}
-                              <div className={'bg-rose-50/50 rounded-xl border border-rose-100/80 flex flex-col justify-between ' + (isDetailExpanded ? 'p-4 space-y-2.5' : 'p-3 space-y-1.5')}>
-                                <div className={'flex items-center gap-1.5 font-black text-rose-950 ' + detailSecondaryClass}>
+                              <div className={'bg-rose-50/50 rounded-xl border border-rose-100/80 flex flex-col justify-between p-3 space-y-1.5'}>
+                                <div className={'flex items-center gap-1.5 font-bold text-rose-950 ' + detailSectionTitleClass}>
                                   <TrendingDown className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                                   <span>{isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm mất điểm'}</span>
                                 </div>
-                                <p className={'text-slate-700 font-medium ' + detailSecondaryClass}>
+                                <p className={'text-slate-700 font-medium max-w-[72ch] break-words ' + detailBodyClass}>
                                   "{quickScanData.fastestPointLossSection}"
                                 </p>
                               </div>
@@ -3103,16 +3113,16 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                         const missingCount = compTableRows.filter(r => r.matchStatus === 'thieu').length;
 
                         return (
-                          <div className={'bg-white rounded-2xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-6 space-y-6' : 'p-4 space-y-3.5')}>
+                          <div className={'bg-white rounded-xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-5 space-y-5' : 'p-4 space-y-3.5')}>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
                               <div>
-                                <span className={'font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
+                                <span className={'font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
                                   {isEn ? 'E. Requirement Match' : 'E. Yêu Cầu & Độ Khớp'}
                                 </span>
                               </div>
 
                               {/* Internal Filter Buttons */}
-                              <div className={'flex items-center gap-1 bg-slate-100 p-1 rounded-xl font-bold overflow-x-auto ' + (isDetailExpanded ? 'text-xs' : 'text-[10px]')}>
+                              <div className={'flex items-center gap-1 bg-slate-100 p-1 rounded-xl font-bold overflow-x-auto text-xs'}>
                                 <button
                                   type="button"
                                   onClick={() => setRequirementFilter('ALL')}
@@ -3161,7 +3171,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                             </div>
 
                             {/* Rows List */}
-                            <div className={'space-y-3 overflow-y-auto pr-1 ' + (isDetailExpanded ? 'max-h-[550px]' : 'max-h-[420px]')}>
+                            <div className={'space-y-2.5 overflow-y-auto pr-1 ' + (isDetailExpanded ? 'max-h-[550px]' : 'max-h-[420px]')}>
                               {compTableRows.length === 0 ? (
                                 <div className="text-center py-6 text-slate-500 text-xs italic bg-slate-50 rounded-xl border border-slate-200/80">
                                   {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
@@ -3178,9 +3188,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                                   return (
                                     <div
                                       key={`req-row-${idx}`}
-                                      className={`rounded-xl border transition-all ${
-                                        isDetailExpanded ? 'p-5 space-y-3.5 text-sm' : 'p-3 space-y-2 text-xs'
-                                      } ${
+                                      className={`rounded-xl border transition-all p-3 space-y-2 text-xs ${
                                         isCriticalMissing
                                           ? 'bg-rose-50/70 border-rose-300 shadow-2xs ring-1 ring-rose-300'
                                           : 'bg-slate-50/80 border-slate-200/80 hover:bg-slate-50'
@@ -3188,20 +3196,18 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                                     >
                                       {/* Header: JD Requirement + Importance + Status Badge */}
                                       <div className="flex items-start justify-between gap-2">
-                                        <div className="space-y-1">
+                                        <div className="space-y-1 min-w-0">
                                           <div className="flex flex-wrap items-center gap-1.5">
                                             {isCriticalMissing && (
-                                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-rose-600 text-white shadow-xs flex items-center gap-1">
+                                              <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-rose-600 text-white shadow-xs flex items-center gap-1 shrink-0">
                                                 <Pin className="w-3 h-3 text-white shrink-0" />
                                                 {isEn ? 'Pinned: Critical & Missing' : 'Ghim: Rất quan trọng & Còn thiếu'}
                                               </span>
                                             )}
-                                            <span className={'font-black text-slate-900 ' + (isDetailExpanded ? 'text-base' : 'text-xs')}>{row.jdTerm}</span>
+                                            <span className="font-bold text-slate-900 text-xs sm:text-sm truncate">{row.jdTerm}</span>
                                           </div>
                                           <div className="flex items-center gap-2">
-                                            <span className={`border ${
-                                              isDetailExpanded ? 'px-2.5 py-0.5 rounded text-xs' : 'px-2 py-0.5 rounded text-[10px]'
-                                            } ${getImportanceBadgeStyle(row.importance)}`}>
+                                            <span className={`border px-2 py-0.5 rounded text-[10px] ${getImportanceBadgeStyle(row.importance)}`}>
                                               {row.importance}
                                             </span>
                                           </div>
@@ -3213,24 +3219,20 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
                                       {/* CV Evidence */}
                                       {row.cvEvidence && (
-                                        <div className={`bg-white rounded-lg border border-slate-200/70 text-slate-700 ${
-                                          isDetailExpanded ? 'p-3 text-sm leading-6' : 'p-2 text-[11px]'
-                                        }`}>
-                                          <strong className="text-slate-900 font-extrabold">{isEn ? 'CV Evidence: ' : 'Bằng chứng trong CV: '}</strong>
+                                        <div className="bg-white rounded-lg border border-slate-200/70 text-slate-700 p-2.5 text-xs max-w-[72ch] break-words">
+                                          <strong className="text-slate-900 font-bold">{isEn ? 'CV Evidence: ' : 'Bằng chứng trong CV: '}</strong>
                                           <span className="text-slate-600">{row.cvEvidence}</span>
                                         </div>
                                       )}
 
                                       {/* Gap or Clarification */}
                                       {row.gapOrClarification && (
-                                        <div className={`rounded-lg border ${
-                                          isDetailExpanded ? 'p-3 text-sm leading-6' : 'p-2 text-[11px]'
-                                        } ${
+                                        <div className={`rounded-lg border p-2.5 text-xs max-w-[72ch] break-words ${
                                           row.matchStatus === 'thieu' 
                                             ? 'bg-rose-100/60 text-rose-900 border-rose-200 font-medium'
                                             : (row.matchStatus === 'can_bo_sung' ? 'bg-amber-100/60 text-amber-900 border-amber-200 font-medium' : 'bg-emerald-50 text-emerald-900 border-emerald-200/60')
                                         }`}>
-                                          <strong className="font-extrabold">{isEn ? 'Gap / Clarification: ' : 'Khoảng trống / Cần làm rõ: '}</strong>
+                                          <strong className="font-bold">{isEn ? 'Gap / Clarification: ' : 'Khoảng trống / Cần làm rõ: '}</strong>
                                           <span>{row.gapOrClarification}</span>
                                         </div>
                                       )}
@@ -3247,9 +3249,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       {(() => {
                         const followUpQuestions = getInterviewFollowUpQuestions(selectedCandidate, isEn);
                         return (
-                          <div className={'bg-white rounded-2xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-6 space-y-6' : 'p-4 space-y-3.5')}>
+                          <div className={'bg-white rounded-xl border border-slate-200/80 shadow-2xs ' + (isDetailExpanded ? 'p-5 space-y-5' : 'p-4 space-y-3.5')}>
                             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                              <span className={'font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
+                              <span className={'font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/80 ' + detailSectionTitleClass}>
                                 {isEn ? 'F. Interview Follow-up Points' : 'F. Các điểm cần xác minh trong phỏng vấn'}
                               </span>
                             </div>
@@ -3259,23 +3261,17 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                                 {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
                               </div>
                             ) : (
-                              <div className={isDetailExpanded ? 'space-y-3' : 'space-y-2'}>
+                              <div className="space-y-2.5">
                                 {followUpQuestions.map((question, qIdx) => (
                                   <div
                                     key={`f-q-${qIdx}`}
-                                    className={`flex items-start transition-all ${
-                                      isDetailExpanded 
-                                        ? 'gap-4 p-5 rounded-2xl bg-indigo-50/20 border-indigo-200/40 border' 
-                                        : 'gap-2.5 p-3 rounded-xl bg-slate-50/80 border border-slate-200/80'
-                                    } hover:border-indigo-200 hover:bg-indigo-50/30`}
+                                    className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all"
                                   >
-                                    <span className={`flex items-center justify-center rounded-lg bg-indigo-600 text-white font-black shrink-0 shadow-2xs ${
-                                      isDetailExpanded ? 'w-6 h-6 text-xs font-bold' : 'w-5 h-5 text-[10px] mt-0.5 font-bold'
-                                    }`}>
+                                    <span className="flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold shrink-0 shadow-2xs w-5 h-5 text-[10px] mt-0.5">
                                       {qIdx + 1}
                                     </span>
                                     <div className="space-y-0.5 flex-1 min-w-0">
-                                      <p className={'text-slate-800 font-bold leading-relaxed max-w-4xl ' + detailBodyClass}>
+                                      <p className={'text-slate-800 font-medium leading-relaxed max-w-[72ch] break-words ' + detailBodyClass}>
                                         {question}
                                       </p>
                                     </div>
