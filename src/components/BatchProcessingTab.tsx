@@ -2754,7 +2754,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                       exit={{ opacity: 0, y: 10 }}
                       className={'bg-white rounded-2xl border border-slate-200 shadow-sm lg:sticky lg:top-6 ' + (
                         isDetailExpanded 
-                          ? 'p-6 lg:p-8 space-y-6 max-w-[1400px] w-full mx-auto' 
+                          ? 'p-6 lg:p-8 space-y-6 w-full max-w-none' 
                           : 'p-5 lg:p-6 space-y-4 lg:space-y-5'
                       )}
                     >
