@@ -9,7 +9,6 @@ RoleMatch hỗ trợ nhà tuyển dụng:
 - Phân tích nhiều CV theo cùng một mô tả công việc (JD).
 - Xếp hạng các hồ sơ đã phân tích thành công.
 - Tóm tắt mức độ phù hợp, điểm mạnh, khoảng trống và các nội dung cần xác minh.
-- So sánh tối đa 3 ứng viên theo cùng một bộ tiêu chí.
 - Lưu, mở lại và xuất kết quả phân tích mà không cần chạy lại AI.
 
 AI là công cụ hỗ trợ sàng lọc và chuẩn bị phỏng vấn, không thay thế quyết định của nhà tuyển dụng hoặc hội đồng tuyển dụng.
