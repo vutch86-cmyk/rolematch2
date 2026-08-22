@@ -9,7 +9,6 @@ RoleMatch helps recruiters:
 - Analyze multiple CVs against the same job description (JD).
 - Rank candidates whose profiles were analyzed successfully.
 - Summarize candidate fit, strengths, evidence gaps, and areas requiring verification.
-- Compare up to three candidates using the same criteria.
 - Save, reopen, and export analysis results without running the AI again.
 
 AI supports screening and interview preparation. It does not replace decisions made by recruiters or the hiring panel.
