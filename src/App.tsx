@@ -18,6 +18,7 @@ import { UserAccount } from './types';
 import { initGlobalErrorLogging, fetchAllLogs } from './utils/logger';
 import { Language, translations } from './utils/i18n';
 import { BatchProcessingTab } from './components/BatchProcessingTab';
+import { CandidateGuideDrawer } from './components/CandidateGuideDrawer';
 import { parseApiResponseSafely } from './utils/apiResponse';
 import {
   FileText,
@@ -33,6 +34,7 @@ import {
   Printer,
   FileCheck,
   Users,
+  BookOpen,
 } from 'lucide-react';
 
 const LOCAL_STORAGE_CV_KEY = 'cv_matcher_cvText';
@@ -115,11 +117,24 @@ export default function App() {
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
+  const [isCandidateGuideOpen, setIsCandidateGuideOpen] = useState<boolean>(false);
+
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
   // Restore session on mount
   useEffect(() => {
     const savedToken = localStorage.getItem('auth_token');
+    const lastActivity = localStorage.getItem('role_match_last_activity');
     if (savedToken) {
+      if (lastActivity && Date.now() - Number(lastActivity) > SESSION_TIMEOUT_MS) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('role_match_last_activity');
+        setCurrentUser(null);
+        setToken(null);
+        setError(lang === 'vi' ? 'Phiên làm việc đã hết hạn sau 30 phút không hoạt động.' : 'Session expired after 30 minutes of inactivity.');
+        setIsLoginModalOpen(true);
+        return;
+      }
       fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${savedToken}` },
       })
@@ -128,8 +143,12 @@ export default function App() {
           if (data.success && data.user) {
             setCurrentUser(data.user);
             setToken(savedToken);
+            if (!localStorage.getItem('role_match_last_activity')) {
+              localStorage.setItem('role_match_last_activity', String(Date.now()));
+            }
           } else {
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('role_match_last_activity');
             setCurrentUser(null);
             setToken(null);
           }
@@ -143,6 +162,7 @@ export default function App() {
     setToken(authToken);
     try {
       localStorage.setItem('auth_token', authToken);
+      localStorage.setItem('role_match_last_activity', String(Date.now()));
     } catch (e) {}
   };
 
@@ -158,8 +178,46 @@ export default function App() {
     setToken(null);
     try {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('role_match_last_activity');
     } catch (e) {}
   };
+
+  // Activity tracker & inactivity auto logout (30 minutes for all users including admins)
+  useEffect(() => {
+    if (!token) return;
+
+    if (!localStorage.getItem('role_match_last_activity')) {
+      localStorage.setItem('role_match_last_activity', String(Date.now()));
+    }
+
+    let lastThrottle = Date.now();
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (now - lastThrottle > 10000) {
+        lastThrottle = now;
+        try {
+          localStorage.setItem('role_match_last_activity', String(now));
+        } catch (e) {}
+      }
+    };
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => window.addEventListener(event, handleUserActivity));
+
+    const interval = setInterval(() => {
+      const lastAct = localStorage.getItem('role_match_last_activity');
+      if (lastAct && Date.now() - Number(lastAct) > SESSION_TIMEOUT_MS) {
+        handleLogout();
+        setError(lang === 'vi' ? 'Phiên làm việc đã tự động đăng xuất sau 30 phút không có tương tác.' : 'Session automatically signed out after 30 minutes of inactivity.');
+        setIsLoginModalOpen(true);
+      }
+    }, 15000);
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, handleUserActivity));
+      clearInterval(interval);
+    };
+  }, [token, lang]);
 
   useEffect(() => {
     initGlobalErrorLogging();
@@ -514,37 +572,44 @@ export default function App() {
 
         <div className={appMode === 'single' ? 'space-y-8 animate-fade-in' : 'hidden'}>
             {/* Top welcome banner / intro */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60 mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>
-                {lang === 'vi'
-                  ? 'Chuyên Gia Tuyển Dụng AI (Senior HR Lead Persona)'
-                  : 'AI Recruitment Expert (Senior HR Lead Persona)'}
-              </span>
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-indigo-900 pointer-events-none hidden md:block">
+                <Users className="w-56 h-56" />
+              </div>
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+                <div className="max-w-3xl space-y-2">
+                  <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <Sparkles className="w-3 h-3" />
+                    <span>
+                      {lang === 'vi'
+                        ? 'CÔNG CỤ PHÂN TÍCH DÀNH CHO ỨNG VIÊN'
+                        : 'AI-POWERED CANDIDATE TOOLKIT'}
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                    {lang === 'vi'
+                      ? 'Phân Tích CV & Tối Ưu Hồ Sơ Ứng Tuyển'
+                      : 'CV Analysis & Application Optimization'}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                    {lang === 'vi'
+                      ? 'So sánh CV với JD, nhận diện điểm mạnh và cơ hội cải thiện.'
+                      : 'Compare your CV with the job description and identify areas for improvement.'}
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <button
+                    onClick={() => setIsCandidateGuideOpen(true)}
+                    title={lang === 'vi' ? "Hướng dẫn sử dụng" : "User Guide"}
+                    aria-label={lang === 'vi' ? "Hướng dẫn sử dụng" : "User Guide"}
+                    className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer border border-indigo-200/90 whitespace-nowrap"
+                  >
+                    <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>{lang === 'vi' ? 'Hướng dẫn sử dụng' : 'User Guide'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {lang === 'vi'
-                ? 'Phân Tích JD & Tối Ưu CV Theo Tiêu Chuẩn Nhà Tuyển Dụng'
-                : 'JD Analysis & CV Optimization to Recruiter Standards'}
-            </h2>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              {lang === 'vi' ? (
-                <>
-                  Nhập CV và JD để đánh giá mức độ phù hợp, xác định điểm mạnh, khoảng trống cần cải thiện và nhận đề xuất giúp CV thuyết phục hơn với nhà tuyển dụng.
-                </>
-              ) : (
-                <>
-                  Input your CV and Job Description (JD) to receive clear analysis across 3 core features: 
-                  <strong> JD Keyword Extraction & Comparison</strong>, 
-                  <strong> Bullet Point Optimization (Action + Tool + Outcome)</strong>, and 
-                  <strong> Strict 10-Second Recruiter Impression Scan</strong>.
-                </>
-              )}
-            </p>
-          </div>
-        </div>
 
         {/* Input Form Section */}
         <InputSection
@@ -846,15 +911,20 @@ export default function App() {
           lang={lang}
         />
 
+        {/* Candidate User Guide Drawer */}
+        <CandidateGuideDrawer
+          isOpen={isCandidateGuideOpen}
+          onClose={() => setIsCandidateGuideOpen(false)}
+          lang={lang}
+        />
+
       </main>
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
         <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
           <p className="font-medium text-slate-700">
-            {lang === 'vi'
-              ? 'RoleMatch — AI hỗ trợ phân tích CV & JD minh bạch, bảo mật và có trách nhiệm.'
-              : 'RoleMatch — AI-powered CV & JD analysis with transparency, security, and accountability.'}
+            {translations[lang].login.disclaimer}
           </p>
         </div>
       </footer>

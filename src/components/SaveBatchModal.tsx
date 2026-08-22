@@ -229,7 +229,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
       <div 
         id="save-batch-backdrop"
         onClick={handleBackdropClick}
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto"
       >
         <motion.div
           role="dialog"
@@ -238,7 +238,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden"
+          className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
