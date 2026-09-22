@@ -1,4 +1,4 @@
-# RoleMatch2 - AI Resume Analysis & Matcher
+# RoleMatch - AI Resume Analysis & Matcher
 
 RoleMatch2 là hệ thống phân tích và khớp nối CV ứng viên với Mô tả công việc (JD) dựa trên trí tuệ nhân tạo.
 
