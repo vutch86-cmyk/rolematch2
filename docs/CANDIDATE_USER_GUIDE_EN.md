@@ -51,9 +51,9 @@ Prioritize information you can explain and verify:
 
 You do not need to include every personal detail. Avoid sensitive information and details unrelated to the position.
 
-### 3.3. Upload a file or paste the text
+### 3.3. Upload a file, import from a link, or paste the text
 
-You can paste text directly or upload files for both the JD and the CV.
+You can paste text directly, upload files for both the JD and the CV, or click **Import Link** to automatically extract the job description from a job posting URL (LinkedIn, ITviec, TopCV, VietnamWorks...). If the portal requires you to sign in first, a popup window will open so you can log in safely and use the 1-click AI clipboard extractor to pull the clean JD.
 
 - Common supported formats include **PDF**, **DOCX**, **DOC**, **TXT**, and **Markdown**.
 - The maximum size for each file is **15 MB**.

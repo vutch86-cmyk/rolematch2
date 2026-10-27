@@ -60,6 +60,7 @@ import { HistoryItem, ComparisonRow, RecruiterBatchDetail, SavedBatchCandidate }
 import { SaveBatchModal } from './SaveBatchModal';
 import { SavedBatchesModal } from './SavedBatchesModal';
 import { RecruiterGuideDrawer } from './RecruiterGuideDrawer';
+import { JdUrlExtractor, JdUrlTriggerButton } from './JdUrlExtractor';
 
 interface BatchProcessingTabProps {
   lang: 'vi' | 'en';
@@ -279,9 +280,10 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
 
-  // JD File Upload states & ref
+  // JD File Upload & URL Import states & ref
   const [isExtractingJd, setIsExtractingJd] = useState<boolean>(false);
   const [jdFileName, setJdFileName] = useState<string | null>(null);
+  const [isJdUrlBarOpen, setIsJdUrlBarOpen] = useState<boolean>(false);
   const jdFileInputRef = useRef<HTMLInputElement>(null);
 
   const mapSavedCandidateToResult = (c: SavedBatchCandidate): CandidateResult => ({
@@ -1521,7 +1523,13 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                   {isEn ? '1. Job Description (JD)' : '1. Mô Tả Công Việc (JD)'}
                 </label>
                 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <JdUrlTriggerButton
+                    lang={lang}
+                    isOpen={isJdUrlBarOpen}
+                    isExtracting={isExtractingJd}
+                    onClick={() => setIsJdUrlBarOpen(prev => !prev)}
+                  />
                   <input
                     type="file"
                     ref={jdFileInputRef}
@@ -1562,6 +1570,19 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                   </div>
                 </div>
               </div>
+
+              <JdUrlExtractor
+                lang={lang}
+                token={token}
+                isOpen={isJdUrlBarOpen}
+                onToggleOpen={() => setIsJdUrlBarOpen(prev => !prev)}
+                onExtracted={({ jdText: extractedJd, sourceLabel }) => {
+                  setJdText(extractedJd);
+                  setJdFileName(sourceLabel);
+                  setIsJdUrlBarOpen(false);
+                  setErrorMsg('');
+                }}
+              />
 
               {jdFileName && (
                 <div className="flex items-center justify-between bg-indigo-50/80 border border-indigo-200/80 text-indigo-900 rounded-xl px-3 py-1.5 text-xs">

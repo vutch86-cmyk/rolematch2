@@ -51,9 +51,9 @@ Nếu JD quá ngắn, thiếu bối cảnh hoặc gộp nhiều vị trí không
 
 Không cần thêm mọi thông tin cá nhân vào CV. Tránh đưa dữ liệu nhạy cảm hoặc thông tin không liên quan đến vị trí ứng tuyển.
 
-### 3.3. Tải tệp hoặc dán nội dung
+### 3.3. Tải tệp, trích xuất từ Link hoặc dán nội dung
 
-Bạn có thể dán văn bản trực tiếp hoặc tải tệp lên ở cả phần JD và phần CV.
+Bạn có thể dán văn bản trực tiếp, tải tệp lên ở cả phần JD và phần CV, hoặc bấm **Dán Link JD** để tự động lấy nội dung mô tả công việc từ liên kết tuyển dụng (LinkedIn, ITviec, TopCV, VietnamWorks...). Nếu trang tuyển dụng yêu cầu đăng nhập mới xem được tin, ứng dụng sẽ mở cửa sổ Popup để bạn đăng nhập an toàn và hỗ trợ nút đọc 1-chạm từ Clipboard để AI tự lọc sạch nội dung JD.
 
 - Các định dạng thường dùng gồm **PDF**, **DOCX**, **DOC**, **TXT** và **Markdown**.
 - Dung lượng tối đa cho mỗi tệp là **15 MB**.

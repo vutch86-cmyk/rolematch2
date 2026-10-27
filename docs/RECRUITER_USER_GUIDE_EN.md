@@ -16,7 +16,7 @@ AI supports screening and interview preparation. It does not replace decisions m
 ## 2. Quick workflow
 
 1. Switch to **Recruiter** mode.
-2. Provide a clear JD and upload the CVs to be analyzed.
+2. Provide a clear JD (paste text, upload a file, or use **Import Link** to extract the JD from a job posting URL; if the portal requires sign-in such as LinkedIn/ITviec, a login popup and 1-click AI clipboard extractor will assist you) and upload the CVs to be analyzed.
 3. Select **Start Analysis**.
 4. Check how many profiles were completed successfully, failed, or returned no valid score.
 5. Review the batch overview to understand the result distribution.

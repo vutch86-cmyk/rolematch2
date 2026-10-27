@@ -3850,6 +3850,342 @@ app.post('/api/extract-text', handleUploadAny, async (req, res) => {
   }
 });
 
+// ==========================================
+// JD URL EXTRACTION & AUTH POPUP ASSIST API
+// ==========================================
+
+import {
+  validatePublicJobUrl,
+  detectJobSiteName,
+  extractLinkedInJobId,
+  decodeHtmlEntities,
+  stripHtmlToFormattedText,
+  extractJsonLdJobPosting,
+  extractMetaAndBodyText,
+  isLikelyAuthOrBotWall,
+  cleanPortalTitleSuffix,
+  cleanJdTextHeuristically,
+} from './src/utils/jdUrlExtractorHelpers';
+
+export {
+  validatePublicJobUrl,
+  detectJobSiteName,
+  extractLinkedInJobId,
+  decodeHtmlEntities,
+  stripHtmlToFormattedText,
+  extractJsonLdJobPosting,
+  extractMetaAndBodyText,
+  isLikelyAuthOrBotWall,
+  cleanPortalTitleSuffix,
+  cleanJdTextHeuristically,
+};
+
+export async function cleanAndExtractJdWithAi(
+  rawInputText: string,
+  sourceInfo: { url?: string; siteName?: string; hintTitle?: string },
+  lang: 'vi' | 'en'
+): Promise<{ isAuthWall: boolean; jobTitle: string; jdText: string }> {
+  const trimmedInput = rawInputText.slice(0, 35000).trim();
+
+  try {
+    const ai = getGeminiClient(20000);
+    const prompt = `
+You are an expert HR Data Extraction Engine.
+Below is raw text extracted or copied from a job posting webpage (${sourceInfo.siteName || 'Job Portal'}${sourceInfo.url ? ` - ${sourceInfo.url}` : ''}).
+
+Your tasks:
+1. Determine if this text actually contains a Job Description (JD) or if it is ONLY a login wall / sign-in prompt / Cloudflare captcha / empty error page with no job details.
+   - Set "isAuthWall": true ONLY IF there is no actual job description content and the text is mainly asking the user to sign in, verify they are human, or showing an error.
+2. If it contains a Job Description, extract and format the COMPLETE Job Description into clean, structured Markdown in its ORIGINAL language (do NOT translate the JD).
+   - Strip out website navigation menus, "Sign in / Register" buttons, "Similar Jobs / Việc làm tương tự", company reviews sidebar, footer copyright, and cookie notices.
+   - Keep 100% of the job details: Job Title, Company Name, Location/Work mode, Job Overview/Summary, Responsibilities/Job Description, Requirements/Qualifications/Skills, and Benefits/Compensation.
+   - Use clear Markdown headings (e.g., # Job Title, ## Mô tả công việc / Responsibilities, ## Yêu cầu ứng viên / Requirements, ## Quyền lợi / Benefits) and bullet points ("- ").
+
+Respond ONLY with valid JSON matching this exact structure:
+{
+  "isAuthWall": boolean,
+  "jobTitle": "Clean job title (e.g. Senior React Developer)",
+  "jdText": "Full cleaned Markdown job description"
+}
+
+RAW WEBPAGE TEXT:
+"""
+${trimmedInput}
+"""
+`;
+
+    const response = await callGeminiWithRetry(ai, {
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      },
+      timeoutMs: 18000,
+    });
+
+    if (response?.text) {
+      const parsed = parseJsonSafely(response.text);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.isAuthWall === true) {
+          return { isAuthWall: true, jobTitle: '', jdText: '' };
+        }
+        if (typeof parsed.jdText === 'string' && parsed.jdText.trim().length > 60) {
+          return {
+            isAuthWall: false,
+            jobTitle: typeof parsed.jobTitle === 'string' && parsed.jobTitle.trim()
+              ? parsed.jobTitle.trim()
+              : cleanPortalTitleSuffix(sourceInfo.hintTitle || ''),
+            jdText: parsed.jdText.trim(),
+          };
+        }
+      }
+    }
+  } catch (aiErr: any) {
+    console.warn('[JD URL Extract] AI structuring fallback triggered:', aiErr?.message || aiErr);
+  }
+
+  // Heuristic fallback when AI is unavailable or rate-limited
+  return cleanJdTextHeuristically(trimmedInput, sourceInfo, lang);
+}
+
+// 1. POST /api/extract-jd-from-url - Fetch & extract JD from a job posting link
+app.post('/api/extract-jd-from-url', async (req, res) => {
+  const reqLang = (req.query.lang || req.body?.lang || 'vi') === 'en' ? 'en' : 'vi';
+  const isEn = reqLang === 'en';
+
+  try {
+    const { url: rawUrl } = req.body || {};
+    const validation = validatePublicJobUrl(rawUrl);
+    if (!validation.valid || !validation.parsed) {
+      return res.status(400).json({
+        success: false,
+        error: isEn ? validation.errorEn : validation.errorVi,
+      });
+    }
+
+    const parsedUrl = validation.parsed;
+    const siteName = detectJobSiteName(parsedUrl);
+    const browserHeaders: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Upgrade-Insecure-Requests': '1',
+    };
+
+    // Special handling for LinkedIn job URLs: try LinkedIn public guest API first if jobId is present
+    const linkedInJobId = extractLinkedInJobId(parsedUrl);
+    if (linkedInJobId) {
+      try {
+        const guestApiUrl = `https://www.linkedin.com/jobs-guest/api/jobPosting/${linkedInJobId}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const liRes = await fetch(guestApiUrl, {
+          method: 'GET',
+          headers: browserHeaders,
+          redirect: 'follow',
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (liRes.ok) {
+          const liHtml = await liRes.text();
+          const { pageTitle, bodyText } = extractMetaAndBodyText(liHtml);
+          if (bodyText && bodyText.length > 150) {
+            const structured = await cleanAndExtractJdWithAi(
+              bodyText,
+              { url: parsedUrl.toString(), siteName: 'LinkedIn', hintTitle: pageTitle },
+              reqLang
+            );
+            if (!structured.isAuthWall && structured.jdText.length > 80) {
+              return res.json({
+                success: true,
+                requiresAuth: false,
+                siteName: 'LinkedIn',
+                sourceUrl: parsedUrl.toString(),
+                jobTitle: structured.jobTitle || pageTitle || 'LinkedIn Job',
+                text: structured.jdText,
+              });
+            }
+          }
+        }
+      } catch (liErr) {
+        console.warn('[JD URL Extract] LinkedIn guest API attempt failed, falling back to direct fetch:', liErr);
+      }
+    }
+
+    // Standard fetch with timeout
+    let response: Response;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      response = await fetch(parsedUrl.toString(), {
+        method: 'GET',
+        headers: browserHeaders,
+        redirect: 'follow',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchErr: any) {
+      console.warn('[JD URL Extract] Network/fetch error for URL:', parsedUrl.toString(), fetchErr?.message);
+      return res.json({
+        success: false,
+        requiresAuth: true,
+        siteName,
+        sourceUrl: parsedUrl.toString(),
+        reason: isEn
+          ? `${siteName} requires browser login or security verification to view this job posting.`
+          : `Trang ${siteName} yêu cầu đăng nhập hoặc xác thực trình duyệt để đọc nội dung tin tuyển dụng này.`,
+      });
+    }
+
+    const finalUrl = response.url || parsedUrl.toString();
+    const rawHtml = await response.text().catch(() => '');
+
+    // 1. Check for structured JSON-LD JobPosting schema first (works even on many complex SPAs)
+    const jsonLdJob = extractJsonLdJobPosting(rawHtml);
+    if (jsonLdJob && jsonLdJob.descriptionText && jsonLdJob.descriptionText.length > 120) {
+      const structured = await cleanAndExtractJdWithAi(
+        jsonLdJob.descriptionText,
+        { url: finalUrl, siteName, hintTitle: jsonLdJob.title },
+        reqLang
+      );
+      if (!structured.isAuthWall && structured.jdText.length > 80) {
+        return res.json({
+          success: true,
+          requiresAuth: false,
+          siteName,
+          sourceUrl: parsedUrl.toString(),
+          jobTitle: structured.jobTitle || jsonLdJob.title || siteName,
+          text: structured.jdText,
+        });
+      }
+    }
+
+    // 2. Extract general HTML meta & visible text
+    const { pageTitle, metaDescription, bodyText } = extractMetaAndBodyText(rawHtml);
+    const combinedRawText = [
+      pageTitle ? `# ${pageTitle}` : '',
+      metaDescription ? `${metaDescription}` : '',
+      bodyText,
+    ]
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+
+    // 3. Check if blocked by login wall / Cloudflare / anti-bot
+    if (
+      isLikelyAuthOrBotWall({
+        status: response.status,
+        finalUrl,
+        rawHtml,
+        pageTitle,
+        extractedText: combinedRawText,
+      })
+    ) {
+      return res.json({
+        success: false,
+        requiresAuth: true,
+        siteName,
+        sourceUrl: parsedUrl.toString(),
+        reason: isEn
+          ? `${siteName} requires you to sign in on your browser before viewing this Job Description.`
+          : `Trang ${siteName} yêu cầu đăng nhập tài khoản để xem nội dung Mô tả công việc (JD) này.`,
+      });
+    }
+
+    // 4. Clean & structure via AI
+    const structured = await cleanAndExtractJdWithAi(
+      combinedRawText,
+      { url: finalUrl, siteName, hintTitle: pageTitle },
+      reqLang
+    );
+
+    if (structured.isAuthWall || !structured.jdText || structured.jdText.trim().length < 80) {
+      return res.json({
+        success: false,
+        requiresAuth: true,
+        siteName,
+        sourceUrl: parsedUrl.toString(),
+        reason: isEn
+          ? `${siteName} requires you to sign in on your browser to read the full Job Description.`
+          : `Trang ${siteName} yêu cầu đăng nhập để hiển thị đầy đủ nội dung Mô tả công việc (JD).`,
+      });
+    }
+
+    return res.json({
+      success: true,
+      requiresAuth: false,
+      siteName,
+      sourceUrl: parsedUrl.toString(),
+      jobTitle: structured.jobTitle || pageTitle || siteName,
+      text: structured.jdText,
+    });
+  } catch (err: any) {
+    console.error('API /api/extract-jd-from-url Error:', err);
+    return res.status(500).json({
+      success: false,
+      error: (isEn ? 'Failed to extract JD from URL: ' : 'Lỗi khi trích xuất JD từ liên kết: ') + (err?.message || 'Unknown error'),
+    });
+  }
+});
+
+// 2. POST /api/clean-pasted-jd - AI-powered JD extraction from logged-in popup clipboard copy
+app.post('/api/clean-pasted-jd', async (req, res) => {
+  const reqLang = (req.query.lang || req.body?.lang || 'vi') === 'en' ? 'en' : 'vi';
+  const isEn = reqLang === 'en';
+
+  try {
+    const { rawText, sourceUrl } = req.body || {};
+    if (!rawText || typeof rawText !== 'string' || rawText.trim().length < 30) {
+      return res.status(400).json({
+        success: false,
+        error: isEn
+          ? 'Copied content is empty or too short. Please copy the job posting content from the login popup window first.'
+          : 'Nội dung sao chép trống hoặc quá ngắn. Vui lòng sao chép (Ctrl+A rồi Ctrl+C) nội dung trang tuyển dụng từ cửa sổ vừa đăng nhập.',
+      });
+    }
+
+    let siteName = 'Job Portal';
+    if (sourceUrl && typeof sourceUrl === 'string') {
+      try {
+        siteName = detectJobSiteName(new URL(sourceUrl));
+      } catch {
+        // ignore
+      }
+    }
+
+    const structured = await cleanAndExtractJdWithAi(
+      rawText,
+      { url: sourceUrl, siteName },
+      reqLang
+    );
+
+    if (structured.isAuthWall || !structured.jdText || structured.jdText.trim().length < 40) {
+      return res.status(422).json({
+        success: false,
+        error: isEn
+          ? 'Could not find valid Job Description details in the copied text (it appears to still be a login/verification page). Please sign in until the job posting is visible before copying.'
+          : 'Không tìm thấy nội dung Mô tả công việc hợp lệ trong văn bản vừa sao chép (có vẻ trang vẫn đang ở màn hình Đăng nhập/Xác thực). Vui lòng hoàn tất đăng nhập đến khi thấy chi tiết tin tuyển dụng rồi sao chép lại.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      siteName,
+      sourceUrl: sourceUrl || '',
+      jobTitle: structured.jobTitle || siteName,
+      text: structured.jdText,
+    });
+  } catch (err: any) {
+    console.error('API /api/clean-pasted-jd Error:', err);
+    return res.status(500).json({
+      success: false,
+      error: (isEn ? 'Failed to process JD content: ' : 'Không thể xử lý nội dung JD: ') + (err?.message || 'Unknown error'),
+    });
+  }
+});
+
 // Helper: Map file extensions to standard MIME types
 function getMimeTypeFromExtension(ext: string): string {
   switch (ext) {
