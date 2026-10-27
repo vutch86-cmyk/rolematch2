@@ -3,6 +3,7 @@ import Markdown from 'react-markdown';
 import { SAMPLE_PRESETS } from '../data/samplePresets';
 import { SamplePreset, UserAccount } from '../types';
 import { Language, translations } from '../utils/i18n';
+import { JdUrlExtractor, JdUrlTriggerButton } from './JdUrlExtractor';
 import {
   FileText,
   Briefcase,
@@ -51,6 +52,7 @@ export const InputSection: React.FC<InputSectionProps> = ({
   const [isExtractingJd, setIsExtractingJd] = useState<boolean>(false);
   const [isExtractingCv, setIsExtractingCv] = useState<boolean>(false);
   const [jdFileName, setJdFileName] = useState<string | null>(null);
+  const [isJdUrlBarOpen, setIsJdUrlBarOpen] = useState<boolean>(false);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
   const [isDraggingJd, setIsDraggingJd] = useState<boolean>(false);
   const [isDraggingCv, setIsDraggingCv] = useState<boolean>(false);
@@ -371,7 +373,13 @@ export const InputSection: React.FC<InputSectionProps> = ({
               <span className="text-rose-500 font-bold">*</span>
             </label>
 
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs flex-wrap">
+              <JdUrlTriggerButton
+                lang={lang}
+                isOpen={isJdUrlBarOpen}
+                isExtracting={isExtractingJd}
+                onClick={() => setIsJdUrlBarOpen((prev) => !prev)}
+              />
               <input
                 type="file"
                 ref={jdFileInputRef}
@@ -395,6 +403,20 @@ export const InputSection: React.FC<InputSectionProps> = ({
               </button>
             </div>
           </div>
+
+          <JdUrlExtractor
+            lang={lang}
+            token={currentUser?.token || null}
+            isOpen={isJdUrlBarOpen}
+            onToggleOpen={() => setIsJdUrlBarOpen((prev) => !prev)}
+            onExtracted={({ jdText: extractedJd, sourceLabel }) => {
+              setJdText(extractedJd);
+              setJdFileName(sourceLabel);
+              if (selectedPresetId) setSelectedPresetId('');
+              setIsJdUrlBarOpen(false);
+              setExtractError(null);
+            }}
+          />
 
           {jdFileName && (
             <div className="mb-2.5 flex items-center justify-between bg-indigo-50/80 border border-indigo-200/80 text-indigo-900 rounded-lg px-3 py-1.5 text-xs">

@@ -16,7 +16,7 @@ AI là công cụ hỗ trợ sàng lọc và chuẩn bị phỏng vấn, không 
 ## 2. Quy trình sử dụng nhanh
 
 1. Chuyển sang chế độ **Nhà tuyển dụng / Recruiter**.
-2. Cung cấp JD rõ ràng và tải lên các CV cần phân tích.
+2. Cung cấp JD rõ ràng (dán trực tiếp, tải tệp, hoặc dùng nút **Dán Link JD / Import Link** để trích xuất tự động từ liên kết tuyển dụng; nếu trang yêu cầu đăng nhập như LinkedIn/ITviec, hệ thống sẽ mở cửa sổ đăng nhập và hỗ trợ lọc JD 1-chạm từ Clipboard) và tải lên các CV cần phân tích.
 3. Chọn **Bắt Đầu Phân Tích / Start Analysis**.
 4. Kiểm tra số hồ sơ thành công, lỗi và không có điểm hợp lệ.
 5. Đọc tổng quan batch để hiểu phân bố kết quả.
