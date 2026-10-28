@@ -4643,7 +4643,7 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           jdText,
           clarifyingAnswers: undefined,
           lang,
-          analysisPromptVersion: 'language-consistency-v3'
+          analysisPromptVersion: 'phase1-step1.1-v1'
         });
 
         let finalResult: any;
@@ -5460,10 +5460,12 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
       isEn ? 'Important' : 'Quan trọng',
       isEn ? 'Advantageous' : 'Có lợi thế',
     ];
+    const importance = importances[idx % importances.length];
     return {
       keyword: term,
       category: categories[idx % categories.length],
-      importance: importances[idx % importances.length],
+      importance,
+      isMustHave: idx % importances.length === 0,
     };
   });
 
@@ -5472,6 +5474,7 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
     return {
       jdTerm: item.keyword,
       importance: item.importance,
+      isMustHave: item.isMustHave,
       cvEvidence: isMatched
         ? (isEn ? `CV mentions experience related to ${item.keyword}` : `CV có đề cập kinh nghiệm liên quan đến ${item.keyword}`)
         : (isEn ? 'Missing' : 'Thiếu thông tin'),
@@ -5479,6 +5482,14 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
         ? (isEn ? 'Adequately referenced' : 'Đã khớp tốt trong CV')
         : (isEn ? `Recommend adding specific project evidence for ${item.keyword}` : `Cần bổ sung dẫn chứng dự án cụ thể về ${item.keyword}`),
       matchStatus: (isMatched ? 'khop' : 'can_bo_sung') as 'khop' | 'can_bo_sung' | 'thieu',
+      targetSection: isMatched
+        ? (isEn ? 'Work Experience / Technical Skills' : 'Mục Kinh nghiệm làm việc / Kỹ năng chuyên môn')
+        : (isEn ? 'Recent Work Experience & Executive Summary' : 'Mục Kinh nghiệm dự án gần nhất & Tóm tắt mở đầu'),
+      suggestedPhrasing: isMatched
+        ? ''
+        : (isEn
+          ? `Spearheaded implementation of ${item.keyword} across core workflows, improving delivery efficiency by 25% and meeting SLA targets.`
+          : `Trực tiếp triển khai và tối ưu hóa ${item.keyword} trong dự án trọng điểm, giúp tăng 25% hiệu suất vận hành và đáp ứng 100% chỉ tiêu SLA/KPI.`),
     };
   });
 
@@ -5549,6 +5560,19 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
         skillMatchScore: 82,
         experienceOutcomeScore: 72,
         overallRoleScore: 77,
+        projectedOverallScore: 91,
+        keywordRationale: isEn
+          ? 'Matches core domain terminology (78%), but lacks explicit mention of several specialized methodologies required by the JD.'
+          : 'Bao phủ tốt nhóm thuật ngữ cốt lõi (78%), nhưng còn thiếu một số từ khóa phương pháp luận và công cụ nâng cao trong JD.',
+        skillRationale: isEn
+          ? 'Strong foundational technical skills (82%), though some tools are only listed without project execution context.'
+          : 'Đạt 82% nhờ nền tảng kỹ năng chuyên môn vững, tuy nhiên một vài công cụ mới dừng ở mức liệt kê tên, thiếu dẫn chứng thực thi.',
+        experienceRationale: isEn
+          ? 'Scored 72% because work history bullets focus on responsibilities rather than quantifiable KPIs, ROI, or system scale.'
+          : 'Đạt 72% do phần kinh nghiệm đang thiên về liệt kê đầu việc, thiếu số liệu định lượng kết quả (%, KPI, SLA, quy mô dự án).',
+        overallRationale: isEn
+          ? 'Solid baseline fit (77%). By incorporating missing Must-Have keywords and adding concrete KPI metrics to recent roles, overall fit can rise to ~91%.'
+          : 'Độ khớp nền tảng khá tốt (77%). Nếu bổ sung đủ các tiêu chí Bắt buộc (Must-Have) đang khuyết và thêm số liệu KPI vào 2 công ty gần nhất, điểm có thể tăng lên ~91%.',
       },
       summary: {
         biggestStrength: isEn
@@ -5676,16 +5700,19 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
    - "Deliverables & Expected Outcomes"
    - "Attributes & Work Style"
    Assign importance level: "High Priority", "Medium Priority", or "Nice to Have".
+   Assign isMustHave (boolean): true if this is a mandatory / knock-out requirement in the JD, false if it is a bonus / nice-to-have skill.
 2. Create CV vs JD Comparison Table:
-   - Importance level
+   - Importance level & isMustHave (boolean: true for Must-Have / Knock-out, false for Nice-to-Have)
    - Where in CV this is demonstrated (quote exact evidence from CV)
    - Gap or recommended addition
    - matchStatus: "khop" | "can_bo_sung" | "thieu"
-3. Calculate Fit Scores (0 - 100%):
-   - Technical Keyword Match (%)
-   - Skill Set Match (%)
-   - Experience & Outcome Match (%)
-   - Overall Role Fit (%)
+   - targetSection: Specific CV section where the candidate should insert or strengthen this item (e.g., "Executive Summary", "Work Experience at [Company Name]", "Technical Skills").
+   - suggestedPhrasing: For items with matchStatus "can_bo_sung" or "thieu", write a ready-to-use, realistic 1-sentence CV snippet/bullet (in the SAME language as the candidate's CV) that the candidate can copy and adapt directly into that targetSection (use [X]% or [Metric] placeholders if exact numbers are unknown). For "khop", return an empty string "".
+3. Calculate Fit Scores (0 - 100%) & Detailed Score Rationales:
+   - Technical Keyword Match (%) + keywordRationale (Explain why this score was given and what specific missing/weak terms pulled it down)
+   - Skill Set Match (%) + skillRationale (Explain why this score was given and which core vs bonus skills lack depth)
+   - Experience & Outcome Match (%) + experienceRationale (Explain why this score was given based on seniority, project scale, and quantified outcomes)
+   - Overall Role Fit (%) + projectedOverallScore (0 - 100%: realistic target score achievable if the candidate optimizes CV presentation and fills the addressable gaps) + overallRationale (Explain the main score drivers and how to bridge the gap from overallRoleScore to projectedOverallScore)
 4. Analysis Summary:
    - Biggest strength of CV relative to JD
    - Key missing keywords, skills, or experience
@@ -5748,16 +5775,19 @@ ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN
      + "Kết quả đầu ra hoặc kỳ vọng công việc"
      + "Phẩm chất hoặc cách làm việc"
    - Gán 1 trong 3 mức độ quan trọng: "Rất quan trọng", "Quan trọng", "Có lợi thế".
+   - Gán isMustHave (boolean): true nếu đây là tiêu chí Bắt buộc / Điều kiện tiên quyết (Must-Have / Knock-out) trong JD; false nếu là Điểm cộng / Ưu tiên thêm (Nice-to-Have).
 2. Tạo Bảng Đối chiếu CV với JD:
-   - Mức độ quan trọng
+   - Mức độ quan trọng & isMustHave (boolean: true = Tiêu chí bắt buộc, false = Điểm cộng)
    - CV của tôi đã thể hiện ở đâu (trích dẫn bằng chứng cụ thể từ CV)
    - Khoảng trống cần bổ sung hoặc viết rõ hơn
    - matchStatus: "khop" | "can_bo_sung" | "thieu"
-3. Chấm điểm Mức độ Phù hợp (Thang điểm 0 - 100%):
-   - Mức độ khớp từ khóa chuyên môn (%)
-   - Mức độ khớp kỹ năng (%)
-   - Mức độ khớp kinh nghiệm và kết quả đầu ra (%)
-   - Mức độ phù hợp tổng thể với vai trò (%)
+   - targetSection: Chỉ rõ vị trí cụ thể trong CV nên chèn hoặc viết sâu hơn (Ví dụ: "Mục Tóm tắt mở đầu (Executive Summary)", "Mục Kinh nghiệm tại [Tên Công ty trong CV]", hoặc "Mục Kỹ năng chuyên môn").
+   - suggestedPhrasing: Với các tiêu chí đang ở mức "can_bo_sung" hoặc "thieu", hãy viết sẵn 1 câu văn mẫu / bullet point gợi ý sát ngữ cảnh (dùng CÙNG NGÔN NGỮ với CV gốc của ứng viên, có thể để ngoặc vuông [X]% hoặc [Số liệu] ở chỗ cần ứng viên điền số thực tế) để ứng viên copy chèn ngay vào targetSection. Nếu matchStatus là "khop", trả về chuỗi rỗng "".
+3. Chấm điểm Mức độ Phù hợp (Thang điểm 0 - 100%) & Giải trình Điểm số (Score Breakdown & Rationale):
+   - Mức độ khớp từ khóa chuyên môn (%) + keywordRationale (Giải thích rõ vì sao đạt mức điểm này, những từ khóa cốt lõi nào đã có và từ khóa nào vắng mặt làm kéo điểm xuống)
+   - Mức độ khớp kỹ năng (%) + skillRationale (Giải thích rõ vì sao đạt mức điểm này, kỹ năng nào mới chỉ liệt kê tên mà thiếu bằng chứng thực thi trong dự án)
+   - Mức độ khớp kinh nghiệm và kết quả đầu ra (%) + experienceRationale (Giải thích rõ vì sao đạt mức điểm này dựa trên thâm niên, quy mô dự án và mức độ định lượng kết quả KPI/SLA/ROI)
+   - Mức độ phù hợp tổng thể với vai trò (%) + projectedOverallScore (Điểm tổng thể dự kiến từ 0 - 100% có thể đạt được nếu ứng viên tối ưu lại cách trình bày CV và bổ sung các khoảng trống theo hướng dẫn) + overallRationale (Giải thích tổng quan nguyên nhân trừ điểm lớn nhất và lộ trình tăng từ overallRoleScore lên projectedOverallScore)
 4. Tóm tắt Phân tích:
    - Điểm mạnh lớn nhất của CV so với JD
    - Những từ khóa, kỹ năng hoặc kinh nghiệm quan trọng còn thiếu
@@ -5820,8 +5850,12 @@ const analysisResponseSchema = {
               keyword: { type: Type.STRING },
               category: { type: Type.STRING },
               importance: { type: Type.STRING },
+              isMustHave: {
+                type: Type.BOOLEAN,
+                description: 'true nếu là tiêu chí bắt buộc (Must-Have / Knock-out), false nếu là điểm cộng (Nice-to-Have)',
+              },
             },
-            required: ['keyword', 'category', 'importance'],
+            required: ['keyword', 'category', 'importance', 'isMustHave'],
           },
         },
         comparisonTable: {
@@ -5831,14 +5865,35 @@ const analysisResponseSchema = {
             properties: {
               jdTerm: { type: Type.STRING },
               importance: { type: Type.STRING },
+              isMustHave: {
+                type: Type.BOOLEAN,
+                description: 'true nếu là tiêu chí bắt buộc (Must-Have / Knock-out), false nếu là điểm cộng (Nice-to-Have)',
+              },
               cvEvidence: { type: Type.STRING },
               gapOrClarification: { type: Type.STRING },
               matchStatus: {
                 type: Type.STRING,
                 enum: ['khop', 'can_bo_sung', 'thieu'],
               },
+              targetSection: {
+                type: Type.STRING,
+                description: 'Vị trí cụ thể trong CV nên chèn hoặc làm rõ (VD: Tóm tắt mở đầu, Kinh nghiệm tại công ty X, Kỹ năng chuyên môn)',
+              },
+              suggestedPhrasing: {
+                type: Type.STRING,
+                description: 'Câu văn mẫu gợi ý sát ngữ cảnh (cùng ngôn ngữ CV gốc) để ứng viên chèn vào CV đối với tiêu chí can_bo_sung hoặc thieu',
+              },
             },
-            required: ['jdTerm', 'importance', 'cvEvidence', 'gapOrClarification', 'matchStatus'],
+            required: [
+              'jdTerm',
+              'importance',
+              'isMustHave',
+              'cvEvidence',
+              'gapOrClarification',
+              'matchStatus',
+              'targetSection',
+              'suggestedPhrasing',
+            ],
           },
         },
         scores: {
@@ -5848,12 +5903,37 @@ const analysisResponseSchema = {
             skillMatchScore: { type: Type.INTEGER },
             experienceOutcomeScore: { type: Type.INTEGER },
             overallRoleScore: { type: Type.INTEGER },
+            projectedOverallScore: {
+              type: Type.INTEGER,
+              description: 'Điểm phù hợp tổng thể dự kiến (0-100) nếu ứng viên tối ưu lại cách trình bày CV hiện tại theo hướng dẫn',
+            },
+            keywordRationale: {
+              type: Type.STRING,
+              description: 'Giải trình chi tiết vì sao đạt điểm khớp từ khóa này và yếu tố nào kéo điểm xuống',
+            },
+            skillRationale: {
+              type: Type.STRING,
+              description: 'Giải trình chi tiết vì sao đạt điểm khớp kỹ năng này và yếu tố nào kéo điểm xuống',
+            },
+            experienceRationale: {
+              type: Type.STRING,
+              description: 'Giải trình chi tiết vì sao đạt điểm khớp kinh nghiệm & kết quả đầu ra này',
+            },
+            overallRationale: {
+              type: Type.STRING,
+              description: 'Giải trình tổng hợp mức độ phù hợp và cơ sở tăng điểm lên projectedOverallScore',
+            },
           },
           required: [
             'keywordMatchScore',
             'skillMatchScore',
             'experienceOutcomeScore',
             'overallRoleScore',
+            'projectedOverallScore',
+            'keywordRationale',
+            'skillRationale',
+            'experienceRationale',
+            'overallRationale',
           ],
         },
         summary: {
@@ -5982,8 +6062,8 @@ ${JSON.stringify(draftAnalysis, null, 2)}
 === YOUR AUDIT & QUALITY CONTROL MISSION ===
 Compare the candidate CV, JD, and Gemini's draft analysis.
 Identify:
-1. Missing JD keywords or critical technical skills that Gemini overlooked or under-scored in the draft.
-2. Inaccuracies or weak points in Gemini's comparison table or score estimates.
+1. Missing JD keywords or critical technical skills that Gemini overlooked or under-scored in the draft, and verify whether mandatory (Must-Have / Knock-out) vs bonus (Nice-to-Have) flags (`isMustHave`) are accurate.
+2. Inaccuracies or weak points in Gemini's comparison table (`targetSection`, `suggestedPhrasing`) or score estimates (`projectedOverallScore`, `keywordRationale`, `skillRationale`, `experienceRationale`, `overallRationale`).
 3. Unaddressed candidate strengths or recruitment doubts in the 10-second scan.
 4. Suggestions to refine rewritten bullet points for higher impact and strict accuracy.
 5. Specific corrections needed for immediate actions.
@@ -6112,8 +6192,9 @@ ${auditFeedback}
 === FINAL SYNTHESIS TASK ===
 Incorporate ALL valid auditor corrections and improvements from Step 2 into the Step 1 Draft Analysis.
 Specifically:
-- Ensure missing JD keywords identified by the auditor are added to the comparison table and keyword extraction.
-- Adjust compatibility scores to be realistic and well-justified based on the auditor's critique.
+- Ensure missing JD keywords identified by the auditor are added to the comparison table and keyword extraction with accurate `isMustHave` classification (true = Must-Have / Knock-out, false = Nice-to-Have).
+- Ensure every row in `comparisonTable` with `matchStatus` of `can_bo_sung` or `thieu` includes a concrete `targetSection` and a ready-to-use `suggestedPhrasing` (in the same language as the candidate's CV).
+- Adjust compatibility scores (`overallRoleScore`, `projectedOverallScore`, and all 4 score rationales: `keywordRationale`, `skillRationale`, `experienceRationale`, `overallRationale`) to be realistic, transparent, and well-justified based on the auditor's critique.
 - Refine rewritten bullet points to strictly follow the action formula (concise and complete, Action + Tool + Result).
 - CRITICAL LANGUAGE MATCHING RULE FOR REWRITTEN BULLETS: Every 'rewrittenBullet' in Feature 2 MUST be written in the SAME LANGUAGE as the candidate's original CV bullet point (e.g. English CV ➔ English 'rewrittenBullet'; Vietnamese CV ➔ Vietnamese 'rewrittenBullet'). Do NOT translate candidate bullets to a different language!
 - Ensure the 10-second recruiter scan reflects the auditor's findings.
@@ -6195,7 +6276,7 @@ app.post('/api/analyze-cv', async (req, res) => {
       });
     }
 
-    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'language-consistency-v3' });
+    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'phase1-step1.1-v1' });
     if (analyzeCache.has(cacheKey)) {
       console.log('[Cache Hit] Returning cached analysis response.');
       const cachedResult = analyzeCache.get(cacheKey);

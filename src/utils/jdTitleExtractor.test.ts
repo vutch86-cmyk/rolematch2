@@ -196,7 +196,7 @@ test('4. enrichAndMigrateHistoryItem automatically upgrades legacy "Vị trí <k
 
 test('5. UI contract check across App.tsx and HistorySidebar.tsx for Company + Role display & Always-Visible Inline Rename', () => {
   const rootDir = process.cwd();
-  const appCode = fs.readFileSync(path.join(rootDir, 'src/App.tsx'), 'utf-8');
+  const appCode = fs.readFileSync(path.join(rootDir, 'src/App.tsx'), 'utf-8').replace(/\r\n/g, '\n');
   const sidebarCode = fs.readFileSync(path.join(rootDir, 'src/components/HistorySidebar.tsx'), 'utf-8');
 
   assert.ok(appCode.includes('enrichAndMigrateHistoryItem'));

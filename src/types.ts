@@ -11,14 +11,18 @@ export interface JDKeyword {
   keyword: string;
   category: KeywordCategory;
   importance: ImportanceLevel;
+  isMustHave?: boolean; // true = Tiêu chí bắt buộc (Must-Have / Knock-out), false = Điểm cộng (Nice-to-Have)
 }
 
 export interface ComparisonRow {
   jdTerm: string;
   importance: ImportanceLevel;
+  isMustHave?: boolean; // true = Tiêu chí bắt buộc (Must-Have / Knock-out), false = Điểm cộng (Nice-to-Have)
   cvEvidence: string; // "CV của tôi đã thể hiện ở đâu"
   gapOrClarification: string; // "Khoảng trống cần bổ sung hoặc viết rõ hơn"
   matchStatus: 'khop' | 'can_bo_sung' | 'thieu';
+  targetSection?: string; // Vị trí gợi ý chèn vào CV (VD: Tóm tắt mở đầu, Kinh nghiệm làm việc, Kỹ năng chuyên môn)
+  suggestedPhrasing?: string; // Câu văn mẫu gợi ý sát ngữ cảnh để chèn vào CV
 }
 
 export interface CompatibilityScores {
@@ -26,6 +30,11 @@ export interface CompatibilityScores {
   skillMatchScore: number; // Mức độ khớp kỹ năng (0-100)
   experienceOutcomeScore: number; // Mức độ khớp kinh nghiệm và kết quả đầu ra (0-100)
   overallRoleScore: number; // Mức độ phù hợp tổng thể với vai trò (0-100)
+  projectedOverallScore?: number; // Điểm phù hợp tổng thể dự kiến nếu tối ưu lại cách trình bày CV (0-100)
+  keywordRationale?: string; // Giải trình điểm khớp từ khóa & yếu tố kéo điểm xuống
+  skillRationale?: string; // Giải trình điểm khớp kỹ năng & yếu tố kéo điểm xuống
+  experienceRationale?: string; // Giải trình điểm khớp kinh nghiệm & kết quả đầu ra
+  overallRationale?: string; // Giải trình điểm tổng thể & lộ trình tăng lên projectedOverallScore
 }
 
 export interface AnalysisSummary {
