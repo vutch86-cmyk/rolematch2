@@ -13,21 +13,21 @@
 - **Role:** Planner / System Architect.
 - **Action:**
   1. Đọc hiểu yêu cầu người dùng, kiểm tra mã nguồn hiện có và các file cấu hình liên quan.
-  2. Tạo hoặc cập nhật artifact `implementation_plan.md` với định dạng chuẩn:
+  2. Tạo hoặc cập nhật trực tiếp file `.antigravity/implementation_plan.md` trong thư mục dự án (đồng thời đồng bộ với Artifact nếu cần) theo định dạng chuẩn để người dùng dễ dàng theo dõi lịch sử kế hoạch và các thay đổi phần mềm tại 1 file duy nhất:
      - **Objective:** Mục tiêu ngắn gọn của task.
      - **Files Affected:** Danh sách các file dự kiến tạo mới hoặc sửa đổi.
      - **Implementation Steps:** Danh sách các đầu việc tuần tự (kèm checklist `[ ]`).
      - **Test & Verification Strategy:** Lệnh test sẽ chạy, kịch bản test UI/Browser cụ thể.
-  3. **Checkpoint:** Dừng lại, xuất `implementation_plan.md` làm Artifact và yêu cầu người dùng duyệt trước khi thực thi bất kỳ thay đổi nào trên codebase.
+  3. **Checkpoint:** Dừng lại, lưu kế hoạch vào `.antigravity/implementation_plan.md` (kèm Artifact) và yêu cầu người dùng duyệt trước khi thực thi bất kỳ thay đổi nào trên codebase.
 
 ### Phase 2: Coding (Triển khai mã nguồn)
 - **Role:** Software Engineer.
-- **Pre-condition:** Chỉ thực thi khi `implementation_plan.md` đã được người dùng chấp thuận.
+- **Pre-condition:** Chỉ thực thi khi `.antigravity/implementation_plan.md` đã được người dùng chấp thuận.
 - **Action:**
   1. Triển khai code theo đúng thứ tự checklist trong kế hoạch.
   2. Giữ nguyên coding conventions, naming styles và typing annotations hiện hữu của dự án.
   3. Không tự ý cài đặt thêm dependency nặng trừ khi đã ghi rõ trong kế hoạch.
-  4. Cập nhật trạng thái checklist `[x]` trong `implementation_plan.md` khi từng bước hoàn tất.
+  4. Cập nhật trạng thái checklist `[x]` trong `.antigravity/implementation_plan.md` khi từng bước hoàn tất.
 
 ### Phase 3: Testing & Verification (Kiểm thử & Khắc phục)
 - **Role:** QA Engineer & DevOps.
