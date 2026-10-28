@@ -257,15 +257,22 @@ test('6. UI & Server integration contract check across JdUrlExtractor, BatchProc
   assert.ok(extractorCode.includes("window.open(\n        targetUrl,\n        'rolematch_jd_login_popup'"));
   assert.ok(extractorCode.includes('navigator.clipboard.readText()'));
 
-  // Verify Recruiter UI (BatchProcessingTab.tsx) integrates JdUrlTriggerButton & JdUrlExtractor alongside file upload
+  // Verify Recruiter UI (BatchProcessingTab.tsx) integrates JdUrlTriggerButton & JdUrlExtractor alongside file upload, drag-drop, error handling, and Markdown preview
   assert.ok(recruiterCode.includes('JdUrlTriggerButton'));
   assert.ok(recruiterCode.includes('JdUrlExtractor'));
   assert.ok(recruiterCode.includes('isJdUrlBarOpen'));
+  assert.ok(recruiterCode.includes('onError={(msg) => setJdExtractError(msg)}'));
+  assert.ok(recruiterCode.includes('handleJdDrop'));
+  assert.ok(recruiterCode.includes('jdViewMode'));
+  assert.ok(recruiterCode.includes('<Markdown>{jdText}</Markdown>'));
 
-  // Verify Candidate UI (InputSection.tsx) integrates JdUrlTriggerButton & JdUrlExtractor alongside file upload
+  // Verify Candidate UI (InputSection.tsx) integrates JdUrlTriggerButton & JdUrlExtractor alongside file upload, error handling, and Markdown preview
   assert.ok(candidateCode.includes('JdUrlTriggerButton'));
   assert.ok(candidateCode.includes('JdUrlExtractor'));
   assert.ok(candidateCode.includes('isJdUrlBarOpen'));
+  assert.ok(candidateCode.includes('onError={(msg) => setExtractError(msg)}'));
+  assert.ok(candidateCode.includes('jdViewMode'));
+  assert.ok(candidateCode.includes('<Markdown>{jdText}</Markdown>'));
 
   // Verify server.ts registers both POST routes
   assert.ok(serverCode.includes("app.post('/api/extract-jd-from-url'"));
