@@ -145,6 +145,10 @@ export interface UpdatedCvResponse {
 export interface HistoryItem {
   id: string;
   title: string;
+  companyName?: string;
+  jobTitle?: string;
+  jdFileName?: string;
+  isCustomTitle?: boolean;
   timestamp: number;
   cvText: string;
   jdText: string;

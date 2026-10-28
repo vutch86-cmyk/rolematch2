@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { HistoryItem } from '../types';
 import { Language, translations } from '../utils/i18n';
 import {
+  extractJobMetaFromJdText,
+  formatCandidateHistoryTitle,
+} from '../utils/jdTitleExtractor';
+import {
   History,
   X,
   Trash2,
@@ -10,7 +14,12 @@ import {
   FileText,
   Clock,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Building2,
+  Briefcase,
+  Edit3,
+  Check,
+  Plus
 } from 'lucide-react';
 
 interface HistorySidebarProps {
@@ -20,6 +29,7 @@ interface HistorySidebarProps {
   currentActiveId?: string;
   onSelectHistoryItem: (item: HistoryItem) => void;
   onDeleteHistoryItem: (id: string, e: React.MouseEvent) => void;
+  onRenameHistoryItem?: (id: string, updates: { companyName?: string; jobTitle?: string }) => void;
   onClearHistory: () => void;
   lang: Language;
 }
@@ -31,19 +41,66 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   currentActiveId,
   onSelectHistoryItem,
   onDeleteHistoryItem,
+  onRenameHistoryItem,
   onClearHistory,
   lang,
 }) => {
   const t = translations[lang].history;
   const [searchQuery, setSearchQuery] = useState('');
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCompanyName, setEditCompanyName] = useState('');
+  const [editJobTitle, setEditJobTitle] = useState('');
 
   if (!isOpen) return null;
+
+  const getItemResolvedMeta = (item: HistoryItem) => {
+    const extracted = extractJobMetaFromJdText(item.jdText || '', item.jdFileName || null);
+    const companyName = (item.companyName || extracted.companyName || '').trim();
+    const jobTitle = (item.jobTitle || extracted.jobTitle || '').trim();
+    const displayTitle = item.isCustomTitle && item.title?.trim()
+      ? item.title.trim()
+      : formatCandidateHistoryTitle(
+          {
+            companyName,
+            jobTitle,
+            fallbackTitle: item.title,
+          },
+          lang
+        );
+    return { companyName, jobTitle, displayTitle };
+  };
+
+  const handleStartEdit = (item: HistoryItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const meta = getItemResolvedMeta(item);
+    setEditingId(item.id);
+    setEditCompanyName(meta.companyName);
+    setEditJobTitle(meta.jobTitle || meta.displayTitle);
+  };
+
+  const handleSaveEdit = (id: string, e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    onRenameHistoryItem?.(id, {
+      companyName: editCompanyName.trim(),
+      jobTitle: editJobTitle.trim(),
+    });
+    setEditingId(null);
+  };
+
+  const handleCancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
+  };
 
   const filteredItems = historyItems.filter((item) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
+    const meta = getItemResolvedMeta(item);
     return (
+      meta.displayTitle.toLowerCase().includes(q) ||
+      meta.companyName.toLowerCase().includes(q) ||
+      meta.jobTitle.toLowerCase().includes(q) ||
       item.title.toLowerCase().includes(q) ||
       (item.analysis?.feature1?.jdKeywords || []).some((k) =>
         k.keyword.toLowerCase().includes(q)
@@ -160,6 +217,8 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
             ) : (
               filteredItems.map((item, idx) => {
                 const isCurrent = item.id === currentActiveId;
+                const isEditing = editingId === item.id;
+                const meta = getItemResolvedMeta(item);
                 const score = typeof item.score === 'number' && Number.isFinite(item.score)
                   ? item.score
                   : typeof item.analysis?.feature1?.scores?.overallRoleScore === 'number' && Number.isFinite(item.analysis?.feature1?.scores?.overallRoleScore)
@@ -169,7 +228,9 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 return (
                   <div
                     key={`${item.id || 'hist'}-${idx}`}
-                    onClick={() => onSelectHistoryItem(item)}
+                    onClick={() => {
+                      if (!isEditing) onSelectHistoryItem(item);
+                    }}
                     className={`group relative rounded-xl p-4 border transition-all cursor-pointer ${
                       isCurrent
                         ? 'bg-indigo-50/70 border-indigo-300 shadow-sm ring-1 ring-indigo-500/20'
@@ -177,15 +238,47 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-12">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
-                            {item.title || (lang === 'vi' ? 'Phân Tích CV' : 'CV Analysis')}
+                          <h4
+                            className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors truncate"
+                            title={meta.displayTitle}
+                          >
+                            {meta.displayTitle || (lang === 'vi' ? 'Vị trí ứng tuyển' : 'Applied Position')}
                           </h4>
                           {isCurrent && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-600 text-white shrink-0">
                               <CheckCircle2 className="w-3 h-3" />
                               {t.currentBadge}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Company Name & Role Position Badges */}
+                        <div className="flex items-center flex-wrap gap-1.5 mt-1.5 mb-2">
+                          {meta.companyName ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/70 text-[11px] font-semibold max-w-[180px] truncate">
+                              <Building2 className="w-3 h-3 shrink-0 text-indigo-600" />
+                              <span className="truncate">{meta.companyName}</span>
+                            </span>
+                          ) : (
+                            onRenameHistoryItem && !isEditing && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleStartEdit(item, e)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 border border-dashed border-slate-300 hover:border-indigo-300 text-[10px] font-semibold transition-colors cursor-pointer"
+                                title={lang === 'vi' ? 'Bổ sung tên công ty và vị trí ứng tuyển' : 'Add company name and role title'}
+                              >
+                                <Plus className="w-2.5 h-2.5" />
+                                <span>{lang === 'vi' ? 'Thêm tên công ty' : 'Add company'}</span>
+                              </button>
+                            )
+                          )}
+
+                          {meta.jobTitle && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50/80 text-emerald-800 border border-emerald-200/70 text-[11px] font-medium max-w-[210px] truncate">
+                              <Briefcase className="w-3 h-3 shrink-0 text-emerald-600" />
+                              <span className="truncate">{meta.jobTitle}</span>
                             </span>
                           )}
                         </div>
@@ -206,6 +299,79 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         <span>{typeof score === 'number' && Number.isFinite(score) ? `${score}%` : '—'}</span>
                       </div>
                     </div>
+
+                    {/* Inline Rename Form (Company Name + Job Title) */}
+                    {isEditing && (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSaveEdit(item.id, e);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            e.stopPropagation();
+                            setEditingId(null);
+                          }
+                        }}
+                        className="mt-3 p-3 rounded-xl bg-slate-50 border border-indigo-200 space-y-2.5 shadow-inner"
+                      >
+                        <div className="text-[11px] font-bold text-indigo-900 flex items-center gap-1.5">
+                          <Edit3 className="w-3 h-3 text-indigo-600" />
+                          <span>
+                            {lang === 'vi'
+                              ? 'Cập nhật Tên công ty & Vị trí ứng tuyển'
+                              : 'Update Company Name & Job Position'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                              {lang === 'vi' ? 'Tên công ty (Company Name)' : 'Company Name'}
+                            </label>
+                            <input
+                              type="text"
+                              value={editCompanyName}
+                              onChange={(e) => setEditCompanyName(e.target.value)}
+                              placeholder={lang === 'vi' ? 'VD: FPT Software, Vietcombank, VNG...' : 'e.g. FPT Software, TechCorp...'}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800"
+                              autoFocus
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                              {lang === 'vi' ? 'Vị trí ứng tuyển (Job Title)' : 'Job Title'}
+                            </label>
+                            <input
+                              type="text"
+                              value={editJobTitle}
+                              onChange={(e) => setEditJobTitle(e.target.value)}
+                              placeholder={lang === 'vi' ? 'VD: IT Operations & Governance Manager' : 'e.g. Senior Backend Engineer'}
+                              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                          >
+                            {lang === 'vi' ? 'Hủy' : 'Cancel'}
+                          </button>
+                          <button
+                            type="submit"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>{lang === 'vi' ? 'Lưu tên' : 'Save'}</span>
+                          </button>
+                        </div>
+                      </form>
+                    )}
 
                     {/* Preview of keywords */}
                     {(() => {
@@ -230,15 +396,27 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                       );
                     })()}
 
-                    {/* Delete action button */}
-                    <button
-                      type="button"
-                      onClick={(e) => onDeleteHistoryItem(item.id, e)}
-                      className="absolute top-3 right-3 p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                      title={t.deleteItem}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Quick Edit & Delete action buttons */}
+                    <div className="absolute top-3 right-18 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {onRenameHistoryItem && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleStartEdit(item, e)}
+                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors cursor-pointer"
+                          title={lang === 'vi' ? 'Sửa tên công ty & vị trí ứng tuyển' : 'Edit company & job title'}
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => onDeleteHistoryItem(item.id, e)}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                        title={t.deleteItem}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })
