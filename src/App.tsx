@@ -21,6 +21,11 @@ import { BatchProcessingTab } from './components/BatchProcessingTab';
 import { CandidateGuideDrawer } from './components/CandidateGuideDrawer';
 import { parseApiResponseSafely } from './utils/apiResponse';
 import {
+  extractJobMetaFromJdText,
+  formatCandidateHistoryTitle,
+  enrichAndMigrateHistoryItem,
+} from './utils/jdTitleExtractor';
+import {
   FileText,
   Sparkles,
   Layers,
@@ -90,11 +95,15 @@ export default function App() {
     }
   });
 
-  // History state from localStorage
+  // History state from localStorage (automatically migrates legacy titles like "Vị trí <keyword> - <user>")
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>(() => {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY);
-      return stored ? JSON.parse(stored) : [];
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed)
+        ? parsed.map((item: HistoryItem) => enrichAndMigrateHistoryItem(item, 'vi'))
+        : [];
     } catch {
       return [];
     }
@@ -297,6 +306,7 @@ export default function App() {
   const [checkedActions, setCheckedActions] = useState<boolean[]>([false, false, false, false, false]);
   const [copiedReport, setCopiedReport] = useState<boolean>(false);
   const [currentRoleTitle, setCurrentRoleTitle] = useState<string>('');
+  const [jdSourceLabel, setJdSourceLabel] = useState<string | null>(null);
 
   // Gemini Updated CV state
   const [isUpdatedCvModalOpen, setIsUpdatedCvModalOpen] = useState<boolean>(false);
@@ -348,27 +358,30 @@ export default function App() {
         setActiveTab('feature3');
       }
 
-      // Save report to history
-      let inferredTitle = currentRoleTitle.trim();
-      if (!inferredTitle) {
-        if (data.feature1?.jdKeywords?.[0]?.keyword) {
-          inferredTitle = `Vị trí ${data.feature1.jdKeywords[0].keyword}`;
-        } else {
-          const firstLine = jdText.trim().split('\n')[0] || '';
-          inferredTitle =
-            firstLine.substring(0, 36) ||
-            (lang === 'vi' ? 'Vị trí công việc' : 'CV Analysis Report');
-        }
-      }
+      // Save report to history with "[Company Name] - [Job Title]" format
+      const extractedMeta = extractJobMetaFromJdText(
+        jdText,
+        jdSourceLabel || currentRoleTitle || null
+      );
+      const companyName = extractedMeta.companyName;
+      const jobTitle = extractedMeta.jobTitle || currentRoleTitle.trim();
 
-      const candidateDisplayName = currentUser ? currentUser.username : 'user_guest';
-      if (!inferredTitle.toLowerCase().includes(`- ${candidateDisplayName.toLowerCase()}`)) {
-        inferredTitle = `${inferredTitle} - ${candidateDisplayName}`;
-      }
+      const inferredTitle = formatCandidateHistoryTitle(
+        {
+          companyName,
+          jobTitle,
+          fallbackTitle: currentRoleTitle.trim(),
+          currentUsername: currentUser?.username || null,
+        },
+        lang
+      );
 
       const newHistoryItem: HistoryItem = {
         id: Date.now().toString(),
         title: inferredTitle,
+        companyName: companyName || undefined,
+        jobTitle: jobTitle || undefined,
+        jdFileName: jdSourceLabel || undefined,
         timestamp: Date.now(),
         cvText,
         jdText,
@@ -411,6 +424,38 @@ export default function App() {
     if (currentActiveHistoryId === id) {
       setCurrentActiveHistoryId(undefined);
     }
+  };
+
+  const handleRenameHistoryItem = (
+    id: string,
+    updates: { companyName?: string; jobTitle?: string }
+  ) => {
+    setHistoryItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const nextCompany = (updates.companyName ?? item.companyName ?? '').trim();
+        const nextRole = (updates.jobTitle ?? item.jobTitle ?? '').trim();
+        const nextTitle = formatCandidateHistoryTitle(
+          {
+            companyName: nextCompany,
+            jobTitle: nextRole,
+            fallbackTitle: item.title,
+            currentUsername: currentUser?.username || null,
+          },
+          lang
+        );
+        if (currentActiveHistoryId === id) {
+          setCurrentRoleTitle(nextTitle);
+        }
+        return {
+          ...item,
+          title: nextTitle,
+          companyName: nextCompany || undefined,
+          jobTitle: nextRole || undefined,
+          isCustomTitle: true,
+        };
+      })
+    );
   };
 
   const handleClearHistory = () => {
@@ -616,12 +661,16 @@ export default function App() {
           cvText={cvText}
           setCvText={setCvText}
           jdText={jdText}
-          setJdText={setJdText}
+          setJdText={(val) => {
+            setJdText(val);
+            if (!val.trim()) setCurrentRoleTitle('');
+          }}
           onAnalyze={() => handleAnalyze()}
           isLoading={isLoading}
           onSelectPreset={handleSelectPreset}
           lang={lang}
           currentUser={currentUser}
+          onJdSourceChange={setJdSourceLabel}
         />
 
         {/* Error message card if any */}
@@ -883,6 +932,7 @@ export default function App() {
           currentActiveId={currentActiveHistoryId}
           onSelectHistoryItem={handleSelectHistoryItem}
           onDeleteHistoryItem={handleDeleteHistoryItem}
+          onRenameHistoryItem={handleRenameHistoryItem}
           onClearHistory={handleClearHistory}
           lang={lang}
         />

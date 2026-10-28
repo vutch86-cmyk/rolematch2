@@ -32,6 +32,7 @@ interface InputSectionProps {
   onSelectPreset: (preset: SamplePreset) => void;
   lang: Language;
   currentUser?: UserAccount | null;
+  onJdSourceChange?: (sourceLabel: string | null) => void;
 }
 
 export const InputSection: React.FC<InputSectionProps> = ({
@@ -44,6 +45,7 @@ export const InputSection: React.FC<InputSectionProps> = ({
   onSelectPreset,
   lang,
   currentUser,
+  onJdSourceChange,
 }) => {
   const t = translations[lang].input;
   const isAdmin = currentUser?.role === 'admin';
@@ -52,6 +54,10 @@ export const InputSection: React.FC<InputSectionProps> = ({
   const [isExtractingJd, setIsExtractingJd] = useState<boolean>(false);
   const [isExtractingCv, setIsExtractingCv] = useState<boolean>(false);
   const [jdFileName, setJdFileName] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    onJdSourceChange?.(jdFileName);
+  }, [jdFileName, onJdSourceChange]);
   const [isJdUrlBarOpen, setIsJdUrlBarOpen] = useState<boolean>(false);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
   const [isDraggingJd, setIsDraggingJd] = useState<boolean>(false);

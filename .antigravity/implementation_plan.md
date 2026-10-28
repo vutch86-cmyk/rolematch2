@@ -1,6 +1,48 @@
 # Kế Hoạch Triển Khai & Nhật Ký Thay Đổi Phần Mềm (Implementation Plan & Change Log)
 
-> **Mục đích:** File này lưu trữ tập trung seluruh kế hoạch triển khai (`Implementation Plan`), danh sách các file bị ảnh hưởng (`Files Affected`), trạng thái hoàn thành (`Implementation Steps`) và kết quả kiểm thử (`Test & Verification`) cho các tính năng và thay đổi của dự án **RoleMatch 2**.
+> **Mục đích:** File này lưu trữ tập trung toàn bộ kế hoạch triển khai (`Implementation Plan`), danh sách các file bị ảnh hưởng (`Files Affected`), trạng thái hoàn thành (`Implementation Steps`) và kết quả kiểm thử (`Test & Verification`) cho các tính năng và thay đổi của dự án **RoleMatch 2**.
+
+---
+
+## Đợt 3 (2026-10-28): Chuẩn hóa Tên Hiển Thị & Thông Tin Công Ty / Vị Trí trong Lịch Sử Phân Tích Ứng Viên
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Phương án 1 đã duyệt`
+- **Nhánh (Branch):** `staging`
+
+### 1. Nguyên nhân hiện trạng & Mục tiêu (Root Cause & Objective)
+- **Nguyên nhân hiện trạng:**
+  - Trong `src/App.tsx` (dòng 352–367), khi ứng viên phân tích CV + JD tự tải lên hoặc dán link, biến `currentRoleTitle` đang rỗng (`''`).
+  - Hệ thống lấy nhầm từ khóa kỹ năng đầu tiên (`data.feature1.jdKeywords[0].keyword`, ví dụ: `"IT roadmap"`, `"ITIL standards..."`) ghép vào chữ `"Vị trí "` và nối thêm hậu tố `- <username>` (`- vuta`), tạo ra những tên vô nghĩa như **`Vị trí IT roadmap - vuta`**.
+- **Mục tiêu cải tiến (Objective):**
+  - Chuẩn hóa định dạng tên hiển thị trong **Lịch Sử Phân Tích** (`HistorySidebar.tsx`) thành **`[Tên Công ty] - [Vị trí ứng tuyển]`** (hoặc **`[Vị trí ứng tuyển]`** nếu trong JD không nêu tên công ty), loại bỏ hậu tố `- <username>` dư thừa.
+  - Tự động trích xuất chính xác `companyName` (Tên công ty) và `jobTitle` (Vị trí ứng tuyển) từ nội dung JD, kết quả AI, và link/tệp JD.
+  - Hỗ trợ **đổi tên nhanh (Inline Rename)** ngay trên thẻ lịch sử để ứng viên tự gắn nhãn ghi nhớ (ví dụ: thêm mức lương, cơ sở làm việc) và **tự động nâng cấp (Auto-migrate)** các bản ghi lịch sử cũ đã lưu trong `localStorage`.
+
+### 2. Các Phương Án Đề Xuất (Options to Approve)
+1. **Phương án 1 (Khuyên dùng — Format `[Company Name] - [Vị trí ứng tuyển]` + Badge trực quan + Cho phép đổi tên nhanh):**
+   - **Tiêu đề chính:** `[Company Name] - [Vị trí ứng tuyển]` (ví dụ: `FPT Software - Head of IT Infrastructure`). Nếu JD không có tên công ty thì hiển thị gọn `[Vị trí ứng tuyển]` (không ghép từ khóa kỹ năng, không ghép `- vuta`).
+   - **Hiển thị trực quan trên thẻ History Card:** Hiển thị rõ badge `🏢 Công ty` và `💼 Vị trí` tách biệt, kết hợp nút **Đổi tên nhanh (`✏️`)** ngay trên thẻ để ứng viên có thể tự sửa tên gợi nhớ bất kỳ lúc nào.
+   - **Tự động sửa lại (Auto-migrate) lịch sử cũ:** Tự động đọc lại `jdText` của các bản ghi cũ đang lưu trong máy (như 4 bản ghi trong ảnh chụp của bạn) để cập nhật lại đúng `Company + Vị trí ứng tuyển`.
+2. **Phương án 2 (Cơ bản — Chỉ đổi chuỗi tiêu đề thành `[Company Name] - [Vị trí ứng tuyển]`):**
+   - Giữ nguyên giao diện thẻ lịch sử hiện tại, chỉ sửa thuật toán trích xuất tên bản ghi thành `[Company Name] - [Vị trí ứng tuyển]` và tự động chuẩn hóa các bản ghi cũ trong `localStorage`.
+
+### 3. Files Affected (Danh sách file dự kiến sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/utils/jdTitleExtractor.ts` | **Create** | Bộ hàm trích xuất thông minh `companyName` và `jobTitle` từ văn bản JD (`jdText`), nhãn nguồn file/URL (`jdFileName`), và chuẩn hóa các tiêu đề lịch sử cũ bị lỗi (`Vị trí <keyword> - <username>`). |
+| `src/utils/jdTitleExtractor.test.ts` | **Create** | Bộ Unit Test kiểm thử trích xuất `Company Name` + `Job Title` trên nhiều định dạng JD tiếng Việt/tiếng Anh (LinkedIn, ITviec, TopCV, file PDF/DOCX) và kiểm thử auto-migration lịch sử cũ. |
+| `src/types.ts` | **Modify** | Bổ sung các trường tùy chọn `companyName?: string` và `jobTitle?: string` vào `HistoryItem` và `CompleteCVAnalysisResponse`. |
+| `src/App.tsx` | **Modify** | Thay thế logic đặt tên lịch sử cũ (`jdKeywords[0] - username`) bằng `formatCandidateHistoryTitle({ companyName, jobTitle })`, tự động migrate các bản ghi lịch sử cũ trong `localStorage`, và thêm hàm `handleRenameHistoryItem`. |
+| `src/components/HistorySidebar.tsx` | **Modify** | Nâng cấp giao diện thẻ lịch sử hiển thị rõ `Company Name` + `Vị trí ứng tuyển`, hỗ trợ tìm kiếm theo tên công ty/vị trí và chỉnh sửa tên trực tiếp (nếu chọn Phương án 1). |
+
+### 4. Implementation Steps (Các bước triển khai tuần tự)
+- [x] **Bước 1:** Xây dựng tiện ích `src/utils/jdTitleExtractor.ts` để bóc tách chính xác `Company Name` + `Job Title` từ văn bản JD / URL / File và hàm nâng cấp các bản ghi lịch sử cũ.
+- [x] **Bước 2:** Cập nhật `src/types.ts`, `src/components/InputSection.tsx` và `src/App.tsx` để lưu `companyName`, `jobTitle`, tạo tiêu đề chuẩn `[Company Name] - [Vị trí ứng tuyển]` và tự động sửa lại các bản ghi lịch sử cũ trong `localStorage`.
+- [x] **Bước 3:** Cập nhật `src/components/HistorySidebar.tsx` để hiển thị rõ ràng `Company Name` + `Vị trí ứng tuyển` kèm badge Công ty/Vị trí và tính năng Đổi tên nhanh (`✏️`) trực tiếp trên thẻ lịch sử.
+- [x] **Bước 4:** Viết và chạy bộ kiểm thử tự động `src/utils/jdTitleExtractor.test.ts` đảm bảo pass 100% (`exit code 0`).
+
+### 5. Test & Verification Strategy (Chiến lược kiểm thử)
+- Chạy `node --experimental-strip-types --test src/utils/jdTitleExtractor.test.ts` và `node --experimental-strip-types --test src/utils/jdUrlExtractorHelpers.test.ts` (đảm bảo exit code `0`).
 
 ---
 
@@ -10,12 +52,7 @@
 - **Commit:** `586733e` — `feat(recruiter): sync JD URL extraction UI, drag-drop, and Markdown preview with Candidate tab`
 
 ### 1. Objective (Mục tiêu)
-Hoàn thiện và đồng bộ hóa trải nghiệm **Input URL trích xuất Mô tả công việc (JD)** trên tab **"Nhà tuyển dụng"** (`src/components/BatchProcessingTab.tsx`) để hoạt động và hiển thị tương tự 100% với tab **"Ứng viên"** (`src/components/InputSection.tsx`):
-- Cho phép Nhà tuyển dụng dán đường link tin tuyển dụng (LinkedIn, ITviec, TopCV, VietnamWorks, CareerViet, Glints...) để AI tự động trích xuất nội dung JD chuẩn Markdown (kèm cơ chế **Popup Đăng nhập + 1-Click đọc Clipboard** khi trang yêu cầu xác thực).
-- Đồng bộ hóa bố cục khu vực nhập JD ở tab **Nhà tuyển dụng** với tab **Ứng viên**:
-  - Thanh công cụ nút bấm đồng nhất: nút **"Dán Link JD / Import Link"** (`JdUrlTriggerButton`) + nút **"Tải tệp / Upload"** + thanh chọn mẫu JD thử nghiệm nhanh (`React JD`, `AI JD`).
-  - Khung nhập URL (`JdUrlExtractor`) kết nối đầy đủ callback xử lý lỗi (`onError`), hiển thị thông báo lỗi trực tiếp ngay phía trên ô JD và badge hiển thị nguồn JD (`File: {jdFileName}`).
-  - Khung soạn thảo JD tích hợp thanh **Integrated Card Header Toolbar** (hiển thị tiêu đề, nút chuyển đổi `Văn bản gốc / Xem trước Markdown`, bộ đếm số ký tự `{jdText.length.toLocaleString()} ký tự`), hỗ trợ kéo-thả tệp JD trực tiếp và lớp phủ loading khi đang trích xuất.
+Hoàn thiện và đồng bộ hóa trải nghiệm **Input URL trích xuất Mô tả công việc (JD)** trên tab **"Nhà tuyển dụng"** (`src/components/BatchProcessingTab.tsx`) để hoạt động và hiển thị tương tự 100% với tab **"Ứng viên"** (`src/components/InputSection.tsx`).
 
 ### 2. Files Affected (Danh sách file sửa đổi)
 
@@ -27,14 +64,10 @@ Hoàn thiện và đồng bộ hóa trải nghiệm **Input URL trích xuất M�
 | `docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md` & `docs/RECRUITER_USER_GUIDE_EN.md` | **Verified** | Đảm bảo tài liệu hướng dẫn Nhà tuyển dụng (Tiếng Việt & Tiếng Anh) phản ánh chính xác giao diện và thao tác trích xuất JD từ URL. |
 
 ### 3. Implementation Steps (Các bước triển khai)
-- [x] **Bước 1:** Cập nhật khu vực **1. Mô Tả Công Việc (JD)** trong `src/components/BatchProcessingTab.tsx` để đồng bộ hoàn toàn với tab Ứng viên (cụm nút `JdUrlTriggerButton` + `Upload`, tách hàng nút JD mẫu, kết nối `onError`, hỗ trợ kéo-thả tệp JD, và thanh Header Toolbar có chế độ xem trước Markdown).
+- [x] **Bước 1:** Cập nhật khu vực **1. Mô Tả Công Việc (JD)** trong `src/components/BatchProcessingTab.tsx` để đồng bộ hoàn toàn với tab Ứng viên.
 - [x] **Bước 2:** Đồng bộ hóa `src/components/InputSection.tsx` để truyền `onError` cho `JdUrlExtractor` và hỗ trợ xem trước Markdown cho JD tương ứng.
 - [x] **Bước 3:** Cập nhật bộ kiểm thử `src/utils/jdUrlExtractorHelpers.test.ts` để kiểm tra hợp đồng giao diện (UI contract) trên cả 2 tab **Ứng viên** và **Nhà tuyển dụng**.
 - [x] **Bước 4:** Thực thi kiểm thử tự động (`node --experimental-strip-types --test src/utils/jdUrlExtractorHelpers.test.ts` đạt `6/6 PASS`) và đẩy thay đổi lên nhánh `staging`.
-
-### 4. Test & Verification Strategy (Kết quả kiểm thử)
-- **Command:** `node --experimental-strip-types --test src/utils/jdUrlExtractorHelpers.test.ts`
-- **Kết quả:** Exit code `0` (`6/6 tests passed`, `0 failed`).
 
 ---
 
@@ -53,13 +86,7 @@ Bổ sung tính năng cho phép người dùng dán đường link tin tuyển d
 | `src/components/JdUrlExtractor.tsx` | **Created** | Component UI tái sử dụng gồm nút `JdUrlTriggerButton`, thanh nhập URL trực tuyến và Modal xử lý khi trang yêu cầu đăng nhập (`window.open` popup, nút thử lại tự động, nút 1-Click lấy JD từ Clipboard qua `navigator.clipboard.readText()`, và ô dán thủ công dự phòng). |
 | `src/utils/jdUrlExtractorHelpers.ts` | **Created** | Bộ hàm xử lý logic trích xuất JD: kiểm tra URL hợp lệ & chống SSRF (`validatePublicJobUrl`), nhận diện cổng tuyển dụng (`detectJobSiteName`), trích xuất LinkedIn Job ID (`extractLinkedInJobId`), bóc tách `schema.org/JobPosting` JSON-LD (`extractJsonLdJobPosting`), phát hiện Auth Wall / Cloudflare (`isLikelyAuthOrBotWall`), và làm sạch văn bản copy từ Popup (`cleanJdTextHeuristically`). |
 | `src/utils/jdUrlExtractorHelpers.test.ts` | **Created** | Bộ Unit & Integration Test tự động kiểm tra toàn bộ các hàm xử lý URL, chống SSRF, nhận diện màn hình đăng nhập, làm sạch văn bản Clipboard và hợp đồng tích hợp UI/Server. |
-| `server.ts` | **Modified** | Bổ sung 2 API endpoints: `POST /api/extract-jd-from-url` (tải trang, ưu tiên LinkedIn Guest Job API & JSON-LD, nhận diện Auth Wall, làm sạch JD bằng AI/Heuristic) và `POST /api/clean-pasted-jd` (lọc sạch nội dung JD từ văn bản người dùng copy trong cửa sổ đăng nhập). |
+| `server.ts` | **Modified** | Bổ sung 2 API endpoints: `POST /api/extract-jd-from-url` và `POST /api/clean-pasted-jd`. |
 | `src/components/InputSection.tsx` | **Modified** | Tích hợp tính năng **Dán Link JD / Import Link** vào khu vực nhập JD trên giao diện **Ứng viên (Candidate)**. |
 | `src/components/BatchProcessingTab.tsx` | **Modified** | Tích hợp tính năng **Dán Link JD / Import Link** vào khu vực nhập JD trên giao diện **Nhà tuyển dụng (Recruiter)**. |
 | `docs/*.md` | **Modified** | Cập nhật tài liệu hướng dẫn sử dụng cho Nhà tuyển dụng và Ứng viên (Tiếng Việt & Tiếng Anh). |
-
-### 3. Implementation Steps (Các bước triển khai)
-- [x] **Bước 1:** Xây dựng các hàm helper kiểm tra URL, chống SSRF, phân tích HTML/JSON-LD, nhận diện Auth Wall và làm sạch văn bản trong `src/utils/jdUrlExtractorHelpers.ts`.
-- [x] **Bước 2:** Triển khai 2 endpoints `POST /api/extract-jd-from-url` và `POST /api/clean-pasted-jd` trong `server.ts`.
-- [x] **Bước 3:** Xây dựng component `src/components/JdUrlExtractor.tsx` hỗ trợ mở cửa sổ đăng nhập (`window.open`) và trích xuất 1-chạm từ Clipboard.
-- [x] **Bước 4:** Tích hợp vào giao diện Ứng viên (`InputSection.tsx`) và Nhà tuyển dụng (`BatchProcessingTab.tsx`), cập nhật tài liệu `docs/` và viết bộ kiểm thử `src/utils/jdUrlExtractorHelpers.test.ts`.
