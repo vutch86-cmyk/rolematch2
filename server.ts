@@ -3904,6 +3904,7 @@ Your tasks:
 Respond ONLY with valid JSON matching this exact structure:
 {
   "isAuthWall": boolean,
+  "companyName": "Hiring company name (e.g. FPT Software, Techcombank) or empty string if not mentioned",
   "jobTitle": "Clean job title (e.g. Senior React Developer)",
   "jdText": "Full cleaned Markdown job description"
 }
@@ -3929,12 +3930,29 @@ ${trimmedInput}
           return { isAuthWall: true, jobTitle: '', jdText: '' };
         }
         if (typeof parsed.jdText === 'string' && parsed.jdText.trim().length > 60) {
+          const cleanRole = typeof parsed.jobTitle === 'string' && parsed.jobTitle.trim()
+            ? parsed.jobTitle.trim()
+            : cleanPortalTitleSuffix(sourceInfo.hintTitle || '');
+          const cleanCompany = typeof parsed.companyName === 'string' && parsed.companyName.trim()
+            ? parsed.companyName.trim()
+            : '';
+          let formattedJd = parsed.jdText.trim();
+          if (cleanCompany && !/(?:công\s*ty|company)\s*:/i.test(formattedJd.slice(0, 300))) {
+            if (formattedJd.startsWith('#')) {
+              const firstNewline = formattedJd.indexOf('\n');
+              if (firstNewline !== -1) {
+                formattedJd = `${formattedJd.slice(0, firstNewline)}\n**Công ty / Company:** ${cleanCompany}${formattedJd.slice(firstNewline)}`;
+              }
+            } else {
+              formattedJd = `# ${cleanRole || 'Job Description'}\n**Công ty / Company:** ${cleanCompany}\n\n${formattedJd}`;
+            }
+          }
           return {
             isAuthWall: false,
-            jobTitle: typeof parsed.jobTitle === 'string' && parsed.jobTitle.trim()
-              ? parsed.jobTitle.trim()
-              : cleanPortalTitleSuffix(sourceInfo.hintTitle || ''),
-            jdText: parsed.jdText.trim(),
+            jobTitle: cleanCompany && cleanRole && !cleanRole.toLowerCase().includes(cleanCompany.toLowerCase())
+              ? `${cleanCompany} - ${cleanRole}`
+              : cleanRole,
+            jdText: formattedJd,
           };
         }
       }
@@ -5645,8 +5663,10 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
 
 === PROCESSING REQUIREMENTS ===
 
---- CANDIDATE IDENTIFICATION ---
+--- CANDIDATE & JOB POSITION IDENTIFICATION ---
 - Extract the candidate's exact full name (candidateName) from the CV header, contact block, or title (e.g. 'Nguyễn Văn A', 'John Smith'). Do NOT return a job skill, bullet point, phrase, or section header as the candidate name. If not found, leave as empty string or a clean identifier.
+- Extract the exact target Job Title / Role Position (jobTitle) from the JD (e.g. 'Senior DevOps Engineer', 'Head of IT Infrastructure'). Do NOT return a technical skill keyword as the jobTitle.
+- Extract the hiring Company Name / Organization (companyName) from the JD (e.g. 'FPT Software', 'Techcombank', 'VNG Corporation'). If the JD does not mention any company name, return an empty string ''.
 
 --- FEATURE 1: RECRUITER KEYWORD EXTRACTION & CV COMPARISON ---
 1. Extract & categorize key JD terms into 5 groups:
@@ -5714,8 +5734,10 @@ ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN
 
 === YÊU CẦU XỬ LÝ (BẮT BUỘC THỰC HIỆN ĐỦ CÁC MỤC) ===
 
---- NHẬN DIỆN ỨNG VIÊN ---
+--- NHẬN DIỆN ỨNG VIÊN & VỊ TRÍ TUYỂN DỤNG ---
 - Trích xuất chính xác Họ và Tên đầy đủ của ứng viên (candidateName) từ phần tiêu đề, thông tin liên hệ hoặc phần đầu của CV (ví dụ: 'Nguyễn Văn A', 'Trần Thị B', 'John Smith'). TUYỆT ĐỐI KHÔNG lấy câu mô tả công việc, kỹ năng, đoạn văn hay tiêu đề mục làm tên ứng viên. Nếu không tìm thấy tên cá nhân cụ thể, hãy để chuỗi rỗng.
+- Trích xuất chính xác Chức danh / Vị trí ứng tuyển (jobTitle) từ JD (ví dụ: 'Senior DevOps Engineer', 'Trưởng phòng Quản trị & Vận hành CNTT'). TUYỆT ĐỐI KHÔNG lấy từ khóa kỹ năng làm jobTitle.
+- Trích xuất chính xác Tên Công ty / Tổ chức tuyển dụng (companyName) từ JD (ví dụ: 'FPT Software', 'Vietcombank', 'Tập đoàn Viettel'). Nếu trong JD không nêu tên công ty, hãy để chuỗi rỗng ''.
 
 --- TÍNH NĂNG 1: TRÍCH XUẤT NGÔN NGỮ NHÀ TUYỂN DỤNG & ĐỐI CHIẾU CV ---
 1. Trích xuất & xếp hạng từ khóa JD:
@@ -5778,6 +5800,14 @@ const analysisResponseSchema = {
     candidateName: {
       type: Type.STRING,
       description: 'Họ và tên đầy đủ của ứng viên trích xuất từ CV',
+    },
+    companyName: {
+      type: Type.STRING,
+      description: 'Tên công ty hoặc tổ chức tuyển dụng trích xuất từ JD (để trống nếu JD không nêu tên công ty)',
+    },
+    jobTitle: {
+      type: Type.STRING,
+      description: 'Chức danh / Vị trí ứng tuyển chính xác trích xuất từ JD (không lấy từ khóa kỹ năng)',
     },
     feature1: {
       type: Type.OBJECT,
@@ -6283,10 +6313,11 @@ app.post('/api/analyze-cv', async (req, res) => {
 
         const userEmailVal = currentUser ? currentUser.username : 'user_guest';
         const candNameVal = req.body?.candidateName || userEmailVal;
-        const rawTitleVal = req.body?.jobTitle || (finalResult.feature1?.jdKeywords?.[0]?.keyword ? `Vị trí ${finalResult.feature1.jdKeywords[0].keyword}` : 'Vị trí công việc');
-        const formattedJobTitle = rawTitleVal.toLowerCase().includes(`- ${candNameVal.toLowerCase()}`)
-          ? rawTitleVal
-          : `${rawTitleVal} - ${candNameVal}`;
+        const aiCompanyVal = typeof finalResult.companyName === 'string' ? finalResult.companyName.trim() : '';
+        const aiRoleVal = typeof finalResult.jobTitle === 'string' ? finalResult.jobTitle.trim() : '';
+        const rawTitleVal = req.body?.jobTitle
+          || (aiCompanyVal && aiRoleVal ? `${aiCompanyVal} - ${aiRoleVal}` : (aiRoleVal || aiCompanyVal || 'Vị trí ứng tuyển'));
+        const formattedJobTitle = rawTitleVal;
 
         logResult = await createAnalysisRecord({
           requestId: reqRequestId,

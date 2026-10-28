@@ -4,6 +4,7 @@ import { Language, translations } from '../utils/i18n';
 import {
   extractJobMetaFromJdText,
   formatCandidateHistoryTitle,
+  enrichAndMigrateHistoryItem,
 } from '../utils/jdTitleExtractor';
 import {
   History,
@@ -55,16 +56,17 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   if (!isOpen) return null;
 
   const getItemResolvedMeta = (item: HistoryItem) => {
-    const extracted = extractJobMetaFromJdText(item.jdText || '', item.jdFileName || null);
-    const companyName = (item.companyName || extracted.companyName || '').trim();
-    const jobTitle = (item.jobTitle || extracted.jobTitle || '').trim();
-    const displayTitle = item.isCustomTitle && item.title?.trim()
-      ? item.title.trim()
+    const migrated = enrichAndMigrateHistoryItem(item, lang);
+    const extracted = extractJobMetaFromJdText(migrated.jdText || '', migrated.jdFileName || null);
+    const companyName = (migrated.companyName || extracted.companyName || '').trim();
+    const jobTitle = (migrated.jobTitle || extracted.jobTitle || '').trim();
+    const displayTitle = migrated.isCustomTitle && migrated.title?.trim()
+      ? migrated.title.trim()
       : formatCandidateHistoryTitle(
           {
             companyName,
             jobTitle,
-            fallbackTitle: item.title,
+            fallbackTitle: migrated.title,
           },
           lang
         );
@@ -237,15 +239,25 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-2xs'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0 pr-12">
-                        <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1">
                           <h4
                             className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors truncate"
                             title={meta.displayTitle}
                           >
                             {meta.displayTitle || (lang === 'vi' ? 'Vị trí ứng tuyển' : 'Applied Position')}
                           </h4>
+                          {onRenameHistoryItem && !isEditing && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleStartEdit(item, e)}
+                              className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors cursor-pointer shrink-0"
+                              title={lang === 'vi' ? 'Sửa tên công ty & vị trí ứng tuyển' : 'Edit company & job title'}
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {isCurrent && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-600 text-white shrink-0">
                               <CheckCircle2 className="w-3 h-3" />
@@ -266,7 +278,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                               <button
                                 type="button"
                                 onClick={(e) => handleStartEdit(item, e)}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 border border-dashed border-slate-300 hover:border-indigo-300 text-[10px] font-semibold transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-dashed border-slate-300 hover:border-indigo-300 text-[10px] font-semibold transition-colors cursor-pointer"
                                 title={lang === 'vi' ? 'Bổ sung tên công ty và vị trí ứng tuyển' : 'Add company name and role title'}
                               >
                                 <Plus className="w-2.5 h-2.5" />
@@ -282,11 +294,6 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                             </span>
                           )}
                         </div>
-
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                          <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{formatDate(item.timestamp)}</span>
-                        </div>
                       </div>
 
                       {/* Score Badge */}
@@ -297,6 +304,36 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                       >
                         <Sparkles className="w-3 h-3 shrink-0" />
                         <span>{typeof score === 'number' && Number.isFinite(score) ? `${score}%` : '—'}</span>
+                      </div>
+                    </div>
+
+                    {/* Timestamp & Always-Visible Edit/Delete Action Bar */}
+                    <div className="flex items-center justify-between gap-2 text-xs text-slate-500 mt-1">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{formatDate(item.timestamp)}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        {onRenameHistoryItem && !isEditing && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleStartEdit(item, e)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100/80 border border-indigo-200/70 rounded-lg transition-colors cursor-pointer"
+                            title={lang === 'vi' ? 'Sửa tên công ty & vị trí ứng tuyển' : 'Edit company & job title'}
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>{lang === 'vi' ? 'Sửa tên' : 'Rename'}</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => onDeleteHistoryItem(item.id, e)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title={t.deleteItem}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
 
@@ -395,28 +432,6 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         </div>
                       );
                     })()}
-
-                    {/* Quick Edit & Delete action buttons */}
-                    <div className="absolute top-3 right-18 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {onRenameHistoryItem && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleStartEdit(item, e)}
-                          className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors cursor-pointer"
-                          title={lang === 'vi' ? 'Sửa tên công ty & vị trí ứng tuyển' : 'Edit company & job title'}
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => onDeleteHistoryItem(item.id, e)}
-                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
-                        title={t.deleteItem}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
                   </div>
                 );
               })

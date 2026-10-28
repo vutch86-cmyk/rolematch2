@@ -114,6 +114,8 @@ export interface CompleteCVAnalysisResponse {
   pipelineMetadata?: SequentialPipelineMetadata;
   audit?: CandidateAuditMetadata;
   outputLanguage?: string;
+  companyName?: string;
+  jobTitle?: string;
   shortRecommendation?: string;
   feature1: {
     jdKeywords: JDKeyword[];

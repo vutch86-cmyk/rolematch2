@@ -1,6 +1,33 @@
 # Kế Hoạch Triển Khai & Nhật Ký Thay Đổi Phần Mềm (Implementation Plan & Change Log)
 
-> **Mục đích:** File này lưu trữ tập trung toàn bộ kế hoạch triển khai (`Implementation Plan`), danh sách các file bị ảnh hưởng (`Files Affected`), trạng thái hoàn thành (`Implementation Steps`) và kết quả kiểm thử (`Test & Verification`) cho các tính năng và thay đổi của dự án **RoleMatch 2**.
+> **Mục đích:** File này lưu trữ tập trung toàn bộ kế hoạch triển khai (`Implementation Plan`), danh sách các file bị ảnh hưởng (`Files Affected`), trạng thái hoàn thành (`Implementation Steps`) và kết quả kiểm thử (`Test & Verification`) cho các tính năng và thay đổi của dự án **RoleMatch 2** sau khi đã được người dùng duyệt (`Approved`) để commit vào nhánh `staging`.
+
+---
+
+## Đợt 4 (2026-10-28): Khắc phục lỗi kẹt biến `currentRoleTitle` khi đổi link JD & Hiển thị cố định nút "Sửa tên" trong Lịch Sử Phân Tích
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Khắc phục triệt để lỗi biến `currentRoleTitle` trong `src/App.tsx` giữ lại tiêu đề của báo cáo cũ (`"Vị trí IT Roadmap & Strategy - ..."`) khi người dùng chuyển sang phân tích một đường link JD mới.
+- Hiển thị cố định nút **`✏️ Sửa tên`** trên mỗi thẻ lịch sử trong `src/components/HistorySidebar.tsx` (loại bỏ `opacity-0` và `right-18` bị nhãn `[Đang xem]` che khuất).
+- Bổ sung trích xuất trực tiếp `companyName` và `jobTitle` từ AI trong `server.ts` (`/api/analyze-cv`, `/api/extract-jd-from-url`, `/api/clean-pasted-jd`) và xóa bỏ đoạn code cũ ghép `Vị trí ${jdKeywords[0]} - ${username}`.
+
+### 2. Files Affected (Danh sách file sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/App.tsx` | **Modified** | Reset `currentRoleTitle` ngay khi nội dung `jdText` thay đổi; ưu tiên nhận `companyName` + `jobTitle` từ AI kết hợp `extractJobMetaFromJdText`; bổ sung `useEffect` chuẩn hóa lại lịch sử khi `currentUser` tải xong. |
+| `src/components/HistorySidebar.tsx` | **Modified** | Đưa nút **`✏️ Sửa tên`** (có cả icon và chữ) + nút xóa ra thanh công cụ hiển thị cố định trên thẻ lịch sử, không bị nhãn `[Đang xem]` đè khuất; tự động gọi `enrichAndMigrateHistoryItem` khi hiển thị. |
+| `src/utils/jdTitleExtractor.ts` | **Modified** | Mở rộng `isLegacyKeywordHistoryTitle` và `stripLegacyUsernameSuffix` nhận diện mọi tiêu đề bắt đầu bằng `"Vị trí ..."` hoặc bị kẹt tên chéo giữa các lần phân tích. |
+| `server.ts` | **Modified** | Bổ sung `companyName` và `jobTitle` vào `analysisResponseSchema`, prompt phân tích CV và prompt trích xuất JD từ URL; xóa bỏ đoạn code ghép `Vị trí ${jdKeywords[0]} - ${username}`. |
+| `src/types.ts` | **Modified** | Bổ sung `companyName?: string` và `jobTitle?: string` vào `CompleteCVAnalysisResponse`. |
+| `src/utils/jdTitleExtractor.test.ts` | **Modified** | Bổ sung kiểm thử cho kịch bản sửa lỗi bản ghi bị kẹt tên chéo và kiểm tra hiển thị nút `"Sửa tên"` trên UI. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Reset `currentRoleTitle` khi đổi JD và tích hợp `companyName` + `jobTitle` từ AI (`server.ts`, `src/App.tsx`, `src/utils/jdTitleExtractor.ts`).
+- [x] **Bước 2:** Thiết kế lại nút **`✏️ Sửa tên`** hiển thị rõ ràng, cố định trên từng thẻ lịch sử (`src/components/HistorySidebar.tsx`).
+- [x] **Bước 3:** Chạy bộ kiểm thử tự động `node --experimental-strip-types --test src/utils/jdTitleExtractor.test.ts src/utils/jdUrlExtractorHelpers.test.ts` đạt `11/11 PASS` (`exit code 0`).
 
 ---
 

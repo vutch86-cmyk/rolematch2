@@ -162,9 +162,39 @@ test('4. enrichAndMigrateHistoryItem automatically upgrades legacy "Vị trí <k
   };
   const rechecked = enrichAndMigrateHistoryItem(customRenamed, 'vi', 'vuta');
   assert.equal(rechecked.title, 'Masan Group - IT Director (Ưu tiên số 1)');
+
+  // Verify polluted cross-analysis legacy title (e.g., "Vị trí IT Roadmap & Strategy - vuta" stuck on a Kubernetes/DevOps JD) is repaired
+  const stuckCrossAnalysisItem: HistoryItem = {
+    ...legacyItem,
+    id: '1730000002',
+    title: 'Vị trí IT Roadmap & Strategy - vu.ta',
+    jobTitle: 'Vị trí IT Roadmap & Strategy - vu.ta',
+    jdText: `
+      # Senior DevOps & Cloud Infrastructure Engineer
+      **Công ty / Company:** Shopee Vietnam
+      Requirements:
+      - Kubernetes & Containerization
+      - Terraform & Infrastructure as Code (IaC)
+    `,
+    analysis: {
+      ...legacyItem.analysis,
+      companyName: 'Shopee Vietnam',
+      jobTitle: 'Senior DevOps & Cloud Infrastructure Engineer',
+      feature1: {
+        ...legacyItem.analysis.feature1,
+        jdKeywords: [
+          { keyword: 'Kubernetes & Containerization', category: 'Kỹ năng chuyên môn', importance: 'Rất quan trọng' },
+        ],
+      },
+    },
+  };
+  const repaired = enrichAndMigrateHistoryItem(stuckCrossAnalysisItem, 'vi', 'vu.ta');
+  assert.equal(repaired.companyName, 'Shopee Vietnam');
+  assert.equal(repaired.jobTitle, 'Senior DevOps & Cloud Infrastructure Engineer');
+  assert.equal(repaired.title, 'Shopee Vietnam - Senior DevOps & Cloud Infrastructure Engineer');
 });
 
-test('5. UI contract check across App.tsx and HistorySidebar.tsx for Company + Role display & Inline Rename', () => {
+test('5. UI contract check across App.tsx and HistorySidebar.tsx for Company + Role display & Always-Visible Inline Rename', () => {
   const rootDir = process.cwd();
   const appCode = fs.readFileSync(path.join(rootDir, 'src/App.tsx'), 'utf-8');
   const sidebarCode = fs.readFileSync(path.join(rootDir, 'src/components/HistorySidebar.tsx'), 'utf-8');
@@ -172,10 +202,13 @@ test('5. UI contract check across App.tsx and HistorySidebar.tsx for Company + R
   assert.ok(appCode.includes('enrichAndMigrateHistoryItem'));
   assert.ok(appCode.includes('formatCandidateHistoryTitle'));
   assert.ok(appCode.includes('handleRenameHistoryItem'));
+  assert.ok(appCode.includes("if (val !== jdText) {\n              setCurrentRoleTitle('');\n            }"));
 
   assert.ok(sidebarCode.includes('onRenameHistoryItem'));
   assert.ok(sidebarCode.includes('Building2'));
   assert.ok(sidebarCode.includes('Briefcase'));
   assert.ok(sidebarCode.includes('editCompanyName'));
   assert.ok(sidebarCode.includes('editJobTitle'));
+  assert.ok(sidebarCode.includes("lang === 'vi' ? 'Sửa tên' : 'Rename'"));
+  assert.equal(sidebarCode.includes('right-18'), false);
 });
