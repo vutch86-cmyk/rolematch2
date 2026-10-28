@@ -4,6 +4,36 @@
 
 ---
 
+## Đợt 5 (2026-10-28): Phase 1 - Bước 1.1: Giải trình Điểm số Đa chiều & Nâng cấp Bảng Đối chiếu Thực chiến (`KeywordMatchTab.tsx`)
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+Nâng cấp toàn diện chiều sâu phân tích tại **Tab 1 — Chỉ Số Khớp & Từ Khóa JD** (`src/components/KeywordMatchTab.tsx`) theo lộ trình `product_roadmap.md`:
+1. **Giải trình Điểm số Đa chiều (`Score Breakdown & Rationale` + `projectedOverallScore`)**: Hiển thị lý do đạt điểm, yếu tố kéo điểm xuống dưới từng thanh chỉ số (`keywordRationale`, `skillRationale`, `experienceRationale`, `overallRationale`) và **Điểm tiềm năng sau tối ưu (`projectedOverallScore`)** (`X% ➔ Y% (+Z%)`).
+2. **Phân tách Tiêu chí Bắt buộc (`Must-Have / Knock-out`) vs. Điểm cộng (`Nice-to-Have`)**: Đánh dấu rõ `isMustHave`, bổ sung thanh thống kê độ phủ tiêu chí Bắt buộc (`matchedMustHave / totalMustHave`) và bộ lọc nhanh theo nhóm tiêu chí.
+3. **Nâng cấp Bảng Đối chiếu JD vs CV (`comparisonTable`) Thực chiến**: Bổ sung **Vị trí chèn đề xuất (`targetSection`)** và **Câu văn mẫu gợi ý chèn ngay (`suggestedPhrasing`)** kèm nút **Chép câu mẫu 1-Click**, đồng thời tương thích ngược 100% với lịch sử lưu trong `localStorage`.
+
+### 2. Files Affected (Danh sách file tạo mới & sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/types.ts` | **Modified** | Mở rộng `JDKeyword` (`isMustHave`), `ComparisonRow` (`isMustHave`, `targetSection`, `suggestedPhrasing`) và `CompatibilityScores` (`projectedOverallScore`, `keywordRationale`, `skillRationale`, `experienceRationale`, `overallRationale`). |
+| `src/utils/keywordMatchHelpers.ts` | **Created** | Bộ hàm chuẩn hóa dữ liệu `feature1` (`normalizeFeature1Data`, `enrichCompatibilityScores`, `resolveProjectedOverallScore`, `inferTargetSection`, `inferSuggestedPhrasing`) hỗ trợ đầy đủ cả kết quả AI mới lẫn bản ghi lịch sử cũ. |
+| `server.ts` | **Modified** | Cập nhật `analysisResponseSchema`, `buildPrompt`, `runAuditorStep`, `runSynthesizerStep`, `createFallbackAnalysis` và nâng `analysisPromptVersion` lên `phase1-step1.1-v1`. |
+| `src/components/KeywordMatchTab.tsx` | **Modified** | Hiển thị thẻ Điểm tiềm năng sau tối ưu, giải trình điểm số dưới 4 thanh chỉ số, thanh theo dõi & bộ lọc Must-Have vs Nice-to-Have, vị trí chèn (`targetSection`) và câu mẫu gợi ý (`suggestedPhrasing`) kèm nút Copy 1-Click. |
+| `src/utils/i18n.ts` | **Modified** | Bổ sung nhãn song ngữ Việt - Anh (`vi` / `en`) cho các thành phần UI mới trong `keywordTab`. |
+| `src/utils/exportMarkdown.ts` | **Modified** | Cập nhật `generateMarkdownReport` xuất kèm giải trình điểm số, điểm tiềm năng, phân loại Must-Have và câu văn mẫu gợi ý. |
+| `src/utils/keywordMatchHelpers.test.ts` | **Created** | Bộ Unit & Contract Test kiểm thử toàn diện Bước 1.1. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Mở rộng interfaces trong `src/types.ts` và xây dựng `src/utils/keywordMatchHelpers.ts`.
+- [x] **Bước 2:** Nâng cấp schema & prompt AI trong `server.ts` (`phase1-step1.1-v1`).
+- [x] **Bước 3:** Nâng cấp giao diện `src/components/KeywordMatchTab.tsx`, `src/utils/i18n.ts` và `src/utils/exportMarkdown.ts`.
+- [x] **Bước 4:** Chạy bộ kiểm thử tự động `node --experimental-strip-types --test src/utils/keywordMatchHelpers.test.ts src/utils/jdTitleExtractor.test.ts src/utils/jdUrlExtractorHelpers.test.ts` đạt `15/15 PASS` (`exit code 0`).
+
+---
+
 ## Đợt 4 (2026-10-28): Khắc phục lỗi kẹt biến `currentRoleTitle` khi đổi link JD & Hiển thị cố định nút "Sửa tên" trong Lịch Sử Phân Tích
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`

@@ -1,30 +1,56 @@
 import { CompleteCVAnalysisResponse } from '../types';
+import { normalizeFeature1Data } from './keywordMatchHelpers';
 
 export function generateMarkdownReport(
   analysis: CompleteCVAnalysisResponse,
   cvTitle: string
 ): string {
   const f1 = analysis?.feature1 || {
-    scores: { keywordMatchScore: 0, skillMatchScore: 0, experienceOutcomeScore: 0, overallRoleScore: 0 },
-    summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+    scores: {
+      keywordMatchScore: 0,
+      skillMatchScore: 0,
+      experienceOutcomeScore: 0,
+      overallRoleScore: 0,
+    },
+    summary: {
+      biggestStrength: '',
+      missingKeywordsSkills: [],
+      weakOrVagueSections: [],
+      immediateActions: [],
+    },
     comparisonTable: [],
-    jdKeywords: []
+    jdKeywords: [],
   };
   const f2 = analysis?.feature2 || { clarifyingQuestions: [], rewrittenBullets: [] };
   const f3 = analysis?.feature3 || {
-    inviteDecision: 'Có',
+    inviteDecision: 'MAYBE',
     decisionReason: '',
     firstImpression10s: '',
     immediateStrength: '',
     biggestDoubt: '',
     fastestPointLossSection: '',
-    top3MustFix: []
+    top3MustFix: [],
   };
+
+  const {
+    normalizedComparisonTable,
+    enrichedScores,
+    mustHaveStats,
+  } = normalizeFeature1Data(
+    f1.jdKeywords || [],
+    f1.comparisonTable || [],
+    f1.scores || {
+      keywordMatchScore: 0,
+      skillMatchScore: 0,
+      experienceOutcomeScore: 0,
+      overallRoleScore: 0,
+    },
+    'vi'
+  );
 
   const missingSkills = f1.summary?.missingKeywordsSkills || [];
   const weakSections = f1.summary?.weakOrVagueSections || [];
   const actions = f1.summary?.immediateActions || [];
-  const comparisonTable = f1.comparisonTable || [];
   const questions = f2.clarifyingQuestions || [];
   const bullets = f2.rewrittenBullets || [];
   const mustFix = f3.top3MustFix || [];
@@ -37,11 +63,16 @@ export function generateMarkdownReport(
 
 ## TÍNH NĂNG 1: TRÍCH XUẤT NGÔN NGỮ NHÀ TUYỂN DỤNG & ĐỐI CHIẾU CV
 
-### 1. Đánh giá Mức độ Phù hợp (Thang điểm 0 - 100%)
-- Mức độ khớp từ khóa chuyên môn: **${f1.scores?.keywordMatchScore || 0}%**
-- Mức độ khớp kỹ năng: **${f1.scores?.skillMatchScore || 0}%**
-- Mức độ khớp kinh nghiệm và kết quả đầu ra: **${f1.scores?.experienceOutcomeScore || 0}%**
-- **Mức độ phù hợp tổng thể với vai trò:** **${f1.scores?.overallRoleScore || 0}%**
+### 1. Đánh giá Mức độ Phù hợp & Giải trình Điểm số (Thang điểm 0 - 100%)
+- **Mức độ phù hợp tổng thể hiện tại:** **${enrichedScores.overallRoleScore}%** ➔ **Điểm tiềm năng sau tối ưu:** **${enrichedScores.projectedOverallScore}%**
+  * *Giải trình tổng thể:* ${enrichedScores.overallRationale}
+- **Mức độ khớp từ khóa chuyên môn:** **${enrichedScores.keywordMatchScore}%**
+  * *Giải trình:* ${enrichedScores.keywordRationale}
+- **Mức độ khớp kỹ năng:** **${enrichedScores.skillMatchScore}%**
+  * *Giải trình:* ${enrichedScores.skillRationale}
+- **Mức độ khớp kinh nghiệm và kết quả đầu ra:** **${enrichedScores.experienceOutcomeScore}%**
+  * *Giải trình:* ${enrichedScores.experienceRationale}
+- **Độ phủ Tiêu chí Bắt buộc (Must-Have / Knock-out):** Đạt **${mustHaveStats.matchedMustHave}/${mustHaveStats.totalMustHave}** tiêu chí (${mustHaveStats.mustHavePassRate}%).
 
 ### 2. Tóm tắt Phân tích
 - **Điểm mạnh lớn nhất của CV so với JD:** ${f1.summary?.biggestStrength || 'Chưa cập nhật'}
@@ -52,14 +83,18 @@ ${weakSections.map((s) => `  * ${s}`).join('\n')}
 - **5 việc cụ thể cần sửa ngay:**
 ${actions.map((s, i) => `  ${i + 1}. ${s}`).join('\n')}
 
-### 3. Bảng Đối chiếu CV với JD
-| Cụm từ trong JD | Mức độ quan trọng | CV của tôi đã thể hiện ở đâu | Khoảng trống cần bổ sung hoặc viết rõ hơn |
-| :--- | :--- | :--- | :--- |
-${comparisonTable
+### 3. Bảng Đối chiếu CV với JD Thực chiến
+| Cụm từ trong JD | Phân loại | Mức độ quan trọng | CV đã thể hiện ở đâu | Khoảng trống cần bổ sung | Vị trí chèn & Câu mẫu gợi ý |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+${normalizedComparisonTable
   .map(
     (row) =>
-      `| ${row.jdTerm || ''} | ${row.importance || ''} | ${row.cvEvidence || 'Thiếu thông tin'} | ${
+      `| ${row.jdTerm || ''} | ${row.isMustHave ? 'Bắt buộc (Must-Have)' : 'Điểm cộng (Nice-to-Have)'} | ${row.importance || ''} | ${row.cvEvidence || 'Thiếu thông tin'} | ${
         row.gapOrClarification || 'Chưa có'
+      } | ${
+        row.matchStatus === 'khop'
+          ? 'Đã khớp tốt'
+          : `[${row.targetSection || 'Kinh nghiệm làm việc'}] "${row.suggestedPhrasing || ''}"`
       } |`
   )
   .join('\n')}
