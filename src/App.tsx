@@ -24,6 +24,7 @@ import {
   extractJobMetaFromJdText,
   formatCandidateHistoryTitle,
   enrichAndMigrateHistoryItem,
+  isLegacyKeywordHistoryTitle,
 } from './utils/jdTitleExtractor';
 import {
   FileText,
@@ -275,6 +276,15 @@ export default function App() {
     }
   }, [historyItems]);
 
+  // Re-normalize any legacy history items when currentUser or lang changes
+  useEffect(() => {
+    setHistoryItems((prev) =>
+      prev.map((item) =>
+        enrichAndMigrateHistoryItem(item, lang, currentUser?.username || null)
+      )
+    );
+  }, [currentUser?.username, lang]);
+
   const [appMode, setAppMode] = useState<'single' | 'batch'>('single');
   const [activeTab, setActiveTab] = useState<'feature1' | 'feature2' | 'feature3'>('feature3');
   const tabsHeaderRef = useRef<HTMLDivElement>(null);
@@ -359,18 +369,28 @@ export default function App() {
       }
 
       // Save report to history with "[Company Name] - [Job Title]" format
+      const safePresetRoleTitle = !isLegacyKeywordHistoryTitle(currentRoleTitle)
+        ? currentRoleTitle.trim()
+        : '';
       const extractedMeta = extractJobMetaFromJdText(
         jdText,
-        jdSourceLabel || currentRoleTitle || null
+        jdSourceLabel || safePresetRoleTitle || null
       );
-      const companyName = extractedMeta.companyName;
-      const jobTitle = extractedMeta.jobTitle || currentRoleTitle.trim();
+      const aiCompanyName = typeof (data as any)?.companyName === 'string'
+        ? (data as any).companyName.trim()
+        : '';
+      const aiJobTitle = typeof (data as any)?.jobTitle === 'string' && !isLegacyKeywordHistoryTitle((data as any).jobTitle)
+        ? (data as any).jobTitle.trim()
+        : '';
+
+      const companyName = aiCompanyName || extractedMeta.companyName;
+      const jobTitle = aiJobTitle || extractedMeta.jobTitle || safePresetRoleTitle;
 
       const inferredTitle = formatCandidateHistoryTitle(
         {
           companyName,
           jobTitle,
-          fallbackTitle: currentRoleTitle.trim(),
+          fallbackTitle: safePresetRoleTitle,
           currentUsername: currentUser?.username || null,
         },
         lang
@@ -407,11 +427,12 @@ export default function App() {
   };
 
   const handleSelectHistoryItem = (item: HistoryItem) => {
-    setCvText(item.cvText);
-    setJdText(item.jdText);
-    setAnalysis(item.analysis);
-    setCurrentRoleTitle(item.title);
-    setCurrentActiveHistoryId(item.id);
+    const migrated = enrichAndMigrateHistoryItem(item, lang, currentUser?.username || null);
+    setCvText(migrated.cvText);
+    setJdText(migrated.jdText);
+    setAnalysis(migrated.analysis);
+    setCurrentRoleTitle(migrated.title);
+    setCurrentActiveHistoryId(migrated.id);
     setCheckedActions([false, false, false, false, false]);
     setActiveTab('feature3');
     setAppMode('single');
@@ -662,8 +683,10 @@ export default function App() {
           setCvText={setCvText}
           jdText={jdText}
           setJdText={(val) => {
+            if (val !== jdText) {
+              setCurrentRoleTitle('');
+            }
             setJdText(val);
-            if (!val.trim()) setCurrentRoleTitle('');
           }}
           onAnalyze={() => handleAnalyze()}
           isLoading={isLoading}

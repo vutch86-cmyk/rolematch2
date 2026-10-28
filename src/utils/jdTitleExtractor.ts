@@ -308,11 +308,15 @@ export function stripLegacyUsernameSuffix(title: string, currentUsername?: strin
     cleaned = cleaned.replace(new RegExp(`\\s*-\\s*${escaped}$`, 'i'), '').trim();
   }
 
-  // Also strip common guest or single-token lowercase username suffix when preceded by "Vị trí "
-  cleaned = cleaned.replace(/\s*-\s*(?:user_guest|[a-z0-9_]{3,20})$/i, (match) => {
-    // Only strip if the token looks like a username (all lowercase/digits/underscore, no spaces)
+  // If the string starts with legacy "Vị trí ", strip trailing " - <username>"
+  if (/^Vị\s+trí\s+/i.test(cleaned)) {
+    cleaned = cleaned.replace(/\s+-\s+[A-Za-z0-9._@-]{2,35}$/, '').trim();
+  }
+
+  // Also strip common guest or single-token username suffix (no spaces)
+  cleaned = cleaned.replace(/\s*-\s*(?:user_guest|[a-z0-9._@-]{3,25})$/i, (match) => {
     const token = match.replace(/^\s*-\s*/, '');
-    if (/^[a-z0-9_]+$/.test(token)) {
+    if (/^[a-z0-9._@-]+$/.test(token)) {
       return '';
     }
     return match;
@@ -322,30 +326,32 @@ export function stripLegacyUsernameSuffix(title: string, currentUsername?: strin
 }
 
 /**
- * Checks if a HistoryItem title was auto-generated from the first JD skill keyword
- * (e.g. "Vị trí IT roadmap - vuta" or "Vị trí Quản lý chiến lược CNTT & Kiến trúc...").
+ * Checks if a HistoryItem title was auto-generated from the old `Vị trí <keyword> - <user>` logic
+ * (including when a legacy title got stuck in `currentRoleTitle` across analyses).
  */
 export function isLegacyKeywordHistoryTitle(
-  title: string,
+  title?: string | null,
   jdKeywords?: Array<{ keyword: string }>
 ): boolean {
   const raw = (title || '').trim();
   if (!raw) return true;
 
+  // Any auto-generated title starting with "Vị trí " came from the legacy keyword/fallback template
+  if (/^Vị\s+trí\s+/i.test(raw)) {
+    return true;
+  }
+
   const withoutUser = stripLegacyUsernameSuffix(raw);
   if (!withoutUser) return true;
 
-  const firstKeyword = jdKeywords?.[0]?.keyword?.trim();
-  if (firstKeyword) {
-    const expectedLegacy = `Vị trí ${firstKeyword}`.toLowerCase();
-    if (withoutUser.toLowerCase() === expectedLegacy) {
-      return true;
+  if (jdKeywords && jdKeywords.length > 0) {
+    const lowerClean = withoutUser.toLowerCase();
+    for (const kw of jdKeywords.slice(0, 5)) {
+      const k = kw.keyword?.trim().toLowerCase();
+      if (k && (lowerClean === k || lowerClean === `vị trí ${k}`)) {
+        return true;
+      }
     }
-  }
-
-  // Also detect if title has trailing `- <lowercase_username>` and starts with `Vị trí `
-  if (/^Vị\s+trí\s+.+\s+-\s+[a-z0-9_]+$/.test(raw)) {
-    return true;
   }
 
   return false;
@@ -364,8 +370,13 @@ export function formatCandidateHistoryTitle(
   },
   lang: 'vi' | 'en' = 'vi'
 ): string {
-  const company = (params.companyName || '').trim();
-  let role = stripLegacyUsernameSuffix(params.jobTitle || '', params.currentUsername);
+  const rawCompany = (params.companyName || '').trim();
+  const company = isLegacyKeywordHistoryTitle(rawCompany) ? '' : rawCompany;
+
+  const rawRole = stripLegacyUsernameSuffix(params.jobTitle || '', params.currentUsername);
+  let role = isLegacyKeywordHistoryTitle(rawRole)
+    ? rawRole.replace(/^Vị\s+trí\s+/i, '').trim()
+    : rawRole;
 
   // Avoid duplicating "Company - Company - Role" if role already starts with company
   if (company && role && role.toLowerCase().startsWith(company.toLowerCase())) {
@@ -387,7 +398,10 @@ export function formatCandidateHistoryTitle(
     return `${company} - ${lang === 'en' ? 'Applied Position' : 'Vị trí ứng tuyển'}`;
   }
 
-  const cleanedFallback = stripLegacyUsernameSuffix(params.fallbackTitle || '', params.currentUsername);
+  const rawFallback = stripLegacyUsernameSuffix(params.fallbackTitle || '', params.currentUsername);
+  const cleanedFallback = isLegacyKeywordHistoryTitle(rawFallback)
+    ? ''
+    : rawFallback;
   if (cleanedFallback) {
     return cleanedFallback;
   }
@@ -405,32 +419,37 @@ export function enrichAndMigrateHistoryItem(
   lang: 'vi' | 'en' = 'vi',
   currentUsername?: string | null
 ): HistoryItem {
-  const extracted = extractJobMetaFromJdText(item.jdText || '', item.jdFileName || null);
-  const keywords = item.analysis?.feature1?.jdKeywords || [];
-  const isLegacy = isLegacyKeywordHistoryTitle(item.title, keywords);
-
-  const companyName = (item.companyName || extracted.companyName || '').trim();
-  let jobTitle = (item.jobTitle || extracted.jobTitle || '').trim();
-
-  // If jobTitle is still empty or accidentally equals the first skill keyword when a better role wasn't found
-  if (!jobTitle && !isLegacy && item.title) {
-    jobTitle = stripLegacyUsernameSuffix(item.title, currentUsername);
+  // If user manually renamed the item (isCustomTitle: true), keep their custom title & fields intact
+  if (item.isCustomTitle && item.title?.trim()) {
+    return item;
   }
 
-  // If user manually renamed the item (isCustomTitle: true), keep their custom title
-  if (item.isCustomTitle && item.title?.trim()) {
-    return {
-      ...item,
-      companyName: companyName || undefined,
-      jobTitle: jobTitle || undefined,
-    };
+  const keywords = item.analysis?.feature1?.jdKeywords || [];
+  const extracted = extractJobMetaFromJdText(item.jdText || '', item.jdFileName || null);
+
+  const aiCompany = (item.analysis?.companyName || '').trim();
+  const aiJobTitle = (item.analysis?.jobTitle || '').trim();
+
+  const storedCompanyValid = item.companyName && !isLegacyKeywordHistoryTitle(item.companyName, keywords)
+    ? item.companyName.trim()
+    : '';
+  const storedRoleValid = item.jobTitle && !isLegacyKeywordHistoryTitle(item.jobTitle, keywords)
+    ? stripLegacyUsernameSuffix(item.jobTitle, currentUsername)
+    : '';
+
+  const companyName = (storedCompanyValid || aiCompany || extracted.companyName || '').trim();
+  let jobTitle = (storedRoleValid || aiJobTitle || extracted.jobTitle || '').trim();
+
+  const isLegacyTitle = isLegacyKeywordHistoryTitle(item.title, keywords);
+  if (!jobTitle && !isLegacyTitle && item.title) {
+    jobTitle = stripLegacyUsernameSuffix(item.title, currentUsername);
   }
 
   const formattedTitle = formatCandidateHistoryTitle(
     {
       companyName,
       jobTitle,
-      fallbackTitle: isLegacy ? '' : item.title,
+      fallbackTitle: isLegacyTitle ? '' : item.title,
       currentUsername,
     },
     lang
