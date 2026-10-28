@@ -57,6 +57,7 @@ export const InputSection: React.FC<InputSectionProps> = ({
   const [isDraggingJd, setIsDraggingJd] = useState<boolean>(false);
   const [isDraggingCv, setIsDraggingCv] = useState<boolean>(false);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [jdViewMode, setJdViewMode] = useState<'raw' | 'preview'>('raw');
   const [cvViewMode, setCvViewMode] = useState<'raw' | 'preview'>('raw');
   const [isFormattingCv, setIsFormattingCv] = useState<boolean>(false);
   const [isTestingOpenRouter, setIsTestingOpenRouter] = useState<boolean>(false);
@@ -416,6 +417,7 @@ export const InputSection: React.FC<InputSectionProps> = ({
               setIsJdUrlBarOpen(false);
               setExtractError(null);
             }}
+            onError={(msg) => setExtractError(msg)}
           />
 
           {jdFileName && (
@@ -452,25 +454,68 @@ export const InputSection: React.FC<InputSectionProps> = ({
             )}
 
             {/* Integrated Card Header Toolbar */}
-            <div className="bg-slate-100/90 border-b border-slate-200/80 px-3.5 py-2 flex items-center justify-between text-xs min-h-[42px]">
+            <div className="bg-slate-100/90 border-b border-slate-200/80 px-3.5 py-2 flex items-center justify-between text-xs min-h-[42px] flex-wrap gap-2">
               <div className="flex items-center gap-2 text-slate-600 font-semibold">
-                <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                 <span>{lang === 'vi' ? 'Nội dung Mô Tả Công Việc (JD)' : 'Job Description Content'}</span>
               </div>
-              <div className="text-[11px] font-mono text-slate-500 bg-white/80 px-2 py-0.5 rounded border border-slate-200/60">
-                {jdText.length.toLocaleString()} {t.chars}
+
+              <div className="flex items-center gap-2">
+                {jdText.trim().length > 10 && (
+                  <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setJdViewMode('raw')}
+                      className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                        jdViewMode === 'raw'
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>{t.rawTextTab}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setJdViewMode('preview')}
+                      className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                        jdViewMode === 'preview'
+                          ? 'bg-white text-indigo-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Eye className="w-3 h-3 text-indigo-600" />
+                      <span>{t.previewTab}</span>
+                    </button>
+                  </div>
+                )}
+                <div className="text-[11px] font-mono text-slate-500 bg-white/80 px-2 py-0.5 rounded border border-slate-200/60">
+                  {jdText.length.toLocaleString()} {t.chars}
+                </div>
               </div>
             </div>
 
-            <textarea
-              value={jdText}
-              onChange={(e) => {
-                setJdText(e.target.value);
-                if (selectedPresetId) setSelectedPresetId('');
-              }}
-              placeholder={t.jdPlaceholder}
-              className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-transparent focus:outline-none transition-all resize-y font-mono leading-relaxed"
-            />
+            {jdViewMode === 'raw' ? (
+              <textarea
+                value={jdText}
+                onChange={(e) => {
+                  setJdText(e.target.value);
+                  if (selectedPresetId) setSelectedPresetId('');
+                }}
+                placeholder={t.jdPlaceholder}
+                className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-transparent focus:outline-none transition-all resize-y font-mono leading-relaxed"
+              />
+            ) : (
+              <div className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-white overflow-y-auto leading-relaxed">
+                {jdText.trim() ? (
+                  <div className="markdown-body space-y-2">
+                    <Markdown>{jdText}</Markdown>
+                  </div>
+                ) : (
+                  <span className="text-slate-400 italic">No JD content...</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

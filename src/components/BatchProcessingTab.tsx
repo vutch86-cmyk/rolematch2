@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import Markdown from 'react-markdown';
 import { parseApiResponseSafely } from '../utils/apiResponse';
 import {
   Upload,
   FileText,
+  FileCheck,
+  Edit3,
   Trash2,
   Play,
   Award,
@@ -284,6 +287,9 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [isExtractingJd, setIsExtractingJd] = useState<boolean>(false);
   const [jdFileName, setJdFileName] = useState<string | null>(null);
   const [isJdUrlBarOpen, setIsJdUrlBarOpen] = useState<boolean>(false);
+  const [isDraggingJd, setIsDraggingJd] = useState<boolean>(false);
+  const [jdExtractError, setJdExtractError] = useState<string | null>(null);
+  const [jdViewMode, setJdViewMode] = useState<'raw' | 'preview'>('raw');
   const jdFileInputRef = useRef<HTMLInputElement>(null);
 
   const mapSavedCandidateToResult = (c: SavedBatchCandidate): CandidateResult => ({
@@ -335,17 +341,16 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     setTimeout(() => setBatchNotice(''), 5000);
   };
 
-  const handleJdFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const extractJdFileText = async (file: File) => {
     if (file.size > 15 * 1024 * 1024) {
-      setErrorMsg(isEn ? 'File size too large (max 15MB). Please select a smaller file.' : 'Dung lượng tệp quá lớn (tối đa 15MB). Vui lòng chọn tệp nhỏ hơn.');
-      if (e.target) e.target.value = '';
+      const sizeErr = isEn ? 'File size too large (max 15MB). Please select a smaller file.' : 'Dung lượng tệp quá lớn (tối đa 15MB). Vui lòng chọn tệp nhỏ hơn.';
+      setJdExtractError(sizeErr);
+      setErrorMsg(sizeErr);
       return;
     }
 
     setIsExtractingJd(true);
+    setJdExtractError(null);
     setErrorMsg('');
     try {
       let textContent = '';
@@ -413,13 +418,44 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
       const cleaned = textContent.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
       setJdText(cleaned);
       setJdFileName(file.name);
+      setJdExtractError(null);
     } catch (err: unknown) {
       console.error(err);
       const errMsg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(isEn ? `Failed to extract JD: ${errMsg}` : `Lỗi trích xuất mô tả công việc: ${errMsg}`);
+      const formattedErr = isEn ? `Failed to extract JD: ${errMsg}` : `Lỗi trích xuất mô tả công việc: ${errMsg}`;
+      setJdExtractError(formattedErr);
+      setErrorMsg(formattedErr);
     } finally {
       setIsExtractingJd(false);
-      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleJdFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await extractJdFileText(file);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleJdDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingJd(true);
+  };
+
+  const handleJdDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingJd(false);
+  };
+
+  const handleJdDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingJd(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await extractJdFileText(file);
     }
   };
 
@@ -1516,99 +1552,200 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
         {/* Left Column: Input JD (lg:col-span-6) */}
         <div className="space-y-6 flex flex-col h-full">
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4 flex-1 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <label className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-indigo-600" />
-                  {isEn ? '1. Job Description (JD)' : '1. Mô Tả Công Việc (JD)'}
+            <div className="flex flex-col flex-1">
+              <div className="flex items-center justify-between mb-2.5 min-h-[38px] flex-wrap gap-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                  <span className="w-6.5 h-6.5 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shadow-xs">
+                    1
+                  </span>
+                  <span>{isEn ? 'Job Description (JD)' : 'Mô tả công việc (JD)'}</span>
+                  <span className="text-rose-500 font-bold">*</span>
                 </label>
-                
-                <div className="flex items-center gap-1.5 flex-wrap">
+
+                <div className="flex items-center gap-2 text-xs flex-wrap">
                   <JdUrlTriggerButton
                     lang={lang}
                     isOpen={isJdUrlBarOpen}
                     isExtracting={isExtractingJd}
-                    onClick={() => setIsJdUrlBarOpen(prev => !prev)}
+                    onClick={() => setIsJdUrlBarOpen((prev) => !prev)}
                   />
                   <input
                     type="file"
                     ref={jdFileInputRef}
                     onChange={handleJdFileChange}
-                    accept=".pdf,.docx,.doc,.txt,.md,.text,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    accept=".pdf,.docx,.doc,.txt,.md,.text,.json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     className="hidden"
                   />
                   <button
                     type="button"
                     onClick={() => jdFileInputRef.current?.click()}
                     disabled={isExtractingJd}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-bold border border-indigo-200/80 transition-all cursor-pointer disabled:opacity-50 text-[11px] shadow-xs"
-                    title={isEn ? "Upload JD file" : "Tải lên tệp JD"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold border border-indigo-200/80 transition-all cursor-pointer disabled:opacity-50 text-xs shadow-xs"
+                    title={isEn ? 'Upload JD file' : 'Tải lên tệp JD'}
                   >
                     {isExtractingJd ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600 shrink-0" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
                     ) : (
-                      <Upload className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <Upload className="w-3.5 h-3.5 text-indigo-600" />
                     )}
                     <span>{isEn ? 'Upload' : 'Tải tệp'}</span>
                   </button>
-
-                  {/* Presets */}
-                  <div className="flex gap-1">
-                    {jdPresets.map((preset, idx) => (
-                      <button
-                        key={`preset-${idx}`}
-                        onClick={() => {
-                          setJdText(preset.text);
-                          setJdFileName(null);
-                        }}
-                        className="px-2 py-1.5 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors border border-slate-200/60"
-                        title={preset.title}
-                      >
-                        {idx === 0 ? 'React JD' : 'AI JD'}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               </div>
+
+              {/* Quick JD Presets Bar */}
+              <div className="mb-2.5 flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs flex-wrap gap-2">
+                <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  {isEn ? 'Sample JD templates:' : 'Mẫu JD thử nghiệm nhanh:'}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {jdPresets.map((preset, idx) => (
+                    <button
+                      key={`preset-${idx}`}
+                      type="button"
+                      onClick={() => {
+                        setJdText(preset.text);
+                        setJdFileName(null);
+                        setJdExtractError(null);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 rounded-lg transition-colors border border-slate-200/80 hover:border-indigo-200 shadow-2xs cursor-pointer"
+                      title={preset.title}
+                    >
+                      {idx === 0 ? 'React JD' : 'AI JD'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {jdExtractError && (
+                <div className="mb-2.5 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start justify-between gap-2 text-xs text-rose-700">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{jdExtractError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setJdExtractError(null)}
+                    className="text-rose-400 hover:text-rose-600 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
               <JdUrlExtractor
                 lang={lang}
                 token={token}
                 isOpen={isJdUrlBarOpen}
-                onToggleOpen={() => setIsJdUrlBarOpen(prev => !prev)}
+                onToggleOpen={() => setIsJdUrlBarOpen((prev) => !prev)}
                 onExtracted={({ jdText: extractedJd, sourceLabel }) => {
                   setJdText(extractedJd);
                   setJdFileName(sourceLabel);
                   setIsJdUrlBarOpen(false);
+                  setJdExtractError(null);
                   setErrorMsg('');
                 }}
+                onError={(msg) => setJdExtractError(msg)}
               />
 
               {jdFileName && (
-                <div className="flex items-center justify-between bg-indigo-50/80 border border-indigo-200/80 text-indigo-900 rounded-xl px-3 py-1.5 text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span className="truncate font-semibold">{jdFileName}</span>
+                <div className="mb-2.5 flex items-center justify-between bg-indigo-50/80 border border-indigo-200/80 text-indigo-900 rounded-lg px-3 py-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <FileCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span className="font-semibold truncate">File: {jdFileName}</span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setJdFileName(null);
-                      setJdText('');
-                    }}
-                    className="text-slate-400 hover:text-rose-500 p-1 rounded transition-colors"
+                    onClick={() => setJdFileName(null)}
+                    className="text-slate-400 hover:text-slate-600 ml-2 cursor-pointer"
+                    title={isEn ? 'Remove file badge' : 'Xóa tệp đính kèm'}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
 
-              <textarea
-                value={jdText}
-                onChange={(e) => setJdText(e.target.value)}
-                placeholder={isEn ? "Paste or upload the job description requirements here..." : "Dán hoặc tải lên yêu cầu công việc chi tiết tại đây..."}
-                className="w-full h-80 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:bg-white transition-all font-mono"
-              />
+              <div
+                onDrop={handleJdDrop}
+                onDragOver={handleJdDragOver}
+                onDragLeave={handleJdDragLeave}
+                className={`relative flex-1 rounded-2xl border border-slate-200 bg-slate-50/80 shadow-xs overflow-hidden transition-all focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-600 ${
+                  isDraggingJd ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''
+                }`}
+              >
+                {isExtractingJd && (
+                  <div className="absolute inset-0 bg-white/85 backdrop-blur-[1px] z-10 rounded-2xl flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+                    <span className="text-xs font-semibold text-indigo-900">
+                      {isEn ? 'Extracting JD content...' : 'Đang trích xuất nội dung JD...'}
+                    </span>
+                  </div>
+                )}
+
+                {/* Integrated Card Header Toolbar */}
+                <div className="bg-slate-100/90 border-b border-slate-200/80 px-3.5 py-2 flex items-center justify-between text-xs min-h-[42px] flex-wrap gap-2">
+                  <div className="flex items-center gap-2 text-slate-600 font-semibold">
+                    <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span>{isEn ? 'Job Description Content' : 'Nội dung Mô Tả Công Việc (JD)'}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {jdText.trim().length > 10 && (
+                      <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setJdViewMode('raw')}
+                          className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                            jdViewMode === 'raw'
+                              ? 'bg-white text-slate-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>{isEn ? 'Raw Text' : 'Văn bản gốc'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setJdViewMode('preview')}
+                          className={`px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
+                            jdViewMode === 'preview'
+                              ? 'bg-white text-indigo-900 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          <Eye className="w-3 h-3 text-indigo-600" />
+                          <span>{isEn ? 'Preview' : 'Xem trước'}</span>
+                        </button>
+                      </div>
+                    )}
+                    <div className="text-[11px] font-mono text-slate-500 bg-white/80 px-2 py-0.5 rounded border border-slate-200/60">
+                      {jdText.length.toLocaleString()} {isEn ? 'chars' : 'ký tự'}
+                    </div>
+                  </div>
+                </div>
+
+                {jdViewMode === 'raw' ? (
+                  <textarea
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
+                    placeholder={isEn ? 'Paste or upload the job description requirements here...' : 'Dán hoặc tải lên yêu cầu công việc chi tiết tại đây...'}
+                    className="w-full h-[310px] p-4 text-xs sm:text-sm text-slate-800 bg-transparent focus:outline-none transition-all resize-y font-mono leading-relaxed"
+                  />
+                ) : (
+                  <div className="w-full h-[310px] p-4 text-xs sm:text-sm text-slate-800 bg-white overflow-y-auto leading-relaxed">
+                    {jdText.trim() ? (
+                      <div className="markdown-body space-y-2">
+                        <Markdown>{jdText}</Markdown>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 italic">
+                        {isEn ? 'No JD content...' : 'Chưa có nội dung JD...'}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
             <p className="text-[10px] text-slate-400 mt-4">
