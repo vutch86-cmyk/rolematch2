@@ -910,6 +910,12 @@ export default function App() {
                 <BulletPointRewriteTab
                   clarifyingQuestions={analysis.feature2?.clarifyingQuestions || []}
                   rewrittenBullets={analysis.feature2?.rewrittenBullets || []}
+                  tailoredSummaries={analysis.feature2?.tailoredSummaries}
+                  sectionAudit={analysis.feature2?.sectionAudit}
+                  companyName={analysis.companyName}
+                  jobTitle={analysis.jobTitle}
+                  cvText={cvText}
+                  jdText={jdText}
                   onRefineWithAnswers={(ans) => handleAnalyze(ans)}
                   isRefining={isRefining}
                   onOpenGenerateUpdatedCv={() => handleGenerateUpdatedCv()}

@@ -44,12 +44,42 @@ export interface AnalysisSummary {
   immediateActions: string[]; // 5 việc cụ thể cần sửa ngay để CV cạnh tranh hơn
 }
 
+export type SectionAuditStatus = 'tot' | 'can_cai_thien' | 'yeu_nghiem_trong';
+
+export interface SectionAuditItem {
+  sectionKey: 'summary' | 'experience' | 'skills' | 'education_ats';
+  sectionName: string; // VD: Tóm tắt mở đầu, Kinh nghiệm làm việc, Cấu trúc Kỹ năng, Học vấn & Chuẩn ATS
+  status: SectionAuditStatus; // 'tot' | 'can_cai_thien' | 'yeu_nghiem_trong'
+  score: number; // 0 - 100
+  comment: string; // Nhận xét chẩn đoán thực trạng
+  actionableFix: string; // Hướng khắc phục cụ thể
+}
+
+export interface SectionBySectionAudit {
+  sections: SectionAuditItem[];
+  overallSectionRating?: string;
+}
+
+export interface ExecutiveSummaryVersion {
+  title: string; // VD: Bản 1: Định vị Chuyên môn / Kỹ thuật sâu
+  focusType: 'technical' | 'management';
+  pitch: string; // 3-4 câu hoàn chỉnh may đo theo [Company Name] - [Vị trí ứng tuyển]
+  keyHighlights: string[]; // 2-3 điểm sáng nổi bật
+}
+
+export interface TailoredSummaryPitch {
+  technicalFocus: ExecutiveSummaryVersion;
+  managementFocus: ExecutiveSummaryVersion;
+}
+
 export interface BulletRewriteItem {
   originalBullet: string;
   issueInOriginal: string; // Vấn đề của bullet gốc
   rewrittenBullet: string; // Bullet viết lại (Ngắn gọn và đầy đủ, Hành động + Công cụ + Kết quả)
   reasonBetter: string; // Vì sao bản mới tốt hơn
   isLackingInfo?: boolean; // If true, rewrittenBullet says "Cần bổ sung thông tin trước khi viết lại."
+  embeddedKeywords?: string[]; // Từ khóa JD đã lồng ghép vào câu viết lại
+  metricPlaceholders?: string[]; // Gợi ý chỗ điền số liệu (VD: [X]%, [Số lượng], [Ngân sách])
 }
 
 export interface RecruiterScanResult {
@@ -135,6 +165,8 @@ export interface CompleteCVAnalysisResponse {
   feature2: {
     clarifyingQuestions: string[]; // Tối đa 3 câu hỏi làm rõ ngắn gọn
     rewrittenBullets: BulletRewriteItem[];
+    tailoredSummaries?: TailoredSummaryPitch; // Viết sẵn 2 bản mở đầu CV may đo
+    sectionAudit?: SectionBySectionAudit; // Khám bệnh 4 phần của CV
   };
   feature3: RecruiterScanResult;
 }

@@ -4643,7 +4643,7 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           jdText,
           clarifyingAnswers: undefined,
           lang,
-          analysisPromptVersion: 'phase1-step1.1-v1'
+          analysisPromptVersion: 'phase1-step1.2-v1'
         });
 
         let finalResult: any;
@@ -5500,13 +5500,15 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
     .map((l) => l.trim().replace(/^[•\-\*]\s*/, ''))
     .filter((l) => l.length > 15 && !l.startsWith('#'));
 
-  const sampleBullets = cvLines.slice(0, 4).length > 0 ? cvLines.slice(0, 4) : [
+  const sampleBullets = cvLines.slice(0, 5).length > 0 ? cvLines.slice(0, 5) : [
     isCvEn ? 'Responsible for managing team projects and coordinating deliverables' : 'Chịu trách nhiệm quản lý dự án và điều phối tiến độ công việc',
     isCvEn ? 'Developed web features and fixed critical software bugs' : 'Phát triển các tính năng phần mềm và sửa lỗi hệ thống',
-    isCvEn ? 'Worked with cross-functional teams to improve operational efficiency' : 'Phối hợp với các phòng ban để tối ưu hóa quy trình làm việc'
+    isCvEn ? 'Worked with cross-functional teams to improve operational efficiency' : 'Phối hợp với các phòng ban để tối ưu hóa quy trình làm việc',
+    isCvEn ? 'Implemented CI/CD automation pipelines and integration testing' : 'Triển khai tự động hóa CI/CD và quy trình kiểm thử chất lượng',
+    isCvEn ? 'Optimized system database queries and monitored uptime performance' : 'Tối ưu hóa hiệu năng truy vấn cơ sở dữ liệu và giám sát hệ thống'
   ];
 
-  const rewrittenBullets = sampleBullets.map((bullet) => ({
+  const rewrittenBullets = sampleBullets.map((bullet, idx) => ({
     originalBullet: bullet,
     issueInOriginal: isEn
       ? 'Lacks measurable metrics, impact scale, and explicit action structure.'
@@ -5518,6 +5520,8 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
       ? 'Uses strong action verb, quantifies metric impact (25%), and explicitly links action to results.'
       : 'Sử dụng động từ hành động mạnh, bổ sung chỉ số định lượng (25%) và liên kết hành động tới kết quả.',
     isLackingInfo: false,
+    embeddedKeywords: [jdKeywords[idx % jdKeywords.length]?.keyword || (isCvEn ? 'Agile Framework' : 'Quy trình Agile')],
+    metricPlaceholders: [isCvEn ? '[25% efficiency gain]' : '[25% năng suất làm việc]', isCvEn ? '[15 hours weekly]' : '[15 giờ/tuần]'],
   }));
 
   return {
@@ -5601,6 +5605,83 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
         isEn ? 'How many team members did you directly lead or mentor?' : 'Số lượng thành viên bạn trực tiếp quản lý hoặc hướng dẫn là bao nhiêu người?',
         isEn ? 'What key percentage efficiency improvement was achieved in your last role?' : 'Tỷ lệ % cải thiện hiệu suất hoặc tiết kiệm chi phí đạt được trong vai trò gần nhất là bao nhiêu?',
       ],
+      tailoredSummaries: {
+        technicalFocus: {
+          title: isEn ? 'Version 1: Technical & Engineering Mastery Focus' : 'Bản 1: Định vị Chuyên môn / Kỹ thuật sâu',
+          focusType: 'technical',
+          pitch: isEn
+            ? `Results-driven ${extractedJobTitle || 'Specialist'} with proven technical mastery across core industry tools and modern workflows. Experienced in architecting robust systems, adhering to strict engineering standards, and solving complex technical challenges. Ready to deliver scalable engineering solutions tailored to ${extractedCompanyName || 'the organization'}.`
+            : `Chuyên viên ${extractedJobTitle || 'Chuyên môn'} với nền tảng kỹ thuật vững vàng và kinh nghiệm thực chiến với các công nghệ lõi. Dày dặn kinh nghiệm thiết kế giải pháp kỹ thuật, chuẩn hóa quy trình và giải quyết bài toán phức tạp. Cam kết mang lại giá trị công nghệ bền vững, chất lượng cao tại ${extractedCompanyName || 'quý công ty'}.`,
+          keyHighlights: isEn
+            ? ['Core technical stack mastery', 'System architecture & clean code standards', 'Performance optimization & reliability']
+            : ['Làm chủ công nghệ cốt lõi và kiến trúc hệ thống', 'Chuẩn hóa quy trình kỹ thuật và chất lượng', 'Tối ưu hóa hiệu năng và độ ổn định'],
+        },
+        managementFocus: {
+          title: isEn ? 'Version 2: Leadership & Business Impact Focus' : 'Bản 2: Tác động Quản lý & Giá trị Kinh doanh',
+          focusType: 'management',
+          pitch: isEn
+            ? `Proactive ${extractedJobTitle || 'Professional'} focused on connecting technical excellence with measurable business impact. Adept at driving cross-functional progress, optimizing operational turnaround, and ensuring strict SLA/KPI delivery. Committed to driving growth and resource efficiency at ${extractedCompanyName || 'the organization'}.`
+            : `Nhân sự ${extractedJobTitle || 'Chuyên môn'} định hướng tạo giá trị thực tế, sở hữu năng lực liên kết giải pháp kỹ thuật với mục tiêu kinh doanh của tổ chức. Có thế mạnh quản lý tiến độ, điều phối đội ngũ liên phòng ban và tối ưu hóa hiệu suất vận hành. Sẵn sàng đồng hành cùng ${extractedCompanyName || 'quý công ty'} bứt phá các chỉ tiêu KPI chiến lược.`,
+          keyHighlights: isEn
+            ? ['Cross-functional team coordination', 'Process optimization & cost/time savings', '100% KPI & delivery timeline fulfillment']
+            : ['Điều phối liên phòng ban và dẫn dắt tiến độ', 'Tối ưu hóa quy trình, tiết kiệm thời gian và chi phí', 'Cam kết đạt 100% chỉ tiêu KPI & SLA'],
+        },
+      },
+      sectionAudit: {
+        overallSectionRating: isEn
+          ? 'Structural Health: 75/100. Work Experience quantification and Executive Summary are the top priority areas for score elevation.'
+          : 'Độ hoàn thiện cấu trúc CV: 75/100. Định lượng số liệu ở phần Kinh nghiệm và bổ sung Tóm tắt mở đầu là 2 ưu tiên hàng đầu để tăng điểm.',
+        sections: [
+          {
+            sectionKey: 'summary',
+            sectionName: isEn ? 'Executive Summary' : 'Tóm tắt mở đầu (Executive Summary)',
+            status: 'can_cai_thien',
+            score: 70,
+            comment: isEn
+              ? 'Executive pitch is somewhat general; needs sharper alignment with target company goals.'
+              : 'Đoạn giới thiệu bản thân còn mang tính tự sự chung chung, chưa làm bật được điểm độc bản khớp với JD.',
+            actionableFix: isEn
+              ? 'Replace with one of the tailored 3-4 sentence elevator pitches provided above.'
+              : 'Thay thế bằng 1 trong 2 bản Tóm tắt mở đầu may đo ở trên, đặt ngay dưới phần thông tin liên hệ.',
+          },
+          {
+            sectionKey: 'experience',
+            sectionName: isEn ? 'Work Experience & Impact' : 'Kinh nghiệm làm việc & Kết quả (Work Experience)',
+            status: 'can_cai_thien',
+            score: 68,
+            comment: isEn
+              ? 'Bullets primarily describe daily duties; lacks quantified metrics (%, ROI, scale).'
+              : 'Các dòng mô tả công việc đang nặng về liệt kê nhiệm vụ, thiếu số liệu đo lường kết quả (%, KPI, ngân sách).',
+            actionableFix: isEn
+              ? 'Use the XYZ formula: Accomplished [X], measured by [Y], by doing [Z]. Fill in suggested metric placeholders.'
+              : 'Áp dụng công thức XYZ: Đạt được [X], đo bằng [Y], thông qua [Z]. Bổ sung số liệu vào các vị trí được gợi ý.',
+          },
+          {
+            sectionKey: 'skills',
+            sectionName: isEn ? 'Skills Structure & Grouping' : 'Cấu trúc Kỹ năng chuyên môn (Core Skills)',
+            status: 'tot',
+            score: 82,
+            comment: isEn
+              ? 'Skills are clearly listed. Ensure top Must-Have keywords from the JD are placed prominently.'
+              : 'Kỹ năng đã được trình bày rõ ràng. Cần đẩy các từ khóa Bắt buộc (Must-Have) của JD lên đầu danh mục.',
+            actionableFix: isEn
+              ? 'Categorize skills into Core Technical, Tools/Platforms, and Professional Methodologies.'
+              : 'Phân nhóm thành 3 mục: Kỹ năng Chuyên môn, Công cụ/Nền tảng và Phương pháp làm việc (Agile/Scrum).',
+          },
+          {
+            sectionKey: 'education_ats',
+            sectionName: isEn ? 'Education & ATS Standards' : 'Học vấn/Chứng chỉ & Chuẩn ATS (Education & ATS)',
+            status: 'tot',
+            score: 85,
+            comment: isEn
+              ? 'Clean layout and standard headers ensure high compatibility with automated ATS parsers.'
+              : 'Bố cục một cột chuẩn, không dùng hình ảnh/bảng phức tạp, độ tương thích rất cao với hệ thống lọc ATS tự động.',
+            actionableFix: isEn
+              ? 'List relevant professional certifications and graduation honors to reinforce credibility.'
+              : 'Bổ sung thêm các chứng chỉ chuyên ngành quốc tế (nếu có) để tăng tính cạnh tranh của hồ sơ.',
+          },
+        ],
+      },
       rewrittenBullets,
     },
     feature3: {
@@ -5719,12 +5800,30 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
    - Weak or overly vague sections in CV
    - 5 immediate actions to boost CV competitiveness
 
---- FEATURE 2: REWRITE CV BULLET POINTS FOR THIS JD ---
+--- FEATURE 2: SECTION-BY-SECTION AUDIT, TAILORED SUMMARIES & REWRITTEN BULLETS ---
 1. Check CV. If critical metrics/tools are missing, provide MAXIMUM 3 concise clarifying questions.
-2. Bullet Point Rewrite Principles:
+2. Tailored Executive Summaries (tailoredSummaries):
+   - Generate exactly 2 high-impact 3-4 sentence elevator pitch versions tailored to the candidate's target: "${companyName} - ${jobTitle}":
+     a) technicalFocus: Deep technical expertise, specialized tools, architectural mastery, and engineering excellence (title, focusType: 'technical', pitch, keyHighlights: array of 3 bullet phrases).
+     b) managementFocus: Leadership, cross-functional collaboration, business impact, operational efficiency, and KPI/ROI achievement (title, focusType: 'management', pitch, keyHighlights: array of 3 bullet phrases).
+   - Write in the SAME primary language as the candidate's CV.
+3. Section-by-Section Resume Audit (sectionAudit):
+   - Provide overallSectionRating (summary diagnostic sentence).
+   - Perform an ATS and structural audit across all 4 mandatory sections:
+     1. sectionKey: 'summary', sectionName: 'Executive Summary'
+     2. sectionKey: 'experience', sectionName: 'Work Experience & Impact'
+     3. sectionKey: 'skills', sectionName: 'Skills Structure & Grouping'
+     4. sectionKey: 'education_ats', sectionName: 'Education, Certifications & ATS Standards'
+   - For each section, provide:
+     - status: "tot" (strong) | "can_cai_thien" (needs improvement) | "yeu_nghiem_trong" (critical gap)
+     - score: integer from 0 to 100
+     - comment: candid diagnosis of strengths or weaknesses
+     - actionableFix: exact, actionable recommendation on how to fix it
+4. Bullet Point Rewrite Principles (5 to 8 most impactful bullets):
    - Concise and complete.
-   - Use strong action verbs.
-   - Format: [Action] + [Tool/Method] + [Measurable Result].
+   - Use strong action verbs and XYZ / STAR Formula: Accomplished [X], as measured by [Y], by doing [Z].
+   - embeddedKeywords: Array of explicit JD terms/keywords naturally incorporated into the rewritten bullet.
+   - metricPlaceholders: Array of suggested metric brackets for the candidate to fill in (e.g. ["[20-25%] efficiency", "[$50K] budget", "[Team of 6]"]).
    - CRITICAL LANGUAGE RULE FOR REWRITTEN BULLETS: Every 'rewrittenBullet' MUST be written in the SAME LANGUAGE as the original bullet point in the candidate's CV (e.g. if the original bullet in the CV is in English, write 'rewrittenBullet' in English; if in Vietnamese, write in Vietnamese). Do NOT translate bullet points to a different language!
    - If original bullet lacks sufficient context to rewrite convincingly, set rewrittenBullet to "Needs more information before rewriting." (or "Cần bổ sung thông tin trước khi viết lại." if CV is in Vietnamese) and set isLackingInfo: true.
 
@@ -5794,14 +5893,31 @@ ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN
    - Những phần trong CV đang yếu, quá chung chung hoặc chưa chứng minh được năng lực
    - 5 việc cụ thể cần sửa ngay để CV cạnh tranh hơn
 
---- TÍNH NĂNG 2: VIẾT LẠI CÁC BULLET POINT TRONG CV THEO JD ---
+--- TÍNH NĂNG 2: KHÁM BỆNH TỪNG PHẦN CV, VIẾT SẴN MỞ ĐẦU MAY ĐO & TỐI ƯU BULLET POINT ---
 1. Kiểm tra CV. Thiếu dữ liệu quan trọng (số liệu, quy mô, công cụ, kết quả), đưa ra TỐI ĐA 3 câu hỏi làm rõ ngắn gọn.
-2. Nguyên tắc Viết lại Bullet Point:
-   - Ngắn gọn và đầy đủ.
-   - Dùng động từ hành động mạnh.
-   - Nêu rõ: [Hành động] + [Công cụ/Phương pháp] + [Kết quả].
-   - Dùng ngôn ngữ sát JD nhưng đảm bảo tự nhiên.
-   - BẮT BUỘC VỀ NGÔN NGỮ CỦA BULLET VIẾT LẠI: Phần 'rewrittenBullet' BẮT BUỘC phải dùng CÙNG NGÔN NGỮ với bullet gốc / CV gốc của ứng viên (Ví dụ: nếu CV gốc hoặc bullet gốc bằng Tiếng Anh, 'rewrittenBullet' BẮT BUỘC phải bằng Tiếng Anh; nếu CV gốc bằng Tiếng Việt, 'rewrittenBullet' bằng Tiếng Việt). Tuyệt đối KHÔNG tự động dịch bullet point sang ngôn ngữ khác!
+2. Viết sẵn 2 bản Mở đầu CV May đo (tailoredSummaries):
+   - Tự động tạo chính xác 2 phiên bản Mở đầu CV (3–4 câu) khớp với "${companyName} - ${jobTitle}":
+     a) technicalFocus: Định vị Chuyên môn / Kỹ thuật sâu (làm chủ công nghệ lõi, thiết kế kiến trúc hệ thống, giải quyết bài toán kỹ thuật phức tạp). Thuộc tính: title, focusType: 'technical', pitch, keyHighlights: mảng 3 cụm từ điểm nhấn.
+     b) managementFocus: Tác động Quản lý & Giá trị Kinh doanh (dẫn dắt tiến độ, điều phối liên chức năng, tối ưu chi phí/thời gian, cam kết chỉ số KPI/ROI). Thuộc tính: title, focusType: 'management', pitch, keyHighlights: mảng 3 cụm từ điểm nhấn.
+   - BẮT BUỘC viết cùng ngôn ngữ chính của CV ứng viên.
+3. Khám bệnh Từng Phần của CV (sectionAudit):
+   - Đưa ra overallSectionRating (1 câu tóm lược độ hoàn thiện cấu trúc CV).
+   - Đánh giá chi tiết đủ 4 phần bắt buộc:
+     1. sectionKey: 'summary', sectionName: 'Tóm tắt mở đầu (Executive Summary)'
+     2. sectionKey: 'experience', sectionName: 'Kinh nghiệm làm việc & Kết quả (Work Experience)'
+     3. sectionKey: 'skills', sectionName: 'Cấu trúc Kỹ năng chuyên môn (Core Skills)'
+     4. sectionKey: 'education_ats', sectionName: 'Học vấn/Chứng chỉ & Định dạng chuẩn ATS (Education & ATS)'
+   - Với mỗi phần, chấm:
+     - status: "tot" (Tốt) | "can_cai_thien" (Cần cải thiện) | "yeu_nghiem_trong" (Điểm yếu nghiêm trọng)
+     - score: số nguyên từ 0 đến 100
+     - comment: nhận xét chẩn đoán thẳng thắn thực trạng
+     - actionableFix: hướng dẫn hành động cụ thể để khắc phục
+4. Nâng cấp Viết lại Bullet Point (rewrittenBullets) từ 5 đến 8 bullet quan trọng nhất:
+   - Ngắn gọn và đầy đủ theo Công thức XYZ / STAR: Đạt được [X], đo lường bằng [Y], thông qua [Z].
+   - Dùng động từ hành động mạnh, sát ngôn ngữ JD.
+   - embeddedKeywords: Mảng các từ khóa JD cụ thể đã được lồng ghép tự nhiên vào bullet viết lại.
+   - metricPlaceholders: Mảng các gợi ý điền số liệu trong ngoặc vuông (VD: ["[20-25%] hiệu suất", "[Team 5 người]", "[$50K ngân sách]"]).
+   - BẮT BUỘC VỀ NGÔN NGỮ CỦA BULLET VIẾT LẠI: Phần 'rewrittenBullet' BẮT BUỘC phải dùng CÙNG NGÔN NGỮ với bullet gốc / CV gốc của ứng viên.
    - TUYỆT ĐỐI KHÔNG BỊA ĐẶT hay phóng đại. Nếu bullet gốc quá thiếu thông tin để viết lại một cách thuyết phục (kể cả sau khi đọc câu trả lời bổ sung), thì ở phần rewrittenBullet hãy ghi cụm từ phù hợp với ngôn ngữ CV: "Cần bổ sung thông tin trước khi viết lại." (nếu CV Tiếng Việt) hoặc "Needs more information before rewriting." (nếu CV Tiếng Anh) và đánh dấu isLackingInfo: true.
 
 --- TÍNH NĂNG 3: ĐÓNG VAI NHÀ TUYỂN DỤNG ĐỌC CV TRONG 10 GIÂY ---
@@ -5971,6 +6087,73 @@ const analysisResponseSchema = {
           items: { type: Type.STRING },
           description: 'Tối đa 3 câu hỏi làm rõ ngắn gọn',
         },
+        tailoredSummaries: {
+          type: Type.OBJECT,
+          properties: {
+            technicalFocus: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                focusType: { type: Type.STRING, enum: ['technical'] },
+                pitch: { type: Type.STRING },
+                keyHighlights: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+              },
+              required: ['title', 'focusType', 'pitch', 'keyHighlights'],
+            },
+            managementFocus: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                focusType: { type: Type.STRING, enum: ['management'] },
+                pitch: { type: Type.STRING },
+                keyHighlights: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+              },
+              required: ['title', 'focusType', 'pitch', 'keyHighlights'],
+            },
+          },
+          required: ['technicalFocus', 'managementFocus'],
+        },
+        sectionAudit: {
+          type: Type.OBJECT,
+          properties: {
+            overallSectionRating: { type: Type.STRING },
+            sections: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  sectionKey: {
+                    type: Type.STRING,
+                    enum: ['summary', 'experience', 'skills', 'education_ats'],
+                  },
+                  sectionName: { type: Type.STRING },
+                  status: {
+                    type: Type.STRING,
+                    enum: ['tot', 'can_cai_thien', 'yeu_nghiem_trong'],
+                  },
+                  score: { type: Type.INTEGER },
+                  comment: { type: Type.STRING },
+                  actionableFix: { type: Type.STRING },
+                },
+                required: [
+                  'sectionKey',
+                  'sectionName',
+                  'status',
+                  'score',
+                  'comment',
+                  'actionableFix',
+                ],
+              },
+            },
+          },
+          required: ['sections'],
+        },
         rewrittenBullets: {
           type: Type.ARRAY,
           items: {
@@ -5981,6 +6164,14 @@ const analysisResponseSchema = {
               rewrittenBullet: { type: Type.STRING },
               reasonBetter: { type: Type.STRING },
               isLackingInfo: { type: Type.BOOLEAN },
+              embeddedKeywords: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
+              metricPlaceholders: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
             },
             required: [
               'originalBullet',
@@ -6276,7 +6467,7 @@ app.post('/api/analyze-cv', async (req, res) => {
       });
     }
 
-    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'phase1-step1.1-v1' });
+    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'phase1-step1.2-v1' });
     if (analyzeCache.has(cacheKey)) {
       console.log('[Cache Hit] Returning cached analysis response.');
       const cachedResult = analyzeCache.get(cacheKey);
