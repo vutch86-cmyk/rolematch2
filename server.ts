@@ -4643,7 +4643,7 @@ app.post('/api/batch-analyze', handleUploadAny, async (req, res) => {
           jdText,
           clarifyingAnswers: undefined,
           lang,
-          analysisPromptVersion: 'phase1-step1.2-v1'
+          analysisPromptVersion: 'phase1-step1.2-v2'
         });
 
         let finalResult: any;
@@ -5803,9 +5803,12 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
 --- FEATURE 2: SECTION-BY-SECTION STRUCTURAL REVIEW, TARGETED SUMMARIES & REWRITTEN BULLETS ---
 1. Check CV. If critical metrics/tools are missing, provide MAXIMUM 3 concise clarifying questions.
 2. Targeted Professional Summaries (tailoredSummaries):
-   - Generate exactly 2 high-impact targeted professional summaries (50–150 words each) tailored to the candidate's target: "[Company Name] - [Job Title]":
-     a) technicalFocus: Deep technical expertise, specialized tools, architectural mastery, and engineering excellence (title, focusType: 'technical', pitch, keyHighlights: array of 3 bullet phrases).
-     b) managementFocus: Leadership, cross-functional collaboration, business impact, operational efficiency, and KPI/ROI achievement (title, focusType: 'management', pitch, keyHighlights: array of 3 bullet phrases).
+   - Generate exactly 2 high-impact targeted professional summaries. MANDATORY WORD COUNT: EACH SUMMARY MUST BE BETWEEN 50 AND 200 WORDS (up to 250 words for Senior/Executive profiles, minimum 3–4 substantive sentences). ABSOLUTELY DO NOT write a brief 1-2 sentence snippet under 50 words!
+   - Follow this 4-sentence structure:
+     + Sentence 1 (Identity & Seniority): Verified professional role + years of experience from CV + core specialization.
+     + Sentence 2 (Key Achievements & JD Fit): Standout accomplishment or complex technical challenge resolved from CV.
+     + Sentence 3 (Methodology & Standards): Agile discipline, engineering rigor, or cross-functional teamwork.
+     + Sentence 4 (Target Commitment): Concrete value commitment delivered to [Company Name] in [Job Title] role.
    - CRITICAL REQUIREMENT ON SUMMARY ACCURACY: Both summaries MUST be strictly grounded in the candidate's actual CV data (verified skills, years of experience, past achievements). Absolutely DO NOT hallucinate fake roles, fake companies, or fake metrics.
    - Write in the SAME primary language as the candidate's CV.
 3. Section-by-Section Structural Review (sectionAudit):
@@ -5898,9 +5901,12 @@ ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN
 --- TÍNH NĂNG 2: ĐÁNH GIÁ CẤU TRÚC TỪNG PHẦN CV, VIẾT SẴN TÓM TẮT ĐỊNH VỊ & TỐI ƯU BULLET POINT ---
 1. Kiểm tra CV. Thiếu dữ liệu quan trọng (số liệu, quy mô, công cụ, kết quả), đưa ra TỐI ĐA 3 câu hỏi làm rõ ngắn gọn.
 2. Viết sẵn 2 bản Tóm tắt hồ sơ định vị theo vị trí (tailoredSummaries):
-   - Tự động tạo chính xác 2 phiên bản Tóm tắt hồ sơ (độ dài 50–150 từ mỗi bản) khớp với "[Tên Công ty] - [Vị trí ứng tuyển]":
-     a) technicalFocus: Định vị Chuyên môn / Kỹ thuật sâu (làm chủ công nghệ lõi, thiết kế kiến trúc hệ thống, giải quyết bài toán kỹ thuật phức tạp). Thuộc tính: title, focusType: 'technical', pitch, keyHighlights: mảng 3 cụm từ điểm sáng.
-     b) managementFocus: Tác động Quản lý & Giá trị Kinh doanh (dẫn dắt tiến độ, điều phối liên chức năng, tối ưu chi phí/thời gian, cam kết chỉ số KPI/ROI). Thuộc tính: title, focusType: 'management', pitch, keyHighlights: mảng 3 cụm từ điểm sáng.
+   - Tự động tạo chính xác 2 phiên bản Tóm tắt hồ sơ. YÊU CẦU BẮT BUỘC VỀ ĐỘ DÀI: MỖI BẢN PHẢI DÀI TỪ 50 ĐẾN 200 TỪ (tối đa 250 từ cho hồ sơ Senior/Quản lý, tối thiểu 3–4 câu hoàn chỉnh có chiều sâu). TUYỆT ĐỐI KHÔNG VIẾT DƯỚI 50 TỪ (không viết cụt ngủn 1–2 câu):
+     Áp dụng cấu trúc 4 câu chuẩn mực:
+     + Câu 1 (Định vị & Thâm niên): Chức danh chuyên môn + số năm kinh nghiệm thực tế từ CV + lĩnh vực chuyên sâu.
+     + Câu 2 (Năng lực cốt lõi & Thành tựu): Dự án, công nghệ hoặc thành tựu nổi bật nhất trong CV chứng minh năng lực giải quyết bài toán của JD.
+     + Câu 3 (Tư duy & Phong cách làm việc): Tiêu chuẩn chất lượng, quy trình (Agile, chuẩn kỹ thuật) hoặc thế mạnh làm việc đội ngũ.
+     + Câu 4 (Cam kết đóng góp): Giá trị cụ thể cam kết mang lại cho [Tên Công ty] tại vị trí [Vị trí ứng tuyển].
    - NGUYÊN TẮC TRUNG THỰC CỐT LÕI: Cả 2 bản tóm tắt BẮT BUỘC phải dựa trên thông tin thực tế từ CV của ứng viên (thâm niên, kỹ năng, dự án đã làm). TUYỆT ĐỐI KHÔNG tự ý sáng tạo hay bịa đặt kinh nghiệm không có trong CV.
    - BẮT BUỘC viết cùng ngôn ngữ chính của CV ứng viên.
 3. Đánh giá Cấu trúc Từng Phần của CV (sectionAudit):
@@ -6099,7 +6105,10 @@ const analysisResponseSchema = {
               properties: {
                 title: { type: Type.STRING },
                 focusType: { type: Type.STRING, enum: ['technical'] },
-                pitch: { type: Type.STRING },
+                pitch: {
+                  type: Type.STRING,
+                  description: 'Đoạn tóm tắt mở đầu dài từ 50 đến 200 từ (tối đa 250 từ cho cấp Senior/Quản lý), gồm: định vị vai trò & thâm niên từ CV, năng lực kỹ thuật nổi bật khớp JD, tiêu chuẩn làm việc, và cam kết giá trị cho công ty mục tiêu. TUYỆT ĐỐI KHÔNG viết dưới 50 từ.',
+                },
                 keyHighlights: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
@@ -6112,7 +6121,10 @@ const analysisResponseSchema = {
               properties: {
                 title: { type: Type.STRING },
                 focusType: { type: Type.STRING, enum: ['management'] },
-                pitch: { type: Type.STRING },
+                pitch: {
+                  type: Type.STRING,
+                  description: 'Đoạn tóm tắt mở đầu dài từ 50 đến 200 từ (tối đa 250 từ cho cấp Senior/Quản lý), gồm: định vị điều phối & kết nối mục tiêu kinh doanh từ CV, thành tựu quản lý tiến độ/KPI, và cam kết giá trị cho công ty mục tiêu. TUYỆT ĐỐI KHÔNG viết dưới 50 từ.',
+                },
                 keyHighlights: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
@@ -6476,7 +6488,7 @@ app.post('/api/analyze-cv', async (req, res) => {
       });
     }
 
-    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'phase1-step1.2-v1' });
+    const cacheKey = getHashKey({ cvText, jdText, clarifyingAnswers, lang, analysisPromptVersion: 'phase1-step1.2-v2' });
     if (analyzeCache.has(cacheKey)) {
       console.log('[Cache Hit] Returning cached analysis response.');
       const cachedResult = analyzeCache.get(cacheKey);

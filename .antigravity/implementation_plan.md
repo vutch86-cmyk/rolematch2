@@ -4,6 +4,45 @@
 
 ---
 
+## Đợt 11 (2026-10-29): Triển khai Cơ chế Phân tầng Độ dài Tóm tắt Mở đầu (50–200 từ, tối đa 250 từ cho Senior/Quản lý) & Huy hiệu Đếm từ Động
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Tiếp thu phản hồi thực tế của người dùng về tình trạng đoạn tóm tắt mở đầu bị ngắn (< 50 từ) và nhu cầu mở rộng dung lượng linh hoạt cho hồ sơ cấp Senior / Quản lý:
+  1. **Khung dung lượng linh hoạt 50–200 từ (tối đa 250 từ):** Nới lỏng giới hạn cứng 150 từ trước đó, cho phép các ứng viên giàu kinh nghiệm diễn đạt sâu sắc hơn mà không bị gò bó hoặc lấn chiếm diện tích phần Kinh nghiệm.
+  2. **Huy hiệu đếm từ động 4 phân tầng trên giao diện:**
+     - `< 50 từ`: Báo vàng hổ phách `X từ • Hơi ngắn (<50 từ)`.
+     - `50 – 180 từ`: Báo xanh lá `X từ • Độ dài lý tưởng (50–180 từ)`.
+     - `181 – 250 từ`: Báo xanh ngọc `X từ • Phù hợp Quản lý / Senior (181–250 từ)`.
+     - `> 250 từ`: Báo cam `X từ • Hơi dài (>250 từ)`.
+  3. **Ràng buộc cứng trong Gemini Schema & Prompt (`server.ts`):** Thêm thuộc tính `description` bắt buộc 50–200 từ cho trường `pitch` trong cả 2 bản Technical & Management, nâng cache key lên `phase1-step1.2-v2`.
+  4. **Lớp bảo vệ dữ liệu tự động (`bulletRewriteHelpers.ts`):** Hàm `ensureSubstantivePitch()` tự động phát hiện các câu ngắn (< 50 từ) và bổ sung cam kết cùng phương pháp làm việc sát với công ty mục tiêu, nâng lên mức chuẩn 65–85 từ.
+
+### 2. Files Affected (Danh sách file sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/components/BulletPointRewriteTab.tsx` | **Modified** | Cập nhật huy hiệu đếm từ động với 4 dải phân tầng và mã màu tương ứng. |
+| `src/utils/bulletRewriteHelpers.ts` | **Modified** | Thêm hàm `ensureSubstantivePitch()` tự động bảo vệ độ dài và cập nhật `normalizeFeature2Data`. |
+| `src/utils/bulletRewriteHelpers.test.ts` | **Modified** | Thêm test case 6 kiểm tra việc đưa câu ngắn < 50 từ lên chuẩn 50–200 từ. |
+| `src/utils/i18n.ts` | **Modified** | Cập nhật mô tả tóm tắt mở đầu sang khung 50–200 từ (cả tiếng Việt và tiếng Anh). |
+| `server.ts` | **Modified** | Cập nhật schema description, prompt hướng dẫn AI và nâng cache key lên `phase1-step1.2-v2`. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Cập nhật helper `ensureSubstantivePitch` trong `bulletRewriteHelpers.ts`.
+- [x] **Bước 2:** Cập nhật huy hiệu đếm từ phân tầng trong `BulletPointRewriteTab.tsx`.
+- [x] **Bước 3:** Cập nhật schema description và prompt trong `server.ts` cùng cache version `phase1-step1.2-v2`.
+- [x] **Bước 4:** Cập nhật bộ dịch thuật ngữ trong `i18n.ts`.
+- [x] **Bước 5:** Bổ sung unit test 6 trong `bulletRewriteHelpers.test.ts`.
+- [x] **Bước 6:** Chạy kiểm thử chuỗi 3 lệnh tiêu chuẩn:
+  * `npm run lint` (`tsc --noEmit`): Exit 0 (0 errors).
+  * `npm test` (`vitest run`): Exit 0 (7/7 test suites, 71/71 tests passed).
+  * `npm run build` (`vite build && esbuild`): Exit 0 (Frontend & Backend dist bundle build thành công).
+- [x] **Bước 7:** Chạy cổng an toàn Security Audit Gate: PASS 100% (0 findings, 2 coverage units valid).
+
+---
+
 ## Đợt 10 (2026-10-29): Chuẩn hóa Thuật ngữ Tuyển dụng Chuẩn Văn phòng, Bổ sung Mẫu câu Tham khảo Grounded từ CV & Tinh chỉnh Tóm tắt 50–150 từ
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`

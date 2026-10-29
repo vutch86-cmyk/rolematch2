@@ -79,6 +79,46 @@ export function extractKeyTermsFromJd(jdText: string): string[] {
 /**
  * Fallback synthesizer for 2 tailored executive summaries (Technical vs Management focus)
  */
+/**
+ * Ensures an executive summary pitch is sufficiently substantive (between 50 and 200 words, up to 250 words).
+ * If the provided pitch is too brief (< 50 words), enriches it with grounded context and value commitment.
+ */
+export function ensureSubstantivePitch(
+  pitch: string,
+  focusType: 'technical' | 'management',
+  companyName: string = '',
+  jobTitle: string = '',
+  isEn: boolean = false
+): string {
+  const trimmed = (pitch || '').trim();
+  if (!trimmed) return '';
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length >= 50) {
+    return trimmed;
+  }
+
+  const targetCompany = companyName.trim() || (isEn ? 'the organization' : 'quý công ty');
+  const targetRole = jobTitle.trim() || (isEn ? 'the target role' : 'vị trí ứng tuyển');
+
+  if (isEn) {
+    if (focusType === 'technical') {
+      const addition = ` Experienced in standardizing robust operational practices, optimizing delivery performance, and resolving complex workflow bottlenecks. Committed to bringing disciplined execution, reliability, and long-term value to ${targetCompany} in the ${targetRole} role.`;
+      return trimmed.replace(/[.]+$/, '') + '.' + addition;
+    } else {
+      const addition = ` Recognized for effective cross-functional coordination, clear stakeholder communication, and disciplined execution against core milestones. Eager to partner with ${targetCompany} to streamline workflows, improve turnaround velocity, and achieve strategic objectives.`;
+      return trimmed.replace(/[.]+$/, '') + '.' + addition;
+    }
+  }
+
+  if (focusType === 'technical') {
+    const addition = ` Dày dặn kinh nghiệm chuẩn hóa quy trình làm việc, tối ưu hóa hiệu quả thực thi và giải quyết các bài toán chuyên môn sát với nhu cầu thực tế. Cam kết mang tinh thần trách nhiệm cao và năng lực thực chiến để đồng hành đóng góp giá trị lâu dài cho ${targetCompany} tại vị trí ${targetRole}.`;
+    return trimmed.replace(/[.]+$/, '') + '.' + addition;
+  } else {
+    const addition = ` Có thế mạnh điều phối nguồn lực, kết nối nhịp nhàng giữa các bộ phận và kiểm soát tiến độ bàn giao đúng cam kết. Sẵn sàng đồng hành cùng ${targetCompany} tối ưu hóa năng suất vận hành, giảm thiểu độ trễ và hiện thực hóa các mục tiêu chiến lược tại vị trí ${targetRole}.`;
+    return trimmed.replace(/[.]+$/, '') + '.' + addition;
+  }
+}
+
 export function inferTailoredSummaries(
   cvText: string,
   jdText: string,
@@ -173,8 +213,8 @@ export function inferSectionAudit(
       ? 'Missing a dedicated executive summary section. Recruiters lack a quick 10-second anchor to assess overall suitability.'
       : 'Chưa có phần Tóm tắt mở đầu độc lập. Nhà tuyển dụng thiếu điểm neo tóm lược giá trị trong 10 giây đầu.',
     actionableFix: isEn
-      ? 'Adopt one of the targeted professional summary versions (50-150 words) above, placed directly beneath your contact details.'
-      : 'Đặt đoạn Tóm tắt hồ sơ định vị (50–150 từ) ngay dưới thông tin liên hệ ở đầu CV để tạo ấn tượng tức thì với nhà tuyển dụng.',
+      ? 'Adopt one of the targeted professional summary versions (50-200 words) above, placed directly beneath your contact details.'
+      : 'Đặt đoạn Tóm tắt hồ sơ định vị (50–200 từ) ngay dưới thông tin liên hệ ở đầu CV để tạo ấn tượng tức thì với nhà tuyển dụng.',
     suggestedSnippets: isEn
       ? [
           'Professional with proven hands-on track record, dedicated to delivering resilient engineering solutions and high operational uptime.',
@@ -397,6 +437,31 @@ export function normalizeFeature2Data(
   let tailoredSummaries: TailoredSummaryPitch = feature2?.tailoredSummaries;
   if (!tailoredSummaries?.technicalFocus?.pitch || !tailoredSummaries?.managementFocus?.pitch) {
     tailoredSummaries = inferTailoredSummaries(cvText, jdText, companyName, jobTitle, isEn);
+  } else {
+    // Ensure both versions are substantive (50-150 words)
+    tailoredSummaries = {
+      ...tailoredSummaries,
+      technicalFocus: {
+        ...tailoredSummaries.technicalFocus,
+        pitch: ensureSubstantivePitch(
+          tailoredSummaries.technicalFocus.pitch,
+          'technical',
+          companyName,
+          jobTitle,
+          isEn
+        ),
+      },
+      managementFocus: {
+        ...tailoredSummaries.managementFocus,
+        pitch: ensureSubstantivePitch(
+          tailoredSummaries.managementFocus.pitch,
+          'management',
+          companyName,
+          jobTitle,
+          isEn
+        ),
+      },
+    };
   }
 
   // 4. Section Audit

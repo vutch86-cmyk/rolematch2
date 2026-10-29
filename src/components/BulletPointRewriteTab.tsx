@@ -227,9 +227,35 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
                 <Sparkles className="w-4 h-4 text-amber-400" />
                 {activePitch?.title}
               </span>
-              <span className="text-[11px] text-indigo-400">
-                {countWords(activePitch?.pitch || '')} {t.wordCountUnit || (isEn ? 'words • 50–150 words' : 'từ • 50–150 từ')}
-              </span>
+              {(() => {
+                const wCount = countWords(activePitch?.pitch || '');
+                if (wCount < 50) {
+                  return (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-950/60 text-amber-300 border-amber-500/40">
+                      {wCount} {isEn ? 'words • Short (<50 words)' : 'từ • Hơi ngắn (<50 từ)'}
+                    </span>
+                  );
+                }
+                if (wCount <= 180) {
+                  return (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-emerald-950/60 text-emerald-300 border-emerald-500/40">
+                      {wCount} {isEn ? 'words • Ideal length (50–180)' : 'từ • Độ dài lý tưởng (50–180 từ)'}
+                    </span>
+                  );
+                }
+                if (wCount <= 250) {
+                  return (
+                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-cyan-950/60 text-cyan-300 border-cyan-500/40">
+                      {wCount} {isEn ? 'words • Suitable for Senior/Lead (181–250)' : 'từ • Phù hợp Quản lý / Senior (181–250 từ)'}
+                    </span>
+                  );
+                }
+                return (
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border bg-amber-950/60 text-amber-300 border-amber-500/40">
+                    {wCount} {isEn ? 'words • A bit long (>250 words)' : 'từ • Hơi dài (>250 từ)'}
+                  </span>
+                );
+              })()}
             </div>
 
             <blockquote className="text-xs sm:text-sm text-indigo-100 font-normal leading-relaxed italic border-l-2 border-amber-400/80 pl-4 py-1 bg-indigo-950/40 rounded-r-lg">
