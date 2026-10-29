@@ -5706,6 +5706,88 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
         isEn ? 'Incorporate exact JD technical terms in skills summary.' : 'Lồng ghép chính xác các thuật ngữ chuyên môn từ JD vào tóm tắt kỹ năng.',
         isEn ? 'Apply action formula to all main work experience bullets.' : 'Áp dụng công thức hành động cho toàn bộ các dòng kinh nghiệm làm việc.',
       ],
+      seniorityFit: {
+        overallAssessment: 'match',
+        overallAssessmentLabel: isEn ? 'Good Fit (Sweet Spot)' : 'Đúng Tầm (Sweet Spot)',
+        summaryRationale: isEn
+          ? 'Candidate brings relevant professional tenure and foundational domain alignment with this role.'
+          : 'Ứng viên có thâm niên làm việc phù hợp và độ chín chuyên môn nằm trong vùng kỳ vọng của vị trí tuyển dụng.',
+        positioningAdvice: isEn
+          ? 'Emphasize measurable outcomes and project ownership in your interview stories to solidify confidence.'
+          : 'Hãy nhấn mạnh các câu chuyện về tác động thực tế và tinh thần chủ động giải quyết bài toán để củng cố niềm tin với Hội đồng phỏng vấn.',
+        dimensions: [
+          {
+            dimensionKey: 'level_tenure',
+            dimensionName: isEn ? 'Level & Career Tenure' : 'Cấp bậc & Thâm niên thực chiến',
+            jdExpectation: isEn ? 'Relevant career tenure aligned with target role' : 'Thâm niên tương thích với chức danh ứng tuyển',
+            cvReality: isEn ? 'Solid work history demonstrated across relevant positions' : 'Quá trình công tác liên tục trong các vị trí liên quan',
+            assessment: 'match',
+            comment: isEn
+              ? 'Tenure duration meets the baseline expectation for this role.'
+              : 'Tổng thời gian công tác đáp ứng tốt mặt bằng chung của vị trí này.',
+          },
+          {
+            dimensionKey: 'scale_complexity',
+            dimensionName: isEn ? 'Scale & System Complexity' : 'Quy mô & Độ phức tạp dự án',
+            jdExpectation: isEn ? 'Experience handling realistic production / enterprise workloads' : 'Kinh nghiệm xử lý nghiệp vụ thực tế hoặc hệ thống doanh nghiệp',
+            cvReality: isEn ? 'Demonstrated execution in primary production workflows' : 'Đã tham gia vận hành các quy trình nghiệp vụ cốt lõi',
+            assessment: 'match',
+            comment: isEn
+              ? 'Work complexity is appropriate, though adding scale figures would elevate credibility.'
+              : 'Độ phức tạp phù hợp, nếu bổ sung thêm quy mô định lượng sẽ tạo ấn tượng mạnh mẽ hơn.',
+          },
+          {
+            dimensionKey: 'scope_ownership',
+            dimensionName: isEn ? 'Scope of Ownership & Initiative' : 'Phạm vi Tự chủ & Dẫn dắt',
+            jdExpectation: isEn ? 'Independent problem solving and proactive ownership' : 'Chủ động giải quyết vấn đề và chịu trách nhiệm đầu ra',
+            cvReality: isEn ? 'Hands-on contributor with capability to own dedicated modules' : 'Thực thi vững vàng và có khả năng phụ trách các mảng độc lập',
+            assessment: 'match',
+            comment: isEn
+              ? 'Candidate shows solid individual ownership capability.'
+              : 'Ứng viên thể hiện khả năng làm chủ công việc tốt trong phạm vi được giao.',
+          },
+          {
+            dimensionKey: 'domain_match',
+            dimensionName: isEn ? 'Domain & Business Context' : 'Độ khớp Ngành nghề & Nghiệp vụ',
+            jdExpectation: isEn ? 'Foundational familiarity with industry workflows and standards' : 'Hiểu biết căn bản về quy chuẩn và văn hóa vận hành ngành',
+            cvReality: isEn ? 'Transferable operational practices across related business domains' : 'Các kỹ năng và quy trình chuyên môn có khả năng chuyển đổi tốt',
+            assessment: 'match',
+            comment: isEn
+              ? 'Strong transferable skill set minimizes onboarding overhead.'
+              : 'Bộ kỹ năng cốt lõi giúp rút ngắn thời gian làm quen khi tiếp nhận công việc.',
+          },
+        ],
+      },
+      riskMitigationMatrix: [
+        {
+          riskType: 'metric_lacking',
+          riskTitle: isEn ? 'Lack of Quantified Outcome Metrics' : 'Thiếu Số Liệu & Thành Tựu Định Lượng',
+          severity: 'high',
+          recruiterConcern: isEn
+            ? 'Achievements listed without metrics or percentages make impact assessment difficult.'
+            : 'Các thành tựu chưa gắn liền với số liệu cụ thể (%, ngân sách, SLA) khiến kết quả bị trừ điểm tin cậy.',
+          cvMitigation: isEn
+            ? 'Restructure key achievements using the XYZ formula: Accomplished [X], measured by [Y], by doing [Z].'
+            : 'Cập nhật lại các bullet chính theo công thức XYZ: Đạt được [X], đo lường bằng [Y], thông qua giải pháp [Z].',
+          interviewDefense: isEn
+            ? 'Prepare 2-3 specific case studies with exact starting baselines and percentage gains to cite during interviews.'
+            : 'Chuẩn bị sẵn 2-3 câu chuyện thực tế có số liệu mốc trước - sau để chứng minh thuyết phục khi được hỏi.',
+        },
+        {
+          riskType: 'domain_mismatch',
+          riskTitle: isEn ? 'Domain Ramp-Up Time' : 'Thời Gian Làm Quen Với Nghiệp Vụ Mới',
+          severity: 'medium',
+          recruiterConcern: isEn
+            ? 'Recruiter needs confidence that you can contribute quickly without extensive workflow training.'
+            : 'Nhà tuyển dụng cần sự yên tâm rằng ứng viên có thể tạo ra giá trị ngay mà không mất thời gian đào tạo lại quy trình.',
+          cvMitigation: isEn
+            ? 'Incorporate standardized methodologies (Agile, ITIL, Compliance) in your summary and core skills.'
+            : 'Lồng ghép các tiêu chuẩn và phương pháp luận chung (Agile, ITIL, quy trình chất lượng) vào phần tóm tắt để tạo sự tin tưởng.',
+          interviewDefense: isEn
+            ? 'Cite a past instance where you quickly onboarded onto unfamiliar business workflows within the first 30 days.'
+            : 'Nêu bật khả năng tự học và dẫn chứng một trường hợp bạn đã làm chủ nghiệp vụ mới trong tháng đầu tiên.',
+        },
+      ],
     },
   };
 }
@@ -5832,14 +5914,40 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
    - CRITICAL LANGUAGE RULE FOR REWRITTEN BULLETS: Every 'rewrittenBullet' MUST be written in the SAME LANGUAGE as the original bullet point in the candidate's CV (e.g. if the original bullet in the CV is in English, write 'rewrittenBullet' in English; if in Vietnamese, write in Vietnamese). Do NOT translate bullet points to a different language!
    - If original bullet lacks sufficient context to rewrite convincingly, set rewrittenBullet to "Needs more information before rewriting." (or "Cần bổ sung thông tin trước khi viết lại." if CV is in Vietnamese) and set isLackingInfo: true.
 
---- FEATURE 3: 10-SECOND RECRUITER CV SCAN ---
-Act as a strict real-world hiring manager scanning the CV in 10 seconds:
-1. Interview invitation decision (inviteDecision: "YES" | "NO" | "MAYBE", decisionReason)
-2. First 10-second impression
-3. Standout strength that catches the eye immediately
-4. Biggest doubt or concern about candidate
-5. Section causing fastest point loss
-6. Top 3 mandatory fixes to increase interview callback rate.
+--- FEATURE 3: 10-SECOND RECRUITER CV SCAN, SENIORITY FIT & RISK MITIGATION ---
+Act as a strict, pragmatic Senior Talent Acquisition Lead and Hiring Manager reviewing the CV:
+1. 10-Second Skim & Decision:
+   - inviteDecision: "YES" | "NO" | "MAYBE"
+   - decisionReason: Concise, candid core reason for the decision
+   - firstImpression10s: Brutally honest 10-second visual & professional impression
+   - immediateStrength: Strongest asset immediately visible on first glance
+   - biggestDoubt: Single biggest hesitation or skepticism about this candidate
+   - fastestPointLossSection: Exact CV section that causes immediate loss of confidence or points
+   - top3MustFix: Array of 3 high-priority, actionable fixes to maximize interview callback rate
+2. Seniority & Scope Fit Assessment (seniorityFit):
+   - Evaluate whether the candidate's career stature matches the JD across 4 dimensions:
+     a. dimensionKey: "level_tenure", dimensionName: "Level & Career Tenure"
+     b. dimensionKey: "scale_complexity", dimensionName: "Scale & System Complexity"
+     c. dimensionKey: "scope_ownership", dimensionName: "Scope of Ownership & Initiative"
+     d. dimensionKey: "domain_match", dimensionName: "Domain & Business Context"
+   - For each dimension, provide:
+     * jdExpectation: JD baseline requirement
+     * cvReality: Actual evidence demonstrated in CV
+     * assessment: "under" | "match" | "over"
+     * comment: Sharp, realistic evaluation comment
+   - overallAssessment: "under" | "match" | "over"
+   - overallAssessmentLabel: e.g. "Good Fit (Sweet Spot)", "Stretch (Under)", or "Senior / Overqualified"
+   - summaryRationale: 1-2 sentences summarizing candidate's overall seniority positioning vs the JD
+   - positioningAdvice: Strategic positioning advice on how to communicate seniority in interviews
+3. Risk Radar & Mitigation Matrix (riskMitigationMatrix):
+   - Identify 2 to 4 genuine recruiter concerns / red flags from the CV (e.g. lack of quantified outcomes, tenure gaps, frequent job hopping, domain mismatch, or seniority gap).
+   - For each risk item:
+     * riskType: "tenure_gap" | "job_hopping" | "domain_mismatch" | "metric_lacking" | "over_under_qualified" | "other"
+     * riskTitle: Clear risk heading (e.g. "Lack of Quantified Outcome Metrics")
+     * severity: "high" | "medium" | "low"
+     * recruiterConcern: What the recruiter honestly worries about behind closed doors
+     * cvMitigation: Specific, actionable fix directly on the CV to neutralize the concern
+     * interviewDefense: Tactical talking points to address and pivot this concern smoothly in an interview
 
 === LANGUAGE & FACTUAL ACCURACY RULES ===
 - Write response explanations, gaps, and reasons IN ENGLISH. However, each 'rewrittenBullet' MUST strictly match the SAME LANGUAGE as the original bullet point in the candidate's CV.
@@ -5930,15 +6038,41 @@ ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN
    - BẮT BUỘC VỀ NGÔN NGỮ CỦA BULLET VIẾT LẠI: Phần 'rewrittenBullet' BẮT BUỘC phải dùng CÙNG NGÔN NGỮ với bullet gốc / CV gốc của ứng viên.
    - TUYỆT ĐỐI KHÔNG BỊA ĐẶT hay phóng đại. Nếu bullet gốc quá thiếu thông tin để viết lại một cách thuyết phục (kể cả sau khi đọc câu trả lời bổ sung), thì ở phần rewrittenBullet hãy ghi cụm từ phù hợp với ngôn ngữ CV: "Cần bổ sung thông tin trước khi viết lại." (nếu CV Tiếng Việt) hoặc "Needs more information before rewriting." (nếu CV Tiếng Anh) và đánh dấu isLackingInfo: true.
 
---- TÍNH NĂNG 3: ĐÓNG VAI NHÀ TUYỂN DỤNG ĐỌC CV TRONG 10 GIÂY ---
-Hãy nhập vai một Nhà tuyển dụng thực tế: đọc lướt khắt khe, ưu tiên bằng chứng thực tế hơn lời tự miêu tả, KHÔNG KHEN XÃ GIAO.
-Trả lời trực diện 6 câu hỏi:
-1. Bạn có muốn mời ứng viên này vào vòng phỏng vấn không? Lý do chính? (inviteDecision: "YES" | "NO" | "MAYBE", decisionReason)
-2. Ấn tượng đầu tiên khi nhìn lướt CV trong 10 giây?
-3. Điểm mạnh nào đập vào mắt ngay lập tức?
-4. Nghi ngờ lớn nhất của bạn về ứng viên này?
-5. Phần nào trong CV khiến ứng viên bị mất điểm nhanh nhất?
-6. 3 điều bắt buộc phải sửa để tăng khả năng được gọi phỏng vấn.
+--- TÍNH NĂNG 3: ĐÓNG VAI NHÀ TUYỂN DỤNG ĐỌC CV 10 GIÂY, ĐỐI CHIẾU TẦM VÓC & MA TRẬN HÓA GIẢI RỦI RO ---
+Hãy nhập vai một Chuyên gia Tuyển dụng Cao cấp (Senior TA Lead / Hiring Manager): đọc lướt khắt khe, ưu tiên bằng chứng thực tế hơn lời tự miêu tả, KHÔNG KHEN XÃ GIAO.
+Thực hiện trọn vẹn 3 khối đánh giá:
+1. Quyết định Đọc Lướt 10 Giây:
+   - inviteDecision: "YES" | "NO" | "MAYBE"
+   - decisionReason: Lý do chính đưa ra quyết định
+   - firstImpression10s: Ấn tượng trực diện trong 10 giây đầu tiên
+   - immediateStrength: Điểm mạnh đập vào mắt ngay lập tức
+   - biggestDoubt: Nghi ngờ lớn nhất về ứng viên
+   - fastestPointLossSection: Phần trong CV khiến ứng viên bị mất điểm nhanh nhất
+   - top3MustFix: Mảng 3 việc bắt buộc phải sửa ngay để tăng tỷ lệ được gọi phỏng vấn
+2. Đánh Giá Tầm Vóc & Cấp Bậc (seniorityFit):
+   - So sánh trực diện kỳ vọng JD vs Thực tế CV qua 4 trục:
+     a. dimensionKey: "level_tenure", dimensionName: "Cấp bậc & Thâm niên thực chiến"
+     b. dimensionKey: "scale_complexity", dimensionName: "Quy mô & Độ phức tạp dự án"
+     c. dimensionKey: "scope_ownership", dimensionName: "Phạm vi Tự chủ & Dẫn dắt"
+     d. dimensionKey: "domain_match", dimensionName: "Độ khớp Ngành nghề & Nghiệp vụ"
+   - Với mỗi trục, cung cấp:
+     * jdExpectation: Kỳ vọng của JD
+     * cvReality: Bằng chứng thực tế thể hiện trong CV
+     * assessment: "under" (Chưa tới tầm) | "match" (Đúng tầm) | "over" (Vượt tầm)
+     * comment: Nhận xét sắc bén, khách quan của HR
+   - overallAssessment: "under" | "match" | "over"
+   - overallAssessmentLabel: "Đúng Tầm (Sweet Spot)", "Chưa Tới Tầm (Cần Bứt Phá)", hoặc "Vượt Tầm (Overqualified)"
+   - summaryRationale: 1-2 câu giải thích tổng thể về tầm vóc của ứng viên so với JD
+   - positioningAdvice: Lời khuyên định vị chiến lược khi giao tiếp trong phỏng vấn
+3. Ma Trận Hóa Giải Rủi Ro Hồ Sơ (riskMitigationMatrix):
+   - Nhận diện 2 đến 4 điểm nghi ngại / Red Flags thực tế khi HR đọc CV (ví dụ: thiếu số liệu đo lường, nhảy việc, khoảng trống thâm niên, trái ngành, hoặc hụt cấp bậc).
+   - Với mỗi rủi ro, cung cấp:
+     * riskType: "tenure_gap" | "job_hopping" | "domain_mismatch" | "metric_lacking" | "over_under_qualified" | "other"
+     * riskTitle: Tiêu đề rủi ro ngắn gọn, súc tích (VD: "Thiếu Số Liệu & Thành Tựu Định Lượng")
+     * severity: "high" (Rủi ro cao) | "medium" (Cần chú ý) | "low" (Rủi ro thấp)
+     * recruiterConcern: Nỗi e ngại thực tế của HR khi xem hồ sơ
+     * cvMitigation: Hướng xử lý / viết lại cụ thể ngay trên CV
+     * interviewDefense: Cách giải thích khéo léo, tự tin khi Hội đồng phỏng vấn xoáy sâu
 
 === QUY TẮC RÀNH RẠCH (STRICT BOUNDARIES) ===
 - Tuyệt đối trung thực với dữ liệu trong CV. KHÔNG BỊA kinh nghiệm, công cụ, thành tích.
@@ -6220,6 +6354,93 @@ const analysisResponseSchema = {
         top3MustFix: {
           type: Type.ARRAY,
           items: { type: Type.STRING },
+        },
+        seniorityFit: {
+          type: Type.OBJECT,
+          properties: {
+            overallAssessment: {
+              type: Type.STRING,
+              enum: ['under', 'match', 'over'],
+            },
+            overallAssessmentLabel: { type: Type.STRING },
+            summaryRationale: { type: Type.STRING },
+            positioningAdvice: { type: Type.STRING },
+            dimensions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  dimensionKey: {
+                    type: Type.STRING,
+                    enum: [
+                      'level_tenure',
+                      'scale_complexity',
+                      'scope_ownership',
+                      'domain_match',
+                    ],
+                  },
+                  dimensionName: { type: Type.STRING },
+                  jdExpectation: { type: Type.STRING },
+                  cvReality: { type: Type.STRING },
+                  assessment: {
+                    type: Type.STRING,
+                    enum: ['under', 'match', 'over'],
+                  },
+                  comment: { type: Type.STRING },
+                },
+                required: [
+                  'dimensionKey',
+                  'dimensionName',
+                  'jdExpectation',
+                  'cvReality',
+                  'assessment',
+                  'comment',
+                ],
+              },
+            },
+          },
+          required: [
+            'overallAssessment',
+            'overallAssessmentLabel',
+            'summaryRationale',
+            'positioningAdvice',
+            'dimensions',
+          ],
+        },
+        riskMitigationMatrix: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              riskType: {
+                type: Type.STRING,
+                enum: [
+                  'tenure_gap',
+                  'job_hopping',
+                  'domain_mismatch',
+                  'metric_lacking',
+                  'over_under_qualified',
+                  'other',
+                ],
+              },
+              riskTitle: { type: Type.STRING },
+              severity: {
+                type: Type.STRING,
+                enum: ['high', 'medium', 'low'],
+              },
+              recruiterConcern: { type: Type.STRING },
+              cvMitigation: { type: Type.STRING },
+              interviewDefense: { type: Type.STRING },
+            },
+            required: [
+              'riskType',
+              'riskTitle',
+              'severity',
+              'recruiterConcern',
+              'cvMitigation',
+              'interviewDefense',
+            ],
+          },
         },
       },
       required: [

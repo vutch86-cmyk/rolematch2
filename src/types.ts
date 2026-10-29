@@ -83,6 +83,50 @@ export interface BulletRewriteItem {
   metricPlaceholders?: string[]; // Gợi ý chỗ điền số liệu (VD: [X]%, [Số lượng], [Ngân sách])
 }
 
+export type SeniorityAssessment = 'under' | 'match' | 'over';
+
+export type SeniorityDimensionKey =
+  | 'level_tenure'
+  | 'scale_complexity'
+  | 'scope_ownership'
+  | 'domain_match';
+
+export interface SeniorityDimension {
+  dimensionKey: SeniorityDimensionKey;
+  dimensionName: string; // Cấp bậc & Thâm niên, Quy mô & Độ phức tạp, v.v.
+  jdExpectation: string; // Kỳ vọng từ JD
+  cvReality: string; // Thực tế thể hiện trong CV
+  assessment: SeniorityAssessment; // 'under' | 'match' | 'over'
+  comment: string; // Đánh giá chi tiết của HR
+}
+
+export interface SeniorityFitResult {
+  overallAssessment: SeniorityAssessment; // Kết luận tổng thể
+  overallAssessmentLabel: string; // "Chưa tới tầm" | "Đúng tầm (Sweet Spot)" | "Vượt tầm (Overqualified)"
+  summaryRationale: string; // Lời giải thích tổng thể về tầm vóc của ứng viên so với JD
+  positioningAdvice: string; // Lời khuyên định vị chiến lược
+  dimensions: SeniorityDimension[]; // 4 trục đánh giá
+}
+
+export type RiskSeverity = 'high' | 'medium' | 'low';
+
+export type RiskMitigationType =
+  | 'tenure_gap'
+  | 'job_hopping'
+  | 'domain_mismatch'
+  | 'metric_lacking'
+  | 'over_under_qualified'
+  | 'other';
+
+export interface RiskMitigationItem {
+  riskType: RiskMitigationType;
+  riskTitle: string; // Tiêu đề rủi ro/nghi ngại
+  severity: RiskSeverity; // Mức độ nghiêm trọng
+  recruiterConcern: string; // Mối e ngại thực tế của HR
+  cvMitigation: string; // Cách hóa giải trực tiếp trên CV
+  interviewDefense: string; // Cách giải thích khi phỏng vấn
+}
+
 export interface RecruiterScanResult {
   inviteDecision: 'YES' | 'NO' | 'MAYBE'; // 1. Mời phỏng vấn không
   decisionReason: string; // Lý do chính
@@ -91,6 +135,8 @@ export interface RecruiterScanResult {
   biggestDoubt: string; // 4. Nghi ngờ lớn nhất về ứng viên
   fastestPointLossSection: string; // 5. Phần khiến ứng viên bị mất điểm nhanh nhất
   top3MustFix: string[]; // 6. 3 điều bắt buộc phải sửa
+  seniorityFit?: SeniorityFitResult; // Bước 1.3: Đánh giá Tầm vóc 4 trục
+  riskMitigationMatrix?: RiskMitigationItem[]; // Bước 1.3: Ma trận Hóa giải Rủi ro
 }
 
 export interface PipelineAuditStep {

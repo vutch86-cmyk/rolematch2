@@ -1,6 +1,7 @@
 import { CompleteCVAnalysisResponse } from '../types';
 import { normalizeFeature1Data } from './keywordMatchHelpers';
 import { normalizeFeature2Data } from './bulletRewriteHelpers';
+import { normalizeFeature3Data } from './recruiterScanHelpers';
 
 export function generateMarkdownReport(
   analysis: CompleteCVAnalysisResponse,
@@ -63,10 +64,16 @@ export function generateMarkdownReport(
     false
   );
 
+  const {
+    normalizedResult: normF3,
+    seniorityFit,
+    riskMitigationMatrix,
+  } = normalizeFeature3Data(f3, '', '', 'vi');
+
   const missingSkills = f1.summary?.missingKeywordsSkills || [];
   const weakSections = f1.summary?.weakOrVagueSections || [];
   const actions = f1.summary?.immediateActions || [];
-  const mustFix = f3.top3MustFix || [];
+  const mustFix = normF3.top3MustFix || [];
 
   return `# BÁO CÁO PHÂN TÍCH VÀ TỐI ƯU CV CHUẨN TUYỂN DỤNG (SENIOR HR REPORT)
 **Vị trí / Hồ sơ:** ${cvTitle || 'Ứng viên'}
@@ -162,26 +169,46 @@ ${bullets
 
 ---
 
-## TÍNH NĂNG 3: ĐÓNG VAI NHÀ TUYỂN DỤNG ĐỌC CV TRONG 10 GIÂY
+## TÍNH NĂNG 3: GÓC NHÌN NHÀ TUYỂN DỤNG, ĐỐI CHIẾU TẦM VÓC & HÓA GIẢI RỦI RO
 
-1. **Bạn có muốn mời ứng viên này vào vòng phỏng vấn không? Vì sao?**
-   - **Quyết định:** ${f3.inviteDecision || ''}
-   - **Lý do:** ${f3.decisionReason || ''}
+### 1. Quyết Định Đọc Lướt 10 Giây
+- **Quyết định phỏng vấn:** **${normF3.inviteDecision || 'MAYBE'}**
+- **Lý do chính:** ${normF3.decisionReason || ''}
+- **Ấn tượng đầu tiên trong 10 giây:** ${normF3.firstImpression10s || ''}
+- **Điểm mạnh đập vào mắt ngay lập tức:** ${normF3.immediateStrength || ''}
+- **Nghi ngờ lớn nhất của HR:** ${normF3.biggestDoubt || ''}
+- **Phần mất điểm nhanh nhất:** ${normF3.fastestPointLossSection || ''}
 
-2. **Ấn tượng đầu tiên khi nhìn lướt CV trong 10 giây:**
-   ${f3.firstImpression10s || ''}
+### 2. Đánh Giá Tầm Vóc & Cấp Bậc (Seniority & Scope Fit 4 Trục)
+- **Định vị tầm vóc tổng thể:** **${seniorityFit.overallAssessmentLabel}**
+- **Giải trình tầm vóc:** ${seniorityFit.summaryRationale}
+- **Chiến lược định vị phỏng vấn:** ${seniorityFit.positioningAdvice}
 
-3. **Điểm mạnh nào đập vào mắt ngay lập tức?**
-   ${f3.immediateStrength || ''}
+| Trục đánh giá | Đánh giá | Kỳ vọng từ JD | Thực tế thể hiện trong CV | Nhận xét của HR |
+| :--- | :--- | :--- | :--- | :--- |
+${seniorityFit.dimensions
+  .map(
+    (d) =>
+      `| **${d.dimensionName}** | ${
+        d.assessment === 'match' ? '🟢 Đúng tầm' : d.assessment === 'over' ? '🟣 Vượt tầm' : '🟡 Chưa tới tầm'
+      } | ${d.jdExpectation} | ${d.cvReality} | ${d.comment} |`
+  )
+  .join('\n')}
 
-4. **Nghi ngờ lớn nhất của bạn về ứng viên này là gì?**
-   ${f3.biggestDoubt || ''}
+### 3. Ma Trận Hóa Giải Rủi Ro (Risk Radar & Mitigation Playbook)
+| Red Flag / Điểm nghi ngại | Mức độ | Nỗi e ngại của HR | Cách hóa giải trên CV | Kịch bản trả lời khi Phỏng vấn |
+| :--- | :--- | :--- | :--- | :--- |
+${riskMitigationMatrix
+  .map(
+    (r) =>
+      `| **${r.riskTitle}** | ${
+        r.severity === 'high' ? '🔴 Rủi ro cao' : r.severity === 'medium' ? '🟡 Cần chú ý' : '🔵 Rủi ro thấp'
+      } | ${r.recruiterConcern} | ${r.cvMitigation} | ${r.interviewDefense} |`
+  )
+  .join('\n')}
 
-5. **Phần nào trong CV khiến ứng viên bị mất điểm nhanh nhất?**
-   ${f3.fastestPointLossSection || ''}
-
-6. **3 điều bắt buộc phải sửa để tăng khả năng được gọi phỏng vấn:**
-${mustFix.map((item, i) => `   ${i + 1}. ${item}`).join('\n')}
+### 4. 3 Điều Bắt Buộc Phải Sửa Ngay
+${mustFix.map((item, i) => `${i + 1}. ${item}`).join('\n')}
 
 ---
 *Báo cáo được tổng hợp bởi Trợ lý Senior HR & Talent Acquisition Lead AI Studio.*

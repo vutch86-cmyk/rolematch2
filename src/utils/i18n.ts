@@ -34,9 +34,9 @@ export const translations = {
       requiredWarning: 'Vui lòng cung cấp cả Mô tả công việc (JD) và CV để tiến hành phân tích.',
     },
     tabs: {
-      tab1: '1. Góc Nhìn Nhà Tuyển Dụng (10s)',
+      tab1: '1. Góc Nhìn HR & Rủi Ro',
       tab2: '2. Chỉ Số Khớp & Từ Khóa JD',
-      tab3: '3. Cập nhật CV',
+      tab3: '3. Tối ưu & Viết lại CV',
     },
     exportButtons: {
       updateCvGemini: 'Cập Nhật CV Bằng Trợ Lý AI',
@@ -135,6 +135,20 @@ export const translations = {
       inviteYes: 'NÊN MỜI PHỎNG VẤN (YES)',
       inviteNo: 'KHÔNG MỜI (NO)',
       inviteMaybe: 'CÂN NHẮC THÊM (MAYBE)',
+      // Section 2: Seniority Fit
+      senioritySectionTitle: 'Đánh Giá Tầm Vóc & Cấp Bậc (Seniority & Scope Fit)',
+      senioritySectionSubtitle: 'Đối chiếu trực diện giữa kỳ vọng thực tế của JD và năng lực của ứng viên qua 4 trục cốt lõi',
+      overallSeniorityTitle: 'Định Vị Tầm Vóc Tổng Thể:',
+      positioningAdviceTitle: 'Chiến Lược Định Vị Khi Phỏng Vấn:',
+      jdExpectationLabel: 'Kỳ Vọng Từ JD',
+      cvRealityLabel: 'Thực Tế Thể Hiện Trong CV',
+      hrCommentLabel: 'Đánh Giá Của HR',
+      // Section 3: Risk Radar
+      riskSectionTitle: 'Ma Trận Hóa Giải Rủi Ro & Điểm Nghi Ngại (Risk Radar)',
+      riskSectionSubtitle: 'Chỉ ra các Red Flags tiềm ẩn khiến HR e ngại kèm giải pháp hóa giải triệt để trên CV và kịch bản phỏng vấn',
+      recruiterConcernLabel: 'Nỗi E Ngại Của HR',
+      cvMitigationLabel: 'Cách Hóa Giải Trên CV',
+      interviewDefenseLabel: 'Kịch Bản Trả Lời Khi Phỏng Vấn',
     },
     updatedCvModal: {
       modalTitle: 'Bản CV Cập Nhật Đã Tối Ưu Bằng Trợ Lý AI',
@@ -234,9 +248,9 @@ export const translations = {
       requiredWarning: 'Please provide both Job Description (JD) and CV to run analysis.',
     },
     tabs: {
-      tab1: '1. Recruiter Perspective (10s Scan)',
+      tab1: '1. Recruiter View & Risks',
       tab2: '2. Match Score & JD Keywords',
-      tab3: '3. Update CV',
+      tab3: '3. Polish & Rewrite CV',
     },
     exportButtons: {
       updateCvGemini: 'Update CV with AI Assistant',
@@ -335,6 +349,20 @@ export const translations = {
       inviteYes: 'INVITE TO INTERVIEW (YES)',
       inviteNo: 'DO NOT INVITE (NO)',
       inviteMaybe: 'CONSIDER FURTHER (MAYBE)',
+      // Section 2: Seniority Fit
+      senioritySectionTitle: 'Seniority & Scope Fit Assessment',
+      senioritySectionSubtitle: 'Direct comparison between JD baseline expectations and candidate reality across 4 core dimensions',
+      overallSeniorityTitle: 'Overall Seniority Fit:',
+      positioningAdviceTitle: 'Interview Positioning Strategy:',
+      jdExpectationLabel: 'JD Expectation',
+      cvRealityLabel: 'CV Reality',
+      hrCommentLabel: 'HR Perspective',
+      // Section 3: Risk Radar
+      riskSectionTitle: 'Risk Radar & Mitigation Playbook',
+      riskSectionSubtitle: 'Surfacing hidden red flags that trigger recruiter doubt with concrete CV edits and interview talking points',
+      recruiterConcernLabel: 'Recruiter Concern',
+      cvMitigationLabel: 'CV Actionable Fix',
+      interviewDefenseLabel: 'Interview Defense Script',
     },
     updatedCvModal: {
       modalTitle: 'Updated CV via AI Assistant Recommendations',
