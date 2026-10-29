@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import module from 'node:module';
 import {
   resolveIsMustHave,
   resolveProjectedOverallScore,
@@ -166,4 +167,29 @@ test('4. UI & Backend Schema Contract check for Phase 1.1 (KeywordMatchTab & ser
   assert.ok(serverSource.includes('isMustHave'), 'server.ts schema must include isMustHave');
   assert.ok(serverSource.includes('targetSection'), 'server.ts schema must include targetSection');
   assert.ok(serverSource.includes('suggestedPhrasing'), 'server.ts schema must include suggestedPhrasing');
+
+  // Permanent Build & Syntax Guard: compile/strip TypeScript types on server.ts and helpers
+  // to catch any unescaped template backticks or syntax errors before Cloud Build
+  if (typeof (module as any).stripTypeScriptTypes === 'function') {
+    const stripTs = (module as any).stripTypeScriptTypes;
+    assert.doesNotThrow(() => {
+      stripTs(serverSource, { mode: 'transform' });
+    }, 'server.ts must have valid TypeScript/JavaScript syntax without unescaped template backticks');
+
+    const exportMdSource = fs.readFileSync(
+      path.join(process.cwd(), 'src/utils/exportMarkdown.ts'),
+      'utf-8'
+    );
+    assert.doesNotThrow(() => {
+      stripTs(exportMdSource, { mode: 'strip' });
+    }, 'src/utils/exportMarkdown.ts must have valid TypeScript syntax');
+
+    const i18nSource = fs.readFileSync(
+      path.join(process.cwd(), 'src/utils/i18n.ts'),
+      'utf-8'
+    );
+    assert.doesNotThrow(() => {
+      stripTs(i18nSource, { mode: 'strip' });
+    }, 'src/utils/i18n.ts must have valid TypeScript syntax');
+  }
 });
