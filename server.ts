@@ -5610,8 +5610,8 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
           title: isEn ? 'Version 1: Technical & Engineering Mastery Focus' : 'Bản 1: Định vị Chuyên môn / Kỹ thuật sâu',
           focusType: 'technical',
           pitch: isEn
-            ? `Results-driven ${extractedJobTitle || 'Specialist'} with proven technical mastery across core industry tools and modern workflows. Experienced in architecting robust systems, adhering to strict engineering standards, and solving complex technical challenges. Ready to deliver scalable engineering solutions tailored to ${extractedCompanyName || 'the organization'}.`
-            : `Chuyên viên ${extractedJobTitle || 'Chuyên môn'} với nền tảng kỹ thuật vững vàng và kinh nghiệm thực chiến với các công nghệ lõi. Dày dặn kinh nghiệm thiết kế giải pháp kỹ thuật, chuẩn hóa quy trình và giải quyết bài toán phức tạp. Cam kết mang lại giá trị công nghệ bền vững, chất lượng cao tại ${extractedCompanyName || 'quý công ty'}.`,
+            ? 'Results-driven Specialist with proven technical mastery across core industry tools and modern workflows. Experienced in architecting robust systems, adhering to strict engineering standards, and solving complex technical challenges. Ready to deliver scalable engineering solutions tailored to the organization.'
+            : 'Chuyên viên Chuyên môn với nền tảng kỹ thuật vững vàng và kinh nghiệm thực chiến với các công nghệ lõi. Dày dặn kinh nghiệm thiết kế giải pháp kỹ thuật, chuẩn hóa quy trình và giải quyết bài toán phức tạp. Cam kết mang lại giá trị công nghệ bền vững, chất lượng cao tại quý công ty.',
           keyHighlights: isEn
             ? ['Core technical stack mastery', 'System architecture & clean code standards', 'Performance optimization & reliability']
             : ['Làm chủ công nghệ cốt lõi và kiến trúc hệ thống', 'Chuẩn hóa quy trình kỹ thuật và chất lượng', 'Tối ưu hóa hiệu năng và độ ổn định'],
@@ -5620,8 +5620,8 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
           title: isEn ? 'Version 2: Leadership & Business Impact Focus' : 'Bản 2: Tác động Quản lý & Giá trị Kinh doanh',
           focusType: 'management',
           pitch: isEn
-            ? `Proactive ${extractedJobTitle || 'Professional'} focused on connecting technical excellence with measurable business impact. Adept at driving cross-functional progress, optimizing operational turnaround, and ensuring strict SLA/KPI delivery. Committed to driving growth and resource efficiency at ${extractedCompanyName || 'the organization'}.`
-            : `Nhân sự ${extractedJobTitle || 'Chuyên môn'} định hướng tạo giá trị thực tế, sở hữu năng lực liên kết giải pháp kỹ thuật với mục tiêu kinh doanh của tổ chức. Có thế mạnh quản lý tiến độ, điều phối đội ngũ liên phòng ban và tối ưu hóa hiệu suất vận hành. Sẵn sàng đồng hành cùng ${extractedCompanyName || 'quý công ty'} bứt phá các chỉ tiêu KPI chiến lược.`,
+            ? 'Proactive Professional focused on connecting technical excellence with measurable business impact. Adept at driving cross-functional progress, optimizing operational turnaround, and ensuring strict SLA/KPI delivery. Committed to driving growth and resource efficiency at the organization.'
+            : 'Nhân sự Chuyên môn định hướng tạo giá trị thực tế, sở hữu năng lực liên kết giải pháp kỹ thuật với mục tiêu kinh doanh của tổ chức. Có thế mạnh quản lý tiến độ, điều phối đội ngũ liên phòng ban và tối ưu hóa hiệu suất vận hành. Sẵn sàng đồng hành cùng quý công ty bứt phá các chỉ tiêu KPI chiến lược.',
           keyHighlights: isEn
             ? ['Cross-functional team coordination', 'Process optimization & cost/time savings', '100% KPI & delivery timeline fulfillment']
             : ['Điều phối liên phòng ban và dẫn dắt tiến độ', 'Tối ưu hóa quy trình, tiết kiệm thời gian và chi phí', 'Cam kết đạt 100% chỉ tiêu KPI & SLA'],
@@ -5803,7 +5803,7 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
 --- FEATURE 2: SECTION-BY-SECTION AUDIT, TAILORED SUMMARIES & REWRITTEN BULLETS ---
 1. Check CV. If critical metrics/tools are missing, provide MAXIMUM 3 concise clarifying questions.
 2. Tailored Executive Summaries (tailoredSummaries):
-   - Generate exactly 2 high-impact 3-4 sentence elevator pitch versions tailored to the candidate's target: "${companyName} - ${jobTitle}":
+   - Generate exactly 2 high-impact 3-4 sentence elevator pitch versions tailored to the candidate's target: "[Company Name] - [Job Title]":
      a) technicalFocus: Deep technical expertise, specialized tools, architectural mastery, and engineering excellence (title, focusType: 'technical', pitch, keyHighlights: array of 3 bullet phrases).
      b) managementFocus: Leadership, cross-functional collaboration, business impact, operational efficiency, and KPI/ROI achievement (title, focusType: 'management', pitch, keyHighlights: array of 3 bullet phrases).
    - Write in the SAME primary language as the candidate's CV.
@@ -5896,7 +5896,7 @@ ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN
 --- TÍNH NĂNG 2: KHÁM BỆNH TỪNG PHẦN CV, VIẾT SẴN MỞ ĐẦU MAY ĐO & TỐI ƯU BULLET POINT ---
 1. Kiểm tra CV. Thiếu dữ liệu quan trọng (số liệu, quy mô, công cụ, kết quả), đưa ra TỐI ĐA 3 câu hỏi làm rõ ngắn gọn.
 2. Viết sẵn 2 bản Mở đầu CV May đo (tailoredSummaries):
-   - Tự động tạo chính xác 2 phiên bản Mở đầu CV (3–4 câu) khớp với "${companyName} - ${jobTitle}":
+   - Tự động tạo chính xác 2 phiên bản Mở đầu CV (3–4 câu) khớp với "[Tên Công ty] - [Vị trí ứng tuyển]":
      a) technicalFocus: Định vị Chuyên môn / Kỹ thuật sâu (làm chủ công nghệ lõi, thiết kế kiến trúc hệ thống, giải quyết bài toán kỹ thuật phức tạp). Thuộc tính: title, focusType: 'technical', pitch, keyHighlights: mảng 3 cụm từ điểm nhấn.
      b) managementFocus: Tác động Quản lý & Giá trị Kinh doanh (dẫn dắt tiến độ, điều phối liên chức năng, tối ưu chi phí/thời gian, cam kết chỉ số KPI/ROI). Thuộc tính: title, focusType: 'management', pitch, keyHighlights: mảng 3 cụm từ điểm nhấn.
    - BẮT BUỘC viết cùng ngôn ngữ chính của CV ứng viên.

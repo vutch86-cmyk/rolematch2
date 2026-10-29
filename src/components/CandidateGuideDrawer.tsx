@@ -102,11 +102,11 @@ export const CandidateGuideDrawer: React.FC<CandidateGuideDrawerProps> = ({
 
     const getFocusableElements = (): HTMLElement[] => {
       if (!dialogRef.current) return [];
-      return Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(
+      return (Array.from(
+        dialogRef.current.querySelectorAll(
           'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
         )
-      ).filter(
+      ) as HTMLElement[]).filter(
         (el) => el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0
       );
     };
