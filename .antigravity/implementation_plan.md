@@ -4,6 +4,41 @@
 
 ---
 
+## Đợt 9 (2026-10-29): Khắc phục Triệt để Lỗi Google Cloud Build pack build & Bổ sung Cổng Kiểm tra Lint/Test/Build Toàn diện
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Phân tích và khắc phục triệt để các nguyên nhân gốc rễ khiến Google Cloud Buildpack (`gcr.io/k8s-skaffold/pack`) báo lỗi `step exited with non-zero status: 1` sau khi merge vào nhánh `main`.
+- **Nguyên nhân 1 (`server.ts` TS2304 / ReferenceError):** Sửa lỗi khai báo biến không tồn tại `extractedJobTitle`, `extractedCompanyName` trong `createFallbackAnalysis` và unescaped template variables `${companyName}`, `${jobTitle}` trong `buildPrompt`.
+- **Nguyên nhân 2 (`package.json` Build Dependency):** Chuyển `esbuild` từ `devDependencies` sang `dependencies` để Google Cloud Buildpack khi cài đặt ở chế độ `NODE_ENV=production` vẫn luôn có sẵn `esbuild` để thực thi script build backend.
+- **Nguyên nhân 3 (`tsc --noEmit` Typecheck Failure):** Sửa lỗi type cast tại `CandidateGuideDrawer.tsx` và `RecruiterGuideDrawer.tsx`, đưa `npm run lint` về trạng thái `0 errors` tuyệt đối.
+- **Nguyên nhân 4 (`vitest run` Test Suite Discovery):** Đồng bộ các file test tiện ích trong `src/utils/` sang `import { test } from 'vitest'` và cấu hình loại trừ `.antigravity/**` trong `vite.config.ts`, giúp `npm test` chạy thông suốt 70/70 tests (7 test suites).
+
+### 2. Files Affected (Danh sách file sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `server.ts` | **Modified** | Loại bỏ `extractedJobTitle` và `extractedCompanyName` không xác định; đổi `${companyName} - ${jobTitle}` thành chuỗi an toàn `"[Company Name] - [Job Title]"`. |
+| `package.json` | **Modified** | Chuyển `esbuild: ^0.25.0` sang `dependencies` phục vụ production buildpack. |
+| `src/components/CandidateGuideDrawer.tsx` | **Modified** | Ép kiểu `HTMLElement[]` giải quyết triệt để lỗi TS2322 và TS2339. |
+| `src/components/RecruiterGuideDrawer.tsx` | **Modified** | Ép kiểu `HTMLElement[]` giải quyết triệt để lỗi TS2322 và TS2339. |
+| `vite.config.ts` | **Modified** | Cấu hình `test: { exclude: ['**/node_modules/**', '**/.antigravity/**'] }`. |
+| `src/utils/*.test.ts` | **Modified** | Cập nhật 4 file test sang `import { test } from 'vitest'` để tương thích 100% với `npm test`. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Sửa lỗi biến và template interpolation trong `server.ts`.
+- [x] **Bước 2:** Chuyển `esbuild` vào `dependencies` trong `package.json`.
+- [x] **Bước 3:** Khắc phục lỗi kiểu dữ liệu tại 2 Drawer components.
+- [x] **Bước 4:** Đồng bộ runner `vitest` trong `vite.config.ts` và các file test.
+- [x] **Bước 5:** Chạy kiểm thử chuỗi 3 lệnh tiêu chuẩn:
+  * `npm run lint` (`tsc --noEmit`): Exit 0 (0 errors).
+  * `npm test` (`vitest run`): Exit 0 (7/7 test files passed, 70/70 tests passed).
+  * `npm run build` (`vite build && esbuild`): Exit 0 (Frontend & Backend dist bundle build thành công).
+- [x] **Bước 6:** Chạy cổng an toàn Security Audit Gate: PASS 100% (0 findings, 2 units valid).
+
+---
+
 ## Đợt 8 (2026-10-29): Triển khai Bước 1.2 — Audit Chi tiết Từng Mục CV & Viết sẵn Tóm tắt Mở đầu (Tab 2: BulletPointRewriteTab.tsx)
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`
