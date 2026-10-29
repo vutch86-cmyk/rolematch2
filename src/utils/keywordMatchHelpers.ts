@@ -3,7 +3,7 @@ import type {
   ComparisonRow,
   CompatibilityScores,
   ImportanceLevel,
-} from '../types.ts';
+} from '../types';
 
 export type LanguageCode = 'vi' | 'en';
 

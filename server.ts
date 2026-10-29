@@ -6062,8 +6062,8 @@ ${JSON.stringify(draftAnalysis, null, 2)}
 === YOUR AUDIT & QUALITY CONTROL MISSION ===
 Compare the candidate CV, JD, and Gemini's draft analysis.
 Identify:
-1. Missing JD keywords or critical technical skills that Gemini overlooked or under-scored in the draft, and verify whether mandatory (Must-Have / Knock-out) vs bonus (Nice-to-Have) flags (`isMustHave`) are accurate.
-2. Inaccuracies or weak points in Gemini's comparison table (`targetSection`, `suggestedPhrasing`) or score estimates (`projectedOverallScore`, `keywordRationale`, `skillRationale`, `experienceRationale`, `overallRationale`).
+1. Missing JD keywords or critical technical skills that Gemini overlooked or under-scored in the draft, and verify whether mandatory (Must-Have / Knock-out) vs bonus (Nice-to-Have) flags ('isMustHave') are accurate.
+2. Inaccuracies or weak points in Gemini's comparison table ('targetSection', 'suggestedPhrasing') or score estimates ('projectedOverallScore', 'keywordRationale', 'skillRationale', 'experienceRationale', 'overallRationale').
 3. Unaddressed candidate strengths or recruitment doubts in the 10-second scan.
 4. Suggestions to refine rewritten bullet points for higher impact and strict accuracy.
 5. Specific corrections needed for immediate actions.
@@ -6192,9 +6192,9 @@ ${auditFeedback}
 === FINAL SYNTHESIS TASK ===
 Incorporate ALL valid auditor corrections and improvements from Step 2 into the Step 1 Draft Analysis.
 Specifically:
-- Ensure missing JD keywords identified by the auditor are added to the comparison table and keyword extraction with accurate `isMustHave` classification (true = Must-Have / Knock-out, false = Nice-to-Have).
-- Ensure every row in `comparisonTable` with `matchStatus` of `can_bo_sung` or `thieu` includes a concrete `targetSection` and a ready-to-use `suggestedPhrasing` (in the same language as the candidate's CV).
-- Adjust compatibility scores (`overallRoleScore`, `projectedOverallScore`, and all 4 score rationales: `keywordRationale`, `skillRationale`, `experienceRationale`, `overallRationale`) to be realistic, transparent, and well-justified based on the auditor's critique.
+- Ensure missing JD keywords identified by the auditor are added to the comparison table and keyword extraction with accurate 'isMustHave' classification (true = Must-Have / Knock-out, false = Nice-to-Have).
+- Ensure every row in 'comparisonTable' with 'matchStatus' of 'can_bo_sung' or 'thieu' includes a concrete 'targetSection' and a ready-to-use 'suggestedPhrasing' (in the same language as the candidate's CV).
+- Adjust compatibility scores ('overallRoleScore', 'projectedOverallScore', and all 4 score rationales: 'keywordRationale', 'skillRationale', 'experienceRationale', 'overallRationale') to be realistic, transparent, and well-justified based on the auditor's critique.
 - Refine rewritten bullet points to strictly follow the action formula (concise and complete, Action + Tool + Result).
 - CRITICAL LANGUAGE MATCHING RULE FOR REWRITTEN BULLETS: Every 'rewrittenBullet' in Feature 2 MUST be written in the SAME LANGUAGE as the candidate's original CV bullet point (e.g. English CV ➔ English 'rewrittenBullet'; Vietnamese CV ➔ Vietnamese 'rewrittenBullet'). Do NOT translate candidate bullets to a different language!
 - Ensure the 10-second recruiter scan reflects the auditor's findings.

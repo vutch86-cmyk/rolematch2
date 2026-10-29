@@ -4,6 +4,30 @@
 
 ---
 
+## Đợt 6 (2026-10-29): Khắc phục lỗi unescaped backticks trong `server.ts` làm gãy Google Cloud Build (PR #5) & Bổ sung Build/Syntax Guard Test
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Sửa lỗi cú pháp unescaped backticks bên trong template literals `auditorPrompt` (dòng 6065–6066) và `synthesizerPrompt` (dòng 6195–6197) trong `server.ts` khiến `esbuild server.ts` và Google Cloud Buildpack (`Step #0 - "Buildpack"`) báo lỗi `exit status 1`.
+- Chuẩn hóa đường dẫn import kiểu trong `src/utils/keywordMatchHelpers.ts` (`from '../types'`).
+- Bổ sung chốt chặn kiểm tra cú pháp tự động (`module.stripTypeScriptTypes`) trong `src/utils/keywordMatchHelpers.test.ts` để tự động phát hiện mọi lỗi cú pháp TypeScript/template string trên `server.ts` trước khi commit.
+
+### 2. Files Affected (Danh sách file sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `server.ts` | **Modified** | Thay toàn bộ các dấu backtick nội bộ (`isMustHave`, `targetSection`, `suggestedPhrasing`...) tại dòng 6065–6066 và 6195–6197 bằng dấu nháy đơn (`'isMustHave'`, `'targetSection'`...) bên trong template literals. |
+| `src/utils/keywordMatchHelpers.ts` | **Modified** | Chuẩn hóa `import type { ... } from '../types';` đồng nhất với toàn bộ codebase. |
+| `src/utils/keywordMatchHelpers.test.ts` | **Modified** | Bổ sung **Permanent Build & Syntax Guard** dùng `module.stripTypeScriptTypes` kiểm tra cú pháp toàn bộ `server.ts`, `src/utils/exportMarkdown.ts` và `src/utils/i18n.ts`. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Thay thế unescaped backticks trong `auditorPrompt` và `synthesizerPrompt` tại `server.ts`.
+- [x] **Bước 2:** Đồng bộ import trong `src/utils/keywordMatchHelpers.ts` và bổ sung Syntax Guard trong `src/utils/keywordMatchHelpers.test.ts`.
+- [x] **Bước 3:** Chạy bộ kiểm thử tự động `node --experimental-strip-types --test src/utils/keywordMatchHelpers.test.ts src/utils/jdTitleExtractor.test.ts src/utils/jdUrlExtractorHelpers.test.ts` đạt `15/15 PASS` (`exit code 0`).
+
+---
+
 ## Đợt 5 (2026-10-28): Phase 1 - Bước 1.1: Giải trình Điểm số Đa chiều & Nâng cấp Bảng Đối chiếu Thực chiến (`KeywordMatchTab.tsx`)
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`
