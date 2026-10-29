@@ -10,7 +10,7 @@ import {
   extractKeyTermsFromJd,
 } from './bulletRewriteHelpers';
 
-test('1. inferTailoredSummaries creates 2 tailored pitch versions with role and company context', () => {
+test('1. inferTailoredSummaries creates 2 targeted professional summaries (50-150 words) with role and company context', () => {
   const jdText = 'Tuyển dụng Senior DevOps Engineer tại FPT Software. Yêu cầu CI/CD, Docker, Kubernetes, AWS, Agile.';
   const cvText = 'Nguyễn Văn A - 5 năm kinh nghiệm quản trị hệ thống Linux, Docker, CI/CD pipelines.';
 
@@ -26,6 +26,10 @@ test('1. inferTailoredSummaries creates 2 tailored pitch versions with role and 
   assert.ok(summariesVi.technicalFocus.pitch.includes('FPT Software'), 'Technical pitch must mention company');
   assert.ok(summariesVi.managementFocus.pitch.includes('FPT Software'), 'Management pitch must mention company');
 
+  // Check word count range (50-150 words)
+  const techWords = summariesVi.technicalFocus.pitch.trim().split(/\s+/).length;
+  assert.ok(techWords >= 40 && techWords <= 160, `Pitch words should be ~50-150 words, got ${techWords}`);
+
   // Highlights
   assert.ok(summariesVi.technicalFocus.keyHighlights.length >= 3, 'Must have at least 3 technical highlights');
   assert.ok(summariesVi.managementFocus.keyHighlights.length >= 3, 'Must have at least 3 management highlights');
@@ -36,7 +40,7 @@ test('1. inferTailoredSummaries creates 2 tailored pitch versions with role and 
   assert.ok(summariesEn.technicalFocus.pitch.includes('Lead Architect'), 'En pitch must mention role');
 });
 
-test('2. inferSectionAudit diagnoses 4 core CV sections with scores, comments, and actionable fixes', () => {
+test('2. inferSectionAudit diagnoses 4 core CV sections with scores, comments, actionable fixes, and grounded sample snippets', () => {
   const cvText = `
     Nguyễn Văn A - IT Specialist
     Kinh nghiệm làm việc:
@@ -61,12 +65,14 @@ test('2. inferSectionAudit diagnoses 4 core CV sections with scores, comments, a
     assert.ok(['tot', 'can_cai_thien', 'yeu_nghiem_trong'].includes(section.status), `Valid status for ${section.sectionKey}`);
     assert.ok(section.comment && section.comment.length > 10, `Comment required for ${section.sectionKey}`);
     assert.ok(section.actionableFix && section.actionableFix.length > 10, `Actionable fix required for ${section.sectionKey}`);
+    // Check suggested snippets presence
+    assert.ok(Array.isArray(section.suggestedSnippets) && section.suggestedSnippets.length >= 1, `suggestedSnippets required for ${section.sectionKey}`);
   }
 
   assert.ok(audit.overallSectionRating, 'Must provide overallSectionRating');
 });
 
-test('3. normalizeFeature2Data enriches bullets with embeddedKeywords and metricPlaceholders', () => {
+test('3. normalizeFeature2Data enriches bullets with embeddedKeywords, metricPlaceholders, and section suggestedSnippets', () => {
   const jdText = 'Yêu cầu kinh nghiệm CI/CD, Kubernetes, Docker, AWS và tối ưu hóa hiệu suất.';
   const cvText = 'Chịu trách nhiệm phát triển phần mềm và sửa lỗi.';
 
@@ -97,19 +103,27 @@ test('3. normalizeFeature2Data enriches bullets with embeddedKeywords and metric
   // Check that tailoredSummaries and sectionAudit were automatically generated
   assert.ok(normalized.tailoredSummaries.technicalFocus.pitch.includes('VNG Corporation'));
   assert.equal(normalized.sectionAudit.sections.length, 4);
+
+  // Check suggestedSnippets in section audit
+  for (const s of normalized.sectionAudit.sections) {
+    assert.ok(Array.isArray(s.suggestedSnippets) && s.suggestedSnippets.length >= 1, 'Section must have suggestedSnippets');
+  }
 });
 
-test('4. getSectionStatusConfig provides proper styling and labels', () => {
+test('4. getSectionStatusConfig provides proper styling and professional corporate labels', () => {
   const totVi = getSectionStatusConfig('tot', false);
   assert.equal(totVi.label, 'Tốt (Đạt chuẩn)');
   assert.ok(totVi.badgeBg.includes('emerald'));
 
   const gapEn = getSectionStatusConfig('yeu_nghiem_trong', true);
-  assert.equal(gapEn.label, 'Critical Gap');
+  assert.equal(gapEn.label, 'Needs Urgent Attention');
   assert.ok(gapEn.badgeBg.includes('rose'));
+
+  const gapVi = getSectionStatusConfig('yeu_nghiem_trong', false);
+  assert.equal(gapVi.label, 'Cần bổ sung gấp');
 });
 
-test('5. UI & Backend Schema Contract check for Phase 1.2 (BulletPointRewriteTab & server.ts)', () => {
+test('5. UI & Backend Schema Contract check for Phase 1.2 refinements (BulletPointRewriteTab & server.ts)', () => {
   const tabSource = fs.readFileSync(
     path.join(process.cwd(), 'src/components/BulletPointRewriteTab.tsx'),
     'utf-8'
@@ -117,16 +131,18 @@ test('5. UI & Backend Schema Contract check for Phase 1.2 (BulletPointRewriteTab
   const serverSource = fs.readFileSync(path.join(process.cwd(), 'server.ts'), 'utf-8');
 
   // Verify BulletPointRewriteTab renders all 3 pillars of Step 1.2
-  // Pillar 1: Tailored Executive Pitch
+  // Pillar 1: Targeted Professional Summary
   assert.ok(tabSource.includes('tailoredSummaries'), 'BulletPointRewriteTab must display tailoredSummaries');
   assert.ok(tabSource.includes('activePitchType'), 'BulletPointRewriteTab must support switching pitch versions');
   assert.ok(tabSource.includes('handleCopyPitch'), 'BulletPointRewriteTab must allow copying tailored pitch');
   assert.ok(tabSource.includes('technicalFocus') || tabSource.includes('mgmtFocusTab'), 'BulletPointRewriteTab must support technical & management focus');
 
-  // Pillar 2: Section-by-Section CV Audit
+  // Pillar 2: Section-by-Section Structural Review
   assert.ok(tabSource.includes('sectionAudit'), 'BulletPointRewriteTab must display sectionAudit');
   assert.ok(tabSource.includes('overallSectionRating'), 'BulletPointRewriteTab must show overallSectionRating');
   assert.ok(tabSource.includes('actionableFix'), 'BulletPointRewriteTab must show actionableFix');
+  assert.ok(tabSource.includes('suggestedSnippets'), 'BulletPointRewriteTab must render suggestedSnippets');
+  assert.ok(tabSource.includes('handleCopySnippet'), 'BulletPointRewriteTab must support copying suggested snippet');
   assert.ok(tabSource.includes('getSectionStatusConfig'), 'BulletPointRewriteTab must style section status');
 
   // Pillar 3: Upgraded Bullet Point Rewrite
@@ -142,6 +158,7 @@ test('5. UI & Backend Schema Contract check for Phase 1.2 (BulletPointRewriteTab
   assert.ok(serverSource.includes('sectionAudit:'), 'server.ts schema must include sectionAudit');
   assert.ok(serverSource.includes('overallSectionRating'), 'server.ts schema must include overallSectionRating');
   assert.ok(serverSource.includes('actionableFix'), 'server.ts schema must include actionableFix');
+  assert.ok(serverSource.includes('suggestedSnippets:'), 'server.ts schema must include suggestedSnippets');
   assert.ok(serverSource.includes('embeddedKeywords'), 'server.ts schema must include embeddedKeywords');
   assert.ok(serverSource.includes('metricPlaceholders'), 'server.ts schema must include metricPlaceholders');
   assert.ok(serverSource.includes('phase1-step1.2-v1'), 'server.ts must use phase1-step1.2-v1 cache key');

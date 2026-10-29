@@ -84,6 +84,7 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
   // Active pitch version tab: 'technical' or 'management'
   const [activePitchType, setActivePitchType] = useState<'technical' | 'management'>('technical');
   const [copiedPitch, setCopiedPitch] = useState<boolean>(false);
+  const [copiedSnippetKey, setCopiedSnippetKey] = useState<string | null>(null);
 
   // Clarifying answers form state
   const [answersInput, setAnswersInput] = useState<string>('');
@@ -104,6 +105,12 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
       setCopiedPitch(true);
       setTimeout(() => setCopiedPitch(false), 2000);
     }
+  };
+
+  const handleCopySnippet = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSnippetKey(key);
+    setTimeout(() => setCopiedSnippetKey(null), 2000);
   };
 
   const handleCopySingle = (text: string, index: number) => {
@@ -148,7 +155,7 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
-                  {isEn ? 'Pillar 1 • Executive Pitch' : 'Hạng mục 1 • Mở đầu May đo'}
+                  {isEn ? 'Pillar 1 • Targeted Summary' : 'Hạng mục 1 • Tóm tắt Định vị theo Vị trí'}
                 </span>
                 {(companyName || jobTitle) && (
                   <span className="flex items-center gap-1.5 text-xs text-indigo-300 font-medium">
@@ -221,7 +228,7 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
                 {activePitch?.title}
               </span>
               <span className="text-[11px] text-indigo-400">
-                {countWords(activePitch?.pitch || '')} {isEn ? 'words • 3–4 sentences' : 'từ • 3–4 câu hoàn chỉnh'}
+                {countWords(activePitch?.pitch || '')} {t.wordCountUnit || (isEn ? 'words • 50–150 words' : 'từ • 50–150 từ')}
               </span>
             </div>
 
@@ -257,7 +264,7 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide uppercase bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                {isEn ? 'Pillar 2 • Structural Audit' : 'Hạng mục 2 • Khám bệnh Cấu trúc'}
+                {isEn ? 'Pillar 2 • Structural Review' : 'Hạng mục 2 • Đánh giá Cấu trúc từng phần'}
               </span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 mt-1">
@@ -305,7 +312,7 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
                   {/* Score Progress Bar */}
                   <div className="mt-3 space-y-1">
                     <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold">
-                      <span>{isEn ? 'Section Health Score' : 'Điểm hoàn thiện'}</span>
+                      <span>{t.healthScoreLabel || (isEn ? 'Completeness Score' : 'Độ hoàn thiện')}</span>
                       <span className="font-mono text-slate-800">{section.score}/100</span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
@@ -322,17 +329,61 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
                   </p>
                 </div>
 
-                {/* Actionable Fix */}
-                <div className="bg-white p-3 rounded-lg border border-slate-200/90 text-xs text-slate-800 flex items-start gap-2.5">
-                  <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <span className="font-bold text-slate-900 text-[11px] uppercase tracking-wide block">
-                      {t.actionableFixLabel}
-                    </span>
-                    <span className="text-slate-600 leading-relaxed">
-                      {section.actionableFix}
-                    </span>
+                {/* Actionable Fix & Grounded Suggested Snippets */}
+                <div className="bg-white p-3.5 rounded-lg border border-slate-200/90 text-xs text-slate-800 space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-slate-900 text-[11px] uppercase tracking-wide block">
+                        {t.actionableFixLabel}
+                      </span>
+                      <span className="text-slate-600 leading-relaxed">
+                        {section.actionableFix}
+                      </span>
+                    </div>
                   </div>
+
+                  {section.suggestedSnippets && section.suggestedSnippets.length > 0 && (
+                    <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                      <span className="font-semibold text-slate-700 text-[11px] block">
+                        {t.suggestedSnippetsLabel}
+                      </span>
+                      <div className="space-y-1.5">
+                        {section.suggestedSnippets.map((snippet, sIdx) => {
+                          const snippetKey = `${section.sectionKey}-${sIdx}`;
+                          const isCopied = copiedSnippetKey === snippetKey;
+                          return (
+                            <div
+                              key={sIdx}
+                              className="group flex items-start justify-between gap-2 p-2 rounded-md bg-slate-50 border border-slate-200/70 hover:border-indigo-300 text-[11.5px] text-slate-800 transition-colors"
+                            >
+                              <span className="leading-relaxed font-normal italic text-slate-700">
+                                "{snippet}"
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopySnippet(snippet, snippetKey)}
+                                className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 transition-all cursor-pointer"
+                                title={t.copySnippetBtn}
+                              >
+                                {isCopied ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-emerald-700">{t.copiedSnippetBtn}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-indigo-600" />
+                                    <span>{t.copySnippetBtn}</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

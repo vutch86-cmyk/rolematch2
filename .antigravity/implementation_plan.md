@@ -4,6 +4,48 @@
 
 ---
 
+## Đợt 10 (2026-10-29): Chuẩn hóa Thuật ngữ Tuyển dụng Chuẩn Văn phòng, Bổ sung Mẫu câu Tham khảo Grounded từ CV & Tinh chỉnh Tóm tắt 50–150 từ
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Tiếp thu phản hồi thực tế của người dùng đối với Bước 1.2 nhằm tăng tính chuyên nghiệp và khả năng ứng dụng thực tế của kết quả phân tích CV:
+  1. **Chuẩn hóa bộ thuật ngữ chuyên nghiệp (Corporate HR):** Thay thế các từ ví von đời thường ("May đo", "Khám bệnh") thành ngôn ngữ tuyển dụng chuẩn mực văn phòng:
+     - "Tóm Tắt Hồ Sơ Định Vị Theo Vị Trí" (Targeted Professional Summary).
+     - "Đánh Giá Cấu Trúc Từng Phần CV" (Section-by-Section Structural Review).
+     - "ĐỀ XUẤT ĐIỀU CHỈNH:" (thay vì Hướng khắc phục).
+     - "Độ hoàn thiện" (thay vì Điểm hoàn thiện).
+     - Trạng thái thẻ: `Tốt (Đạt chuẩn)`, `Cần cải thiện`, `Cần bổ sung gấp`.
+  2. **Bổ sung 1–2 mẫu câu tham khảo trực tiếp (Suggested Snippets):** Dưới mỗi phần Đề xuất điều chỉnh, hệ thống cung cấp 1–2 mẫu câu văn viết sẵn sát ngữ cảnh kèm nút sao chép một chạm để ứng viên có thể chèn trực tiếp vào CV.
+  3. **Nguyên tắc chống bịa đặt (Anti-Hallucination Guard):** Thiết lập chỉ dẫn nghiêm ngặt trong AI prompt và backend schema: *BẮT BUỘC phải dựa trên thông tin thực tế từ CV của ứng viên (kinh nghiệm, kỹ năng, dự án sẵn có), TUYỆT ĐỐI KHÔNG tự ý sáng tạo hay bịa đặt kinh nghiệm/kỹ năng/số liệu ngoài CV*.
+  4. **Dung lượng Tóm tắt mở đầu chuẩn 50–150 từ:** Nâng cấp bộ đếm từ và prompt hướng dẫn sinh đoạn mở đầu hoàn chỉnh (50–150 từ, khoảng 3–4 câu substantive) định vị năng lực thực tế của ứng viên với vị trí và công ty mục tiêu.
+
+### 2. Files Affected (Danh sách file sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/types.ts` | **Modified** | Bổ sung trường `suggestedSnippets?: string[]` vào interface `SectionAuditItem`. |
+| `src/utils/i18n.ts` | **Modified** | Cập nhật bộ từ ngữ chuyên nghiệp và nhãn đa ngữ cho suggested snippets, word counter, độ hoàn thiện. |
+| `src/components/BulletPointRewriteTab.tsx` | **Modified** | Cập nhật tiêu đề, bộ đếm từ 50–150 từ, hiển thị hộp mẫu câu tham khảo kèm nút copy 1 chạm độc lập. |
+| `src/utils/bulletRewriteHelpers.ts` | **Modified** | Cấu hình nhãn trạng thái mới, tóm tắt dự phòng 50–150 từ, logic fallback cho 1–2 mẫu câu tham khảo từ CV. |
+| `src/utils/bulletRewriteHelpers.test.ts` | **Modified** | Cập nhật bộ 5 tests kiểm tra contract schema và suggested snippets (pass 100%). |
+| `src/utils/exportMarkdown.ts` | **Modified** | Đồng bộ định dạng xuất Markdown bao gồm các mẫu câu tham khảo từ CV. |
+| `server.ts` | **Modified** | Cập nhật Gemini response schema, prompt chống bịa đặt thông tin và fallback generator. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Cập nhật kiểu dữ liệu TypeScript trong `src/types.ts` và backend schema trong `server.ts`.
+- [x] **Bước 2:** Cập nhật helper `bulletRewriteHelpers.ts` và bộ dịch thuật ngữ `i18n.ts`.
+- [x] **Bước 3:** Nâng cấp giao diện `BulletPointRewriteTab.tsx` hỗ trợ sao chép mẫu câu tham khảo và đếm từ 50–150 từ.
+- [x] **Bước 4:** Cập nhật file xuất báo cáo `exportMarkdown.ts`.
+- [x] **Bước 5:** Bổ sung ràng buộc nghiêm ngặt trong AI prompt của `server.ts` ngăn chặn bịa đặt kinh nghiệm.
+- [x] **Bước 6:** Chạy kiểm thử chuỗi 3 lệnh tiêu chuẩn:
+  * `npm run lint` (`tsc --noEmit`): Exit 0 (0 errors).
+  * `npm test` (`vitest run`): Exit 0 (7/7 test suites, 70/70 tests passed).
+  * `npm run build` (`vite build && esbuild`): Exit 0 (Frontend & Backend dist bundle build thành công).
+- [x] **Bước 7:** Chạy cổng an toàn Security Audit Gate: PASS 100% (0 findings, 2 coverage units valid).
+
+---
+
 ## Đợt 9 (2026-10-29): Khắc phục Triệt để Lỗi Google Cloud Build pack build & Bổ sung Cổng Kiểm tra Lint/Test/Build Toàn diện
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`
