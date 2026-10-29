@@ -4,6 +4,33 @@
 
 ---
 
+## Đợt 7 (2026-10-29): Tích hợp Cloudflare Security Audit Skill & Thiết lập Cổng Security Audit Gate cho rolematch2
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Nhập toàn bộ skill kiểm thử bảo mật chuyên sâu của Cloudflare (`security-audit`) vào repo tại `.antigravity/skills/security-audit/`.
+- Thiết lập quy tắc định tuyến tự động tại `.antigravity/security-audit-routing.md` để chỉ chọn đúng companion file phù hợp với diff thay đổi (ví dụ: frontend dùng `CLIENT-SIDE.md`, tránh tốn token quét toàn bộ).
+- Cập nhật `.antigravity/rules.md` với chốt chặn **Security Audit Gate** ở Phase 3 (bắt buộc trước khi xin duyệt commit `staging`).
+- Vá lỗi tương thích Windows trên 2 validator Node.js (`validate-findings.cjs` và `validate-coverage-ledger.cjs`) hỗ trợ môi trường không có hằng số POSIX `O_NOFOLLOW | O_NONBLOCK`.
+- Thực hiện chạy thử nghiệm quy trình audit thực tế trên các file frontend (`KeywordMatchTab.tsx`, `keywordMatchHelpers.ts`, `exportMarkdown.ts`, `i18n.ts`, `types.ts`) đạt kết quả PASS (0 confirmed vulnerabilities, 3 coverage units valid, 1 findings valid).
+
+### 2. Files Affected (Danh sách file tạo mới & sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `.antigravity/rules.md` | **Modified** | Bổ sung mục 3 "Security Audit Gate" vào Phase 3 và cập nhật báo cáo bàn giao Phase 4. |
+| `.antigravity/security-audit-routing.md` | **Created** | Bảng định tuyến diff thay đổi sang companion file kiểm thử bảo mật tương ứng và tiêu chuẩn pass/fail. |
+| `.antigravity/skills/security-audit/*` | **Created** | Bộ skill Cloudflare Security Audit đầy đủ (SKILL.md, các companion markdown, report-schema.json, và 2 validator CJS đã vá tương thích Windows). |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Sao chép toàn bộ bộ skill bảo mật Cloudflare vào `.antigravity/skills/security-audit/`.
+- [x] **Bước 2:** Xây dựng file định tuyến `.antigravity/security-audit-routing.md` và cập nhật `.antigravity/rules.md`.
+- [x] **Bước 3:** Cập nhật hàm `readFileWithinLimit` trong 2 file validator để hỗ trợ kiểm tra symlink trên Windows.
+- [x] **Bước 4:** Chạy kiểm thử xác thực cả 2 validator `validate-coverage-ledger.cjs` (3 units valid) và `validate-findings.cjs` (1 findings valid) đạt `PASS 100%`.
+
+---
+
 ## Đợt 6 (2026-10-29): Khắc phục lỗi unescaped backticks trong `server.ts` làm gãy Google Cloud Build (PR #5) & Bổ sung Build/Syntax Guard Test
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`

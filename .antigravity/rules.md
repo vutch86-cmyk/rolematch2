@@ -45,7 +45,12 @@
      - Sử dụng Browser Sub-agent điều hướng đến localhost, thao tác đúng kịch bản (click, fill form, submit).
      - Chụp ảnh màn hình (screenshot) lưu vào thư mục `.antigravity/artifacts/` để làm minh chứng trạng thái UI hợp lệ.
      - Kiểm tra DevTools Console log để đảm bảo không phát sinh uncaught exception hay lỗi 500 từ API.
-  3. **Self-Healing Loop (Vòng lặp tự sửa lỗi):**
+   3. **Security Audit Gate (bắt buộc trước khi xin duyệt commit vào `staging`):**
+     - Đọc `.antigravity/security-audit-routing.md` và skill tại `.antigravity/skills/security-audit/SKILL.md`.
+     - Chỉ audit phần diff của lần commit, chỉ nạp companion phù hợp loại thay đổi (ví dụ: thay đổi frontend → `CLIENT-SIDE.md`), chạy scoped run profile `quick` (hoặc `deep` nếu chạm nhóm nhạy cảm cao).
+     - Có finding `confirmed` mức critical/high hoặc validator lỗi → **không** xin duyệt commit; sửa và audit lại. Mức medium → hỏi người dùng quyết định.
+     - Đính kèm tóm tắt kết quả audit (phạm vi, companion đã dùng, findings, đường dẫn output) vào báo cáo Handover.
+   4. **Self-Healing Loop (Vòng lặp tự sửa lỗi):**
      - Nếu phát sinh lỗi (test fail, console error, layout vỡ):
        * Đọc trực tiếp stack trace hoặc console error.
        * Tự động quay lại file mã nguồn để sửa lỗi.
@@ -59,6 +64,7 @@
   2. Xuất báo cáo tóm tắt ngắn gọn trong chat response:
      - Bảng tóm tắt các file đã thay đổi (`File`, `Action`, `Summary of changes`).
      - Kết quả test suites (số lượng test passed/failed).
+     - Kết quả Security Audit Gate (phạm vi, companion đã dùng, findings theo mức độ, trạng thái pass/fail).
      - Đính kèm hình ảnh screenshot hoặc trích dẫn log kiểm thử thành công.
   3. **Khi người dùng Approved commit vào `staging`:** Cập nhật đầy đủ thông tin đợt thay đổi đã được duyệt vào `.antigravity/implementation_plan.md` rồi thực hiện `git commit` và `git push`. Nếu người dùng từ chối, không ghi vào `.antigravity/implementation_plan.md`.
 
