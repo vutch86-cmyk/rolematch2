@@ -311,7 +311,7 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
               <p className="font-bold">{isEn ? 'What gets saved?' : 'Thông tin sẽ được lưu giữ:'}</p>
               <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-slate-600 font-medium">
                 <li>{isEn ? 'All candidate ranks, scores, and match levels' : 'Toàn bộ xếp hạng, điểm số và mức độ phù hợp'}</li>
-                <li>{isEn ? 'Gemini deep analysis results, strengths, and recommendations' : 'Kết quả phân tích chi tiết, điểm mạnh/yếu từ Gemini'}</li>
+                <li>{isEn ? 'AI Assistant deep analysis results, strengths, and recommendations' : 'Kết quả phân tích chi tiết, điểm mạnh/yếu từ Trợ lý AI'}</li>
                 <li>{isEn ? 'Job description (JD) and CV raw texts' : 'Nội dung văn bản gốc của JD và CV'}</li>
                 <li>{isEn ? 'Any processing errors or unranked profiles' : 'Bao gồm cả hồ sơ lỗi hoặc chưa có điểm số'}</li>
               </ul>

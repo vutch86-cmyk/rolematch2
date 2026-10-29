@@ -16,7 +16,7 @@ export function exportToTxt(text: string, filename = 'document.txt') {
 /**
  * Parses markdown text into docx Paragraphs and TextRuns
  */
-export async function exportToDocx(markdownText: string, filename = 'CV_Updated_Gemini.docx') {
+export async function exportToDocx(markdownText: string, filename = 'CV_Updated_AI.docx') {
   const lines = markdownText.split('\n');
   const children: Paragraph[] = [];
 
@@ -168,7 +168,7 @@ function parseInlineFormatting(text: string): TextRun[] {
 /**
  * Triggers clean print-to-PDF formatting in an isolated printable window/iframe
  */
-export function exportToPdf(markdownText: string, filename = 'CV_Updated_Gemini.pdf') {
+export function exportToPdf(markdownText: string, filename = 'CV_Updated_AI.pdf') {
   // Convert basic markdown to styled HTML for print window
   const htmlContent = parseMarkdownToPrintHtml(markdownText);
 

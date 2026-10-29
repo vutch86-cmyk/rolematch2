@@ -512,8 +512,8 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
             <div className="space-y-2 max-w-2xl">
               <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
                 {isEn
-                  ? 'Automatically Generate Updated CV with Gemini AI'
-                  : 'Tự Động Cập Nhật CV Hoàn Chỉnh Với Gemini AI'}
+                  ? 'Automatically Generate Updated CV with AI Assistant'
+                  : 'Tự Động Cập Nhật CV Hoàn Chỉnh Với Trợ Lý AI'}
               </h3>
               <p className="text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
                 {isEn
@@ -527,7 +527,7 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
               className="px-6 py-3.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
             >
               <Sparkles className="w-4 h-4 text-slate-950 fill-slate-950" />
-              <span>{isEn ? 'Update CV Now (Gemini AI)' : 'Cập Nhật CV Ngay (Gemini AI)'}</span>
+              <span>{isEn ? 'Update CV with AI Assistant' : 'Cập Nhật CV Bằng Trợ Lý AI'}</span>
               <ArrowRight className="w-4 h-4 text-slate-950" />
             </button>
           </div>

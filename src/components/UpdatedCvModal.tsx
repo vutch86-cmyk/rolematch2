@@ -67,7 +67,7 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `CV_Toi_Uu_Gemini_AI_${new Date().toISOString().slice(0, 10)}.md`;
+    link.download = `CV_Toi_Uu_AI_${new Date().toISOString().slice(0, 10)}.md`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -76,7 +76,7 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
     if (!updatedCvData?.updatedCvMarkdown) return;
     exportToDocx(
       updatedCvData.updatedCvMarkdown,
-      `CV_Toi_Uu_Gemini_${new Date().toISOString().slice(0, 10)}.docx`
+      `CV_Toi_Uu_AI_${new Date().toISOString().slice(0, 10)}.docx`
     );
   };
 
@@ -84,7 +84,7 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
     if (!updatedCvData?.updatedCvMarkdown) return;
     exportToPdf(
       updatedCvData.updatedCvMarkdown,
-      `CV_Toi_Uu_Gemini_${new Date().toISOString().slice(0, 10)}.pdf`
+      `CV_Toi_Uu_AI_${new Date().toISOString().slice(0, 10)}.pdf`
     );
   };
 
@@ -137,7 +137,7 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
                     : 'Updated CV via Recommendations'}
                 </h3>
                 <span className="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                  Gemini Intelligence
+                  {lang === 'vi' ? 'Trợ Lý AI' : 'AI Assistant'}
                 </span>
               </div>
               <p className="text-xs text-indigo-200/80 mt-0.5 hidden sm:block">
@@ -165,8 +165,8 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>
                   {lang === 'vi'
-                    ? 'Các Điểm Cải Tiến Đã Được Gemini Tự Động Áp Dụng:'
-                    : 'Improvements Automatically Applied by Gemini:'}
+                    ? 'Các Điểm Cải Tiến Đã Được Trợ Lý AI Tự Động Áp Dụng:'
+                    : 'Improvements Automatically Applied by AI Assistant:'}
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-emerald-900">
@@ -232,8 +232,8 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
               <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
               <p className="text-sm font-bold text-slate-800">
                 {lang === 'vi'
-                  ? 'Gemini đang nghiên cứu các bullet point và đang biên soạn bản CV mới...'
-                  : 'Gemini is analyzing bullet points and compiling your new CV...'}
+                  ? 'Trợ lý AI đang nghiên cứu các bullet point và đang biên soạn bản CV mới...'
+                  : 'AI Assistant is analyzing bullet points and compiling your new CV...'}
               </p>
               <p className="text-xs text-slate-500">
                 {lang === 'vi'
@@ -268,12 +268,12 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
                     />
                   </div>
 
-                  {/* Gemini Updated CV */}
+                  {/* AI Assistant Updated CV */}
                   <div className="bg-indigo-50/50 border border-indigo-200 rounded-xl p-4 flex flex-col h-[400px]">
                     <div className="font-bold text-xs text-indigo-900 uppercase tracking-wider mb-2 flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>{lang === 'vi' ? 'CV Mới Đã Cập Nhật (Gemini)' : 'Updated CV (Gemini)'}</span>
+                        <span>{lang === 'vi' ? 'CV Mới Đã Cập Nhật (Trợ Lý AI)' : 'Updated CV (AI Assistant)'}</span>
                       </span>
                       <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-semibold">
                         {lang === 'vi' ? 'Đã áp dụng đề xuất' : 'Applied'}
@@ -306,12 +306,12 @@ export const UpdatedCvModal: React.FC<UpdatedCvModalProps> = ({
                     <Zap className="w-4 h-4 text-amber-500" />
                     <span>
                       {lang === 'vi'
-                        ? 'Chỉnh Sửa Thêm Bản CV Này Bằng Yêu Cầu Riêng (Gemini Prompt):'
-                        : 'Refine This CV with Custom Instructions (Gemini):'}
+                        ? 'Chỉnh Sửa Thêm Bản CV Này Bằng Yêu Cầu Riêng (Trợ Lý AI):'
+                        : 'Refine This CV with Custom Instructions (AI Assistant):'}
                     </span>
                   </label>
                   <span className="text-[11px] text-slate-500">
-                    {lang === 'vi' ? 'Nhập yêu cầu để Gemini tinh chỉnh lại' : 'Enter prompt to refine'}
+                    {lang === 'vi' ? 'Nhập yêu cầu để Trợ lý AI tinh chỉnh lại' : 'Enter prompt for AI Assistant to refine'}
                   </span>
                 </div>
 

@@ -16,7 +16,7 @@ export const translations = {
       cvLabel: '2. Nhập hoặc Dán Nội Dung CV',
       uploadButton: 'Upload PDF / DOCX',
       aiFormatButton: 'Định dạng chuẩn CV',
-      aiFormatting: 'Gemini AI đang định dạng lại CV...',
+      aiFormatting: 'Trợ lý AI đang định dạng lại CV...',
       rawTextTab: 'Text',
       previewTab: 'Xem Đẹp',
       jdPlaceholder:
@@ -30,7 +30,7 @@ export const translations = {
       savedToBrowser: 'Đã tự động lưu vào trình duyệt',
       clearAll: 'Xóa nội dung',
       analyzeButton: 'Bắt Đầu Phân Tích',
-      analyzing: 'Gemini AI đang đóng vai Senior HR phân tích đối chiếu CV...',
+      analyzing: 'Trợ lý AI đang đóng vai Senior HR phân tích đối chiếu CV...',
       requiredWarning: 'Vui lòng cung cấp cả Mô tả công việc (JD) và CV để tiến hành phân tích.',
     },
     tabs: {
@@ -39,7 +39,7 @@ export const translations = {
       tab3: '3. Cập nhật CV',
     },
     exportButtons: {
-      updateCvGemini: 'Cập Nhật CV (Gemini AI)',
+      updateCvGemini: 'Cập Nhật CV Bằng Trợ Lý AI',
       copyReport: 'Sao chép Báo Cáo',
       reportCopied: 'Đã sao chép!',
       printReport: 'In / Xuất PDF Báo Cáo',
@@ -89,13 +89,13 @@ export const translations = {
     bulletRewriteTab: {
       formulaTitle: 'Các đề xuất cập nhật CV',
       formulaDesc: 'Ngắn gọn và đầy đủ • Động từ hành động mạnh • [Hành động] + [Công cụ/Phương pháp] + [Kết quả]',
-      aiUpdateCardTitle: 'Tự Động Tạo CV Mới Đã Tối Ưu Với Gemini AI',
+      aiUpdateCardTitle: 'Tự Động Tạo CV Mới Đã Tối Ưu Với Trợ Lý AI',
       aiUpdateCardDesc:
         'Áp dụng ngay toàn bộ các bullet points đã được viết lại ở trên vào CV hoàn chỉnh, tự động chèn từ khóa JD còn thiếu.',
-      btnGenerateCv: 'Tạo CV Mới Ngay (Gemini AI)',
+      btnGenerateCv: 'Tạo CV Mới Ngay (Trợ Lý AI)',
       questionsTitle: 'Câu Hỏi Làm Rõ Để Tối Ưu Bullet Points',
       questionsDesc:
-        'Nhập thêm số liệu hoặc chi tiết ngắn gọn để Gemini AI viết lại các câu bullet điểm thành tích được thuyết phục hơn:',
+        'Nhập thêm số liệu hoặc chi tiết ngắn gọn để Trợ lý AI viết lại các câu bullet điểm thành tích được thuyết phục hơn:',
       answersPlaceholder: 'Nhập câu trả lời làm rõ số liệu, quy mô, công cụ...',
       btnRefine: 'Phân Tích Lại Với Thông Tin Mới',
       origBullet: 'Bullet gốc trong CV:',
@@ -137,7 +137,7 @@ export const translations = {
       inviteMaybe: 'CÂN NHẮC THÊM (MAYBE)',
     },
     updatedCvModal: {
-      modalTitle: 'Bản CV Cập Nhật Theo Đề Xuất (Gemini AI)',
+      modalTitle: 'Bản CV Cập Nhật Đã Tối Ưu Bằng Trợ Lý AI',
       previewTab: 'Xem Đẹp (Preview)',
       compareTab: 'So Sánh Với CV Gốc',
       rawCodeTab: 'Mã Markdown Thô',
@@ -151,8 +151,8 @@ export const translations = {
       refineBtn: 'Điều Chỉnh',
       summaryChangesTitle: 'Các điểm cải tiến cốt lõi đã áp dụng vào CV mới:',
       origCvHeader: 'CV Gốc Của Bạn',
-      newCvHeader: 'CV Mới Cập Nhật (Gemini AI)',
-      generating: 'Gemini AI đang tái cấu trúc và tạo lại toàn bộ CV...',
+      newCvHeader: 'CV Mới Cập Nhật (Trợ Lý AI)',
+      generating: 'Trợ lý AI đang tái cấu trúc và tạo lại toàn bộ CV...',
     },
     scoreBadges: {
       excellent: 'Xuất Sắc (≥80%)',
@@ -216,7 +216,7 @@ export const translations = {
       cvLabel: '2. Enter or Paste CV Content',
       uploadButton: 'Upload PDF / DOCX',
       aiFormatButton: 'Format Standard CV',
-      aiFormatting: 'Gemini AI is formatting CV...',
+      aiFormatting: 'AI Assistant is formatting CV...',
       rawTextTab: 'Text',
       previewTab: 'Visual Preview',
       jdPlaceholder:
@@ -230,7 +230,7 @@ export const translations = {
       savedToBrowser: 'Auto-saved to browser',
       clearAll: 'Clear inputs',
       analyzeButton: 'Start CV Analysis Now',
-      analyzing: 'Gemini AI Senior HR is analyzing CV against JD...',
+      analyzing: 'AI Assistant (Senior HR) is analyzing CV against JD...',
       requiredWarning: 'Please provide both Job Description (JD) and CV to run analysis.',
     },
     tabs: {
@@ -239,7 +239,7 @@ export const translations = {
       tab3: '3. Update CV',
     },
     exportButtons: {
-      updateCvGemini: 'Update CV (Gemini AI)',
+      updateCvGemini: 'Update CV with AI Assistant',
       copyReport: 'Copy Report',
       reportCopied: 'Copied!',
       printReport: 'Print / Export PDF Report',
@@ -289,13 +289,13 @@ export const translations = {
     bulletRewriteTab: {
       formulaTitle: 'Standard Bullet Point Rewrite Formula',
       formulaDesc: 'Concise and complete • Strong Action Verbs • [Action] + [Tool/Method] + [Result]',
-      aiUpdateCardTitle: 'Auto-Generate Optimized CV with Gemini AI',
+      aiUpdateCardTitle: 'Auto-Generate Optimized CV with AI Assistant',
       aiUpdateCardDesc:
         'Instantly apply all rewritten bullet points into a clean, complete CV, automatically embedding missing JD keywords.',
-      btnGenerateCv: 'Generate New CV Now (Gemini AI)',
+      btnGenerateCv: 'Generate New CV with AI Assistant',
       questionsTitle: 'Clarifying Questions to Optimize Bullet Points',
       questionsDesc:
-        'Provide brief metrics or details so Gemini AI can craft even more compelling bullet points:',
+        'Provide brief metrics or details so AI Assistant can craft even more compelling bullet points:',
       answersPlaceholder: 'Enter clarifying metrics, tools, scale details...',
       btnRefine: 'Re-analyze with New Answers',
       origBullet: 'Original bullet in CV:',
@@ -337,7 +337,7 @@ export const translations = {
       inviteMaybe: 'CONSIDER FURTHER (MAYBE)',
     },
     updatedCvModal: {
-      modalTitle: 'Updated CV via Gemini AI Recommendations',
+      modalTitle: 'Updated CV via AI Assistant Recommendations',
       previewTab: 'Visual Preview',
       compareTab: 'Compare with Original',
       rawCodeTab: 'Raw Markdown Code',
@@ -351,8 +351,8 @@ export const translations = {
       refineBtn: 'Refine',
       summaryChangesTitle: 'Core improvements applied to the new CV:',
       origCvHeader: 'Your Original CV',
-      newCvHeader: 'New Updated CV (Gemini AI)',
-      generating: 'Gemini AI is restructuring and re-generating the complete CV...',
+      newCvHeader: 'New Updated CV (AI Assistant)',
+      generating: 'AI Assistant is restructuring and re-generating the complete CV...',
     },
     scoreBadges: {
       excellent: 'Excellent (≥80%)',
