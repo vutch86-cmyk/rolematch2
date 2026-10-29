@@ -117,25 +117,29 @@ ${normalizedComparisonTable
 
 ## TÍNH NĂNG 2: TỐI ƯU HỒ SƠ, AUDIT CẤU TRÚC & VIẾT LẠI BULLET POINT
 
-### 1. Mở Đầu CV May Đo Riêng Cho Vị Trí (Executive Pitch)
+### 1. Tóm Tắt Hồ Sơ Định Vị Theo Vị Trí (Targeted Professional Summary)
 - **${tailoredSummaries.technicalFocus.title}:**
   > "${tailoredSummaries.technicalFocus.pitch}"
-  * *Điểm nhấn cốt lõi:* ${tailoredSummaries.technicalFocus.keyHighlights.join(' • ')}
+  * *Điểm sáng cốt lõi:* ${tailoredSummaries.technicalFocus.keyHighlights.join(' • ')}
 
 - **${tailoredSummaries.managementFocus.title}:**
   > "${tailoredSummaries.managementFocus.pitch}"
-  * *Điểm nhấn cốt lõi:* ${tailoredSummaries.managementFocus.keyHighlights.join(' • ')}
+  * *Điểm sáng cốt lõi:* ${tailoredSummaries.managementFocus.keyHighlights.join(' • ')}
 
-### 2. Khám Bệnh Cấu Trúc Từng Phần Của CV (Section-by-Section Audit)
+### 2. Đánh Giá Cấu Trúc Từng Phần CV (Section-by-Section Structural Review)
 ${sectionAudit.overallSectionRating ? `*Đánh giá chung:* **${sectionAudit.overallSectionRating}**\n` : ''}
-| Mục CV | Điểm số | Trạng thái | Chẩn đoán thực trạng | Hướng khắc phục cụ thể |
+| Mục CV | Độ hoàn thiện | Trạng thái | Nhận xét thực trạng | Đề xuất điều chỉnh & Mẫu câu tham khảo |
 | :--- | :--- | :--- | :--- | :--- |
 ${sectionAudit.sections
   .map(
     (s) =>
       `| **${s.sectionName}** | ${s.score}/100 | ${
-        s.status === 'tot' ? '🟢 Tốt' : s.status === 'can_cai_thien' ? '🟡 Cần cải thiện' : '🔴 Điểm yếu nghiêm trọng'
-      } | ${s.comment} | ${s.actionableFix} |`
+        s.status === 'tot' ? '🟢 Tốt (Đạt chuẩn)' : s.status === 'can_cai_thien' ? '🟡 Cần cải thiện' : '🔴 Cần bổ sung gấp'
+      } | ${s.comment} | ${s.actionableFix}${
+        s.suggestedSnippets && s.suggestedSnippets.length > 0
+          ? `<br/>*Mẫu câu tham khảo từ CV:*<br/>• ` + s.suggestedSnippets.join('<br/>• ')
+          : ''
+      } |`
   )
   .join('\n')}
 

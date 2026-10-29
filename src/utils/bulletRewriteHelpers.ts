@@ -46,7 +46,7 @@ export function getSectionStatusConfig(
         badgeBorder: 'border-rose-200',
         badgeText: 'text-rose-700',
         progressColor: 'bg-rose-500',
-        label: isEn ? 'Critical Gap' : 'Điểm yếu nghiêm trọng',
+        label: isEn ? 'Needs Urgent Attention' : 'Cần bổ sung gấp',
       };
   }
 }
@@ -95,22 +95,22 @@ export function inferTailoredSummaries(
     const technical: ExecutiveSummaryVersion = {
       title: 'Version 1: Technical & Engineering Mastery Focus',
       focusType: 'technical',
-      pitch: `Results-driven ${targetRole} with proven hands-on expertise in ${primarySkills}. Demonstrated track record of architecting scalable systems, enhancing code quality, and driving end-to-end execution. Committed to delivering high-impact engineering solutions and technical excellence tailored to ${targetCompany}.`,
+      pitch: `Results-driven ${targetRole} with substantive hands-on expertise in ${primarySkills}. Proven background in architecting high-reliability systems, automating mission-critical workflows, and resolving complex technical bottlenecks. Committed to leveraging rigorous engineering standards and continuous performance optimization to deliver resilient, scalable technology solutions directly aligned with ${targetCompany}'s engineering goals.`,
       keyHighlights: [
-        `Deep proficiency in ${primarySkills}`,
-        'System architecture & scalable implementation',
-        'Performance optimization & reliable delivery',
+        `Core technical proficiency: ${primarySkills}`,
+        'System architecture, resilience & scalable design',
+        'Process automation & performance optimization',
       ],
     };
 
     const management: ExecutiveSummaryVersion = {
       title: 'Version 2: Leadership & Business Impact Focus',
       focusType: 'management',
-      pitch: `Proactive ${targetRole} adept at bridging technical capabilities with organizational business objectives. Experienced in mentoring cross-functional collaborators, optimizing operational workflows, and ensuring 100% SLA/KPI fulfillment. Eager to drive strategic growth and measurable business value at ${targetCompany}.`,
+      pitch: `Impact-focused ${targetRole} adept at bridging engineering capabilities with core organizational business objectives. Experienced in steering agile delivery timelines, fostering cross-functional stakeholder alignment, and maintaining strict SLA and quality standards. Dedicated to accelerating release cycles, minimizing operational risks, and driving measurable ROI and product value for ${targetCompany}.`,
       keyHighlights: [
-        'Cross-functional ownership & stakeholder communication',
-        'Process optimization & measurable KPI/ROI uplift',
-        'Delivery velocity & strategic resource alignment',
+        'Cross-functional team coordination & delivery velocity',
+        'Process optimization, risk mitigation & cost control',
+        'Commitment to 100% KPI/SLA fulfillment and strategic value',
       ],
     };
 
@@ -118,24 +118,24 @@ export function inferTailoredSummaries(
   }
 
   const technical: ExecutiveSummaryVersion = {
-    title: 'Bản 1: Định vị Chuyên môn / Kỹ thuật sâu (Technical & Craft Focus)',
+    title: 'Bản 1: Định vị Chuyên môn / Kỹ thuật sâu (Technical Mastery)',
     focusType: 'technical',
-    pitch: `Chuyên viên ${targetRole} với nền tảng chuyên môn vững vàng và kinh nghiệm thực chiến trong ${primarySkills}. Có thế mạnh làm chủ công nghệ lõi, thiết kế hệ thống tối ưu và chuẩn hóa quy trình kỹ thuật. Sẵn sàng đóng góp năng lực chuyên môn để tạo ra giải pháp công nghệ bền vững, chất lượng cao tại ${targetCompany}.`,
+    pitch: `Chuyên viên ${targetRole} với nền tảng chuyên môn vững vàng và kinh nghiệm thực chiến chuyên sâu trong ${primarySkills}. Có thế mạnh làm chủ công nghệ cốt lõi, thiết kế kiến trúc hệ thống bền vững, tự động hóa quy trình vận hành và xử lý các điểm nghẽn kỹ thuật phức tạp. Sẵn sàng mang tư duy kỹ thuật chuẩn mực và tinh thần trách nhiệm cao để đồng hành xây dựng hạ tầng phần mềm chất lượng, sẵn sàng mở rộng quy mô tại ${targetCompany}.`,
     keyHighlights: [
-      `Thành thạo công nghệ cốt lõi: ${primarySkills}`,
-      'Thiết kế kiến trúc hệ thống và chuẩn hóa chất lượng mã nguồn',
-      'Tối ưu hóa hiệu năng và giải quyết bài toán kỹ thuật phức tạp',
+      `Làm chủ công nghệ cốt lõi: ${primarySkills}`,
+      'Thiết kế kiến trúc hệ thống và chuẩn hóa quy trình kỹ thuật',
+      'Tối ưu hóa hiệu năng, bảo mật và giải quyết sự cố phức tạp',
     ],
   };
 
   const management: ExecutiveSummaryVersion = {
-    title: 'Bản 2: Tác động Quản lý & Giá trị Kinh doanh (Business Impact & Leadership Focus)',
+    title: 'Bản 2: Tác động Quản lý & Giá trị Kinh doanh (Business & Management Impact)',
     focusType: 'management',
-    pitch: `Nhân sự ${targetRole} định hướng tạo giá trị thực tế, sở hữu khả năng liên kết mục tiêu kỹ thuật với chỉ số kinh doanh của tổ chức. Dày dặn kinh nghiệm dẫn dắt tiến độ, điều phối liên phòng ban và tối ưu hóa năng suất vận hành. Cam kết đồng hành cùng ${targetCompany} nâng cao hiệu quả dự án và đạt các chỉ tiêu KPI chiến lược.`,
+    pitch: `Nhân sự ${targetRole} định hướng hiệu quả thực tế, sở hữu năng lực liên kết chặt chẽ giữa giải pháp kỹ thuật với các mục tiêu kinh doanh trọng yếu của doanh nghiệp. Dày dặn kinh nghiệm điều phối đội ngũ liên chức năng, tối ưu hóa tiến độ triển khai theo chuẩn Agile và kiểm soát chặt chẽ các chỉ tiêu chất lượng. Cam kết đồng hành cùng ${targetCompany} nâng cao năng suất vận hành, giảm thiểu rủi ro và hiện thực hóa các chỉ tiêu KPI chiến lược.`,
     keyHighlights: [
-      'Điều phối đội ngũ liên chức năng và quản lý tiến độ chặt chẽ',
+      'Điều phối đội ngũ liên chức năng và quản lý tiến độ bàn giao',
       'Tối ưu hóa quy trình làm việc, tiết kiệm chi phí và nâng cao ROI',
-      'Cam kết đảm bảo chỉ tiêu KPI/SLA và bàn giao sản phẩm đúng hạn',
+      'Cam kết đảm bảo 100% chỉ số SLA/KPI và an toàn vận hành',
     ],
   };
 
@@ -173,8 +173,17 @@ export function inferSectionAudit(
       ? 'Missing a dedicated executive summary section. Recruiters lack a quick 10-second anchor to assess overall suitability.'
       : 'Chưa có phần Tóm tắt mở đầu độc lập. Nhà tuyển dụng thiếu điểm neo tóm lược giá trị trong 10 giây đầu.',
     actionableFix: isEn
-      ? 'Adopt one of the tailored 3-4 sentence pitches above with quantifiable achievements at the top of your resume.'
-      : 'Sử dụng một trong 2 bản Tóm tắt mở đầu gợi ý ở trên, đặt ngay dưới phần thông tin liên hệ để gây ấn tượng ngay.',
+      ? 'Adopt one of the targeted professional summary versions (50-150 words) above, placed directly beneath your contact details.'
+      : 'Đặt đoạn Tóm tắt hồ sơ định vị (50–150 từ) ngay dưới thông tin liên hệ ở đầu CV để tạo ấn tượng tức thì với nhà tuyển dụng.',
+    suggestedSnippets: isEn
+      ? [
+          'Professional with proven hands-on track record, dedicated to delivering resilient engineering solutions and high operational uptime.',
+          'Adept at applying specialized technical expertise to accelerate team delivery cycles and support organizational growth.'
+        ]
+      : [
+          'Chuyên viên giàu kinh nghiệm thực chiến với tinh thần trách nhiệm cao, sẵn sàng đóng góp năng lực chuyên môn để tối ưu hóa hiệu quả vận hành.',
+          'Có thế mạnh giải quyết bài toán kỹ thuật phức tạp, chuẩn hóa quy trình và đồng hành cùng sự phát triển bền vững của tổ chức.'
+        ],
   };
 
   // 2. Experience Audit
@@ -204,8 +213,17 @@ export function inferSectionAudit(
       ? 'Work experience bullets heavily focus on task lists without metrics (%, revenue, team scale, SLA improvements).'
       : 'Các dòng kinh nghiệm chủ yếu liệt kê đầu việc được giao, hoàn toàn thiếu số liệu định lượng (%, ngân sách, quy mô người dùng, cải thiện hiệu suất).',
     actionableFix: isEn
-      ? 'Rewrite bullets using the XYZ formula: Accomplished [X], as measured by [Y], by doing [Z]. Insert metric numbers.'
-      : 'Áp dụng công thức XYZ: Đạt được [Kết quả X], đo lường bằng [Chỉ số Y], thông qua [Hành động/Phương pháp Z]. Điền số liệu vào các vị trí được gợi ý.',
+      ? 'Rewrite bullets using the XYZ formula: Accomplished [X], as measured by [Y], by doing [Z]. Insert verified metric numbers from your real experience.'
+      : 'Áp dụng công thức XYZ: Đạt được [Kết quả X], đo lường bằng [Chỉ số Y], thông qua [Hành động/Phương pháp Z]. Điền số liệu thực tế dựa trên kinh nghiệm sẵn có.',
+    suggestedSnippets: isEn
+      ? [
+          'Spearheaded key project deliverables, improving operational efficiency by [15-25%] while maintaining system stability.',
+          'Streamlined workflow automation and deployment pipelines, reducing turnaround time by [20%] for cross-functional teams.'
+        ]
+      : [
+          'Chủ trì triển khai các hạng mục kỹ thuật trọng điểm, giúp nâng cao [15-25%] hiệu suất vận hành và duy trì độ ổn định hệ thống.',
+          'Tối ưu hóa quy trình làm việc và tự động hóa quy trình triển khai, rút ngắn [20%] thời gian xử lý công việc cho toàn đội ngũ.'
+        ],
   };
 
   // 3. Skills Audit
@@ -228,6 +246,15 @@ export function inferSectionAudit(
     actionableFix: isEn
       ? 'Group skills into 3 distinct categories: Core Technical, Frameworks & Tools, and Domain/Methodologies.'
       : 'Phân nhóm kỹ năng thành 3 khối rõ ràng: Kỹ năng Chuyên môn cốt lõi, Công cụ/Công nghệ và Phương pháp làm việc (Agile/Scrum).',
+    suggestedSnippets: isEn
+      ? [
+          'Core Technical Capabilities: Architecture Design, System Optimization, Infrastructure Administration',
+          'Methodologies & Tools: Agile / Scrum, CI/CD Automation, Git, Monitoring & Logging'
+        ]
+      : [
+          'Kỹ năng Chuyên môn Cốt lõi: Thiết kế kiến trúc, Tối ưu hóa hiệu năng, Quản trị hệ thống',
+          'Công cụ & Phương pháp: Agile / Scrum, CI/CD, Quản lý phiên bản Git, Giám sát vận hành'
+        ],
   };
 
   // 4. Education & ATS Standards
@@ -249,6 +276,15 @@ export function inferSectionAudit(
     actionableFix: isEn
       ? 'Include institution, exact graduation degree, honors (if any), and valid industry certifications (AWS, PMP, ScrumMaster, etc.).'
       : 'Ghi rõ tên trường, chuyên ngành tốt nghiệp, năm hoàn thành và các chứng chỉ nghề nghiệp uy tín (nếu có).',
+    suggestedSnippets: isEn
+      ? [
+          'Degree: Bachelor of Science in Information Technology / Related Engineering Discipline',
+          'Certifications: [Relevant Professional Certification, e.g. AWS / PMP / Professional Scrum Master] - Completion Year'
+        ]
+      : [
+          'Học vấn: Cử nhân Công nghệ Thông tin / Chuyên ngành Kỹ thuật liên quan - Đại học chính quy',
+          'Chứng chỉ Chuyên môn: [Chứng chỉ nghề nghiệp uy tín, VD: AWS / PMP / Scrum Master] - Năm cấp'
+        ],
   };
 
   const sections = [summaryItem, experienceItem, skillsItem, educationAtsItem];
@@ -367,6 +403,21 @@ export function normalizeFeature2Data(
   let sectionAudit: SectionBySectionAudit = feature2?.sectionAudit;
   if (!sectionAudit?.sections || !Array.isArray(sectionAudit.sections) || sectionAudit.sections.length < 4) {
     sectionAudit = inferSectionAudit(cvText, jdText, isEn);
+  } else {
+    // Ensure suggestedSnippets is present and sanitized
+    const fallbackAudit = inferSectionAudit(cvText, jdText, isEn);
+    sectionAudit.sections = sectionAudit.sections.map((sec, idx) => {
+      let snippets: string[] = Array.isArray(sec.suggestedSnippets)
+        ? sec.suggestedSnippets.filter((s: any) => typeof s === 'string' && s.trim().length > 0)
+        : [];
+      if (snippets.length === 0 && fallbackAudit.sections[idx]?.suggestedSnippets) {
+        snippets = fallbackAudit.sections[idx].suggestedSnippets || [];
+      }
+      return {
+        ...sec,
+        suggestedSnippets: snippets,
+      };
+    });
   }
 
   return {

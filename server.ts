@@ -5800,25 +5800,27 @@ ${clarifyingAnswers ? `3. CANDIDATE'S CLARIFYING ANSWERS:\n${clarifyingAnswers}\
    - Weak or overly vague sections in CV
    - 5 immediate actions to boost CV competitiveness
 
---- FEATURE 2: SECTION-BY-SECTION AUDIT, TAILORED SUMMARIES & REWRITTEN BULLETS ---
+--- FEATURE 2: SECTION-BY-SECTION STRUCTURAL REVIEW, TARGETED SUMMARIES & REWRITTEN BULLETS ---
 1. Check CV. If critical metrics/tools are missing, provide MAXIMUM 3 concise clarifying questions.
-2. Tailored Executive Summaries (tailoredSummaries):
-   - Generate exactly 2 high-impact 3-4 sentence elevator pitch versions tailored to the candidate's target: "[Company Name] - [Job Title]":
+2. Targeted Professional Summaries (tailoredSummaries):
+   - Generate exactly 2 high-impact targeted professional summaries (50–150 words each) tailored to the candidate's target: "[Company Name] - [Job Title]":
      a) technicalFocus: Deep technical expertise, specialized tools, architectural mastery, and engineering excellence (title, focusType: 'technical', pitch, keyHighlights: array of 3 bullet phrases).
      b) managementFocus: Leadership, cross-functional collaboration, business impact, operational efficiency, and KPI/ROI achievement (title, focusType: 'management', pitch, keyHighlights: array of 3 bullet phrases).
+   - CRITICAL REQUIREMENT ON SUMMARY ACCURACY: Both summaries MUST be strictly grounded in the candidate's actual CV data (verified skills, years of experience, past achievements). Absolutely DO NOT hallucinate fake roles, fake companies, or fake metrics.
    - Write in the SAME primary language as the candidate's CV.
-3. Section-by-Section Resume Audit (sectionAudit):
-   - Provide overallSectionRating (summary diagnostic sentence).
-   - Perform an ATS and structural audit across all 4 mandatory sections:
+3. Section-by-Section Structural Review (sectionAudit):
+   - Provide overallSectionRating (summary diagnostic sentence on structural health).
+   - Perform an ATS and structural review across all 4 mandatory sections:
      1. sectionKey: 'summary', sectionName: 'Executive Summary'
      2. sectionKey: 'experience', sectionName: 'Work Experience & Impact'
      3. sectionKey: 'skills', sectionName: 'Skills Structure & Grouping'
      4. sectionKey: 'education_ats', sectionName: 'Education, Certifications & ATS Standards'
    - For each section, provide:
-     - status: "tot" (strong) | "can_cai_thien" (needs improvement) | "yeu_nghiem_trong" (critical gap)
+     - status: "tot" (strong / standard met) | "can_cai_thien" (needs improvement) | "yeu_nghiem_trong" (needs urgent attention)
      - score: integer from 0 to 100
      - comment: candid diagnosis of strengths or weaknesses
-     - actionableFix: exact, actionable recommendation on how to fix it
+     - actionableFix: exact, actionable recommendation on how to adjust this section
+     - suggestedSnippets: array of 1-2 ready-to-use sample sentences for candidate to copy-paste directly. STRICT REQUIREMENT: These sentences MUST be strictly grounded in the candidate's actual CV data (polishing or reframing their real experience/skills). Absolutely NO inventing fake achievements, unverified certifications, or fake metrics.
 4. Bullet Point Rewrite Principles (5 to 8 most impactful bullets):
    - Concise and complete.
    - Use strong action verbs and XYZ / STAR Formula: Accomplished [X], as measured by [Y], by doing [Z].
@@ -5893,25 +5895,27 @@ ${clarifyingAnswers ? `3. CÂU TRẢ LỜI BỔ SUNG THÔNG TIN TỪ ỨNG VIÊN
    - Những phần trong CV đang yếu, quá chung chung hoặc chưa chứng minh được năng lực
    - 5 việc cụ thể cần sửa ngay để CV cạnh tranh hơn
 
---- TÍNH NĂNG 2: KHÁM BỆNH TỪNG PHẦN CV, VIẾT SẴN MỞ ĐẦU MAY ĐO & TỐI ƯU BULLET POINT ---
+--- TÍNH NĂNG 2: ĐÁNH GIÁ CẤU TRÚC TỪNG PHẦN CV, VIẾT SẴN TÓM TẮT ĐỊNH VỊ & TỐI ƯU BULLET POINT ---
 1. Kiểm tra CV. Thiếu dữ liệu quan trọng (số liệu, quy mô, công cụ, kết quả), đưa ra TỐI ĐA 3 câu hỏi làm rõ ngắn gọn.
-2. Viết sẵn 2 bản Mở đầu CV May đo (tailoredSummaries):
-   - Tự động tạo chính xác 2 phiên bản Mở đầu CV (3–4 câu) khớp với "[Tên Công ty] - [Vị trí ứng tuyển]":
-     a) technicalFocus: Định vị Chuyên môn / Kỹ thuật sâu (làm chủ công nghệ lõi, thiết kế kiến trúc hệ thống, giải quyết bài toán kỹ thuật phức tạp). Thuộc tính: title, focusType: 'technical', pitch, keyHighlights: mảng 3 cụm từ điểm nhấn.
-     b) managementFocus: Tác động Quản lý & Giá trị Kinh doanh (dẫn dắt tiến độ, điều phối liên chức năng, tối ưu chi phí/thời gian, cam kết chỉ số KPI/ROI). Thuộc tính: title, focusType: 'management', pitch, keyHighlights: mảng 3 cụm từ điểm nhấn.
+2. Viết sẵn 2 bản Tóm tắt hồ sơ định vị theo vị trí (tailoredSummaries):
+   - Tự động tạo chính xác 2 phiên bản Tóm tắt hồ sơ (độ dài 50–150 từ mỗi bản) khớp với "[Tên Công ty] - [Vị trí ứng tuyển]":
+     a) technicalFocus: Định vị Chuyên môn / Kỹ thuật sâu (làm chủ công nghệ lõi, thiết kế kiến trúc hệ thống, giải quyết bài toán kỹ thuật phức tạp). Thuộc tính: title, focusType: 'technical', pitch, keyHighlights: mảng 3 cụm từ điểm sáng.
+     b) managementFocus: Tác động Quản lý & Giá trị Kinh doanh (dẫn dắt tiến độ, điều phối liên chức năng, tối ưu chi phí/thời gian, cam kết chỉ số KPI/ROI). Thuộc tính: title, focusType: 'management', pitch, keyHighlights: mảng 3 cụm từ điểm sáng.
+   - NGUYÊN TẮC TRUNG THỰC CỐT LÕI: Cả 2 bản tóm tắt BẮT BUỘC phải dựa trên thông tin thực tế từ CV của ứng viên (thâm niên, kỹ năng, dự án đã làm). TUYỆT ĐỐI KHÔNG tự ý sáng tạo hay bịa đặt kinh nghiệm không có trong CV.
    - BẮT BUỘC viết cùng ngôn ngữ chính của CV ứng viên.
-3. Khám bệnh Từng Phần của CV (sectionAudit):
+3. Đánh giá Cấu trúc Từng Phần của CV (sectionAudit):
    - Đưa ra overallSectionRating (1 câu tóm lược độ hoàn thiện cấu trúc CV).
    - Đánh giá chi tiết đủ 4 phần bắt buộc:
      1. sectionKey: 'summary', sectionName: 'Tóm tắt mở đầu (Executive Summary)'
      2. sectionKey: 'experience', sectionName: 'Kinh nghiệm làm việc & Kết quả (Work Experience)'
      3. sectionKey: 'skills', sectionName: 'Cấu trúc Kỹ năng chuyên môn (Core Skills)'
      4. sectionKey: 'education_ats', sectionName: 'Học vấn/Chứng chỉ & Định dạng chuẩn ATS (Education & ATS)'
-   - Với mỗi phần, chấm:
-     - status: "tot" (Tốt) | "can_cai_thien" (Cần cải thiện) | "yeu_nghiem_trong" (Điểm yếu nghiêm trọng)
+   - Với mỗi phần, cung cấp:
+     - status: "tot" (Tốt - Đạt chuẩn) | "can_cai_thien" (Cần cải thiện) | "yeu_nghiem_trong" (Cần bổ sung gấp)
      - score: số nguyên từ 0 đến 100
-     - comment: nhận xét chẩn đoán thẳng thắn thực trạng
-     - actionableFix: hướng dẫn hành động cụ thể để khắc phục
+     - comment: nhận xét thực trạng khách quan
+     - actionableFix: đề xuất điều chỉnh cụ thể để tối ưu
+     - suggestedSnippets: mảng 1-2 mẫu câu gợi ý sát ngữ cảnh để ứng viên sao chép chèn trực tiếp vào CV. YÊU CẦU BẮT BUỘC: Mẫu câu tham khảo cho đề xuất điều chỉnh BẮT BUỘC phải dựa trên thông tin thực tế từ CV của ứng viên, TUYỆT ĐỐI KHÔNG tự ý sáng tạo hay bịa đặt kỹ năng/kinh nghiệm/số liệu không có trong CV.
 4. Nâng cấp Viết lại Bullet Point (rewrittenBullets) từ 5 đến 8 bullet quan trọng nhất:
    - Ngắn gọn và đầy đủ theo Công thức XYZ / STAR: Đạt được [X], đo lường bằng [Y], thông qua [Z].
    - Dùng động từ hành động mạnh, sát ngôn ngữ JD.
@@ -6140,6 +6144,11 @@ const analysisResponseSchema = {
                   score: { type: Type.INTEGER },
                   comment: { type: Type.STRING },
                   actionableFix: { type: Type.STRING },
+                  suggestedSnippets: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: '1-2 sample sentences based strictly on candidate CV info for this section. Absolutely NO fabricated facts, fake companies, or fake metrics.',
+                  },
                 },
                 required: [
                   'sectionKey',

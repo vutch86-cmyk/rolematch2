@@ -52,7 +52,8 @@ export interface SectionAuditItem {
   status: SectionAuditStatus; // 'tot' | 'can_cai_thien' | 'yeu_nghiem_trong'
   score: number; // 0 - 100
   comment: string; // Nhận xét chẩn đoán thực trạng
-  actionableFix: string; // Hướng khắc phục cụ thể
+  actionableFix: string; // Đề xuất điều chỉnh cụ thể
+  suggestedSnippets?: string[]; // 1-2 mẫu câu tham khảo dựa trên thông tin thực tế từ CV để ứng viên chèn trực tiếp
 }
 
 export interface SectionBySectionAudit {
