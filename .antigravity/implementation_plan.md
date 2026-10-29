@@ -4,6 +4,43 @@
 
 ---
 
+## Đợt 8 (2026-10-29): Triển khai Bước 1.2 — Audit Chi tiết Từng Mục CV & Viết sẵn Tóm tắt Mở đầu (Tab 2: BulletPointRewriteTab.tsx)
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Thực hiện trọn vẹn Bước 1.2 theo lộ trình `.antigravity/product_roadmap.md`: Nâng cấp Tab 2 (`BulletPointRewriteTab.tsx`) từ việc chỉ nhặt vài bullet lẻ tẻ thành công cụ khám bệnh cấu trúc hồ sơ toàn diện và cung cấp giải pháp viết lại may đo theo đúng JD của từng doanh nghiệp.
+- **Trụ cột 1 — Viết sẵn Mở đầu CV May đo (Tailored Executive Pitch):** Tự động tạo 2 phiên bản mở đầu CV (3–4 câu) may đo theo `[Company Name] - [Vị trí ứng tuyển]` (Bản 1: Chuyên môn & Kỹ thuật sâu; Bản 2: Tác động Quản lý & Giá trị Kinh doanh), có nút Copy một chạm.
+- **Trụ cột 2 — Khám bệnh Cấu trúc Từng Phần của CV (Section-by-Section CV Audit):** Chẩn đoán và chấm điểm (0–100), trạng thái (`Tốt` / `Cần cải thiện` / `Điểm yếu nghiêm trọng`), nhận xét thực trạng và hướng dẫn hành động cụ thể cho 4 phần trọng yếu: *Tóm tắt mở đầu*, *Kinh nghiệm làm việc*, *Cấu trúc Kỹ năng*, *Học vấn/Chứng chỉ & Định dạng chuẩn ATS*.
+- **Trụ cột 3 — Nâng cấp Viết lại Bullet Point Chuẩn XYZ / STAR:** Mở rộng lên 5–8 bullet quan trọng nhất, hiển thị nhãn từ khóa JD đã lồng ghép (`embeddedKeywords`) và gợi ý chỗ điền số liệu định lượng thực tế (`metricPlaceholders`).
+- Đồng bộ Backend AI Schema (`analysisResponseSchema`), Prompt hướng dẫn (`buildPrompt`), fallback generator và cache key (`phase1-step1.2-v1`) trong `server.ts`.
+- Đồng bộ xuất báo cáo Markdown (`exportMarkdown.ts`) và dịch đa ngữ (`i18n.ts`).
+
+### 2. Files Affected (Danh sách file tạo mới & sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/types.ts` | **Modified** | Định nghĩa các kiểu dữ liệu mới: `SectionAuditStatus`, `SectionAuditItem`, `SectionBySectionAudit`, `ExecutiveSummaryVersion`, `TailoredSummaryPitch`, và mở rộng `BulletRewriteItem` với `embeddedKeywords`, `metricPlaceholders`. |
+| `src/utils/bulletRewriteHelpers.ts` | **Created** | Module helper chuẩn hóa dữ liệu (`normalizeFeature2Data`), suy luận dự phòng tóm tắt may đo (`inferTailoredSummaries`), khám bệnh cấu trúc (`inferSectionAudit`), và cấu hình màu sắc/nhãn (`getSectionStatusConfig`). |
+| `src/utils/bulletRewriteHelpers.test.ts` | **Created** | Unit test và UI/Backend contract check toàn diện cho cả 3 trụ cột của Bước 1.2 (5 test cases, pass 100%). |
+| `src/components/BulletPointRewriteTab.tsx` | **Modified** | Thiết kế lại giao diện hiện đại hiển thị đầy đủ 3 trụ cột: Banner tóm tắt mở đầu may đo với switcher 2 bản, lưới chẩn đoán 4 phần CV kèm thanh tiến độ điểm số, và bảng so sánh bullet point có nhãn từ khóa JD và gợi ý số liệu. |
+| `src/App.tsx` | **Modified** | Truyền đầy đủ props `tailoredSummaries`, `sectionAudit`, `companyName`, `jobTitle`, `cvText`, `jdText` vào `BulletPointRewriteTab`. |
+| `server.ts` | **Modified** | Nâng cấp `analysisResponseSchema` bổ sung schema cho `tailoredSummaries`, `sectionAudit`, `embeddedKeywords`, `metricPlaceholders`; nâng cấp prompt hướng dẫn AI; cập nhật `createFallbackAnalysis` và cache version `phase1-step1.2-v1`. |
+| `src/utils/exportMarkdown.ts` | **Modified** | Cập nhật báo cáo Markdown tải về bao gồm cả 2 bản tóm tắt may đo và bảng khám bệnh 4 mục CV. |
+| `src/utils/i18n.ts` | **Modified** | Bổ sung các bản dịch tiếng Việt và tiếng Anh cho tiêu đề, nhãn trạng thái và nút sao chép của Tab 2. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Định nghĩa schema và kiểu dữ liệu TypeScript trong `src/types.ts` và `server.ts`.
+- [x] **Bước 2:** Xây dựng module helper `bulletRewriteHelpers.ts` và bộ unit test `bulletRewriteHelpers.test.ts`.
+- [x] **Bước 3:** Cập nhật prompt tiếng Việt và tiếng Anh trong `server.ts` cùng fallback generator và cache version.
+- [x] **Bước 4:** Nâng cấp UI component `BulletPointRewriteTab.tsx` và kết nối trong `src/App.tsx`.
+- [x] **Bước 5:** Cập nhật `exportMarkdown.ts` và `i18n.ts`.
+- [x] **Bước 6:** Chạy kiểm thử: `bulletRewriteHelpers.test.ts` (5/5 PASS), `keywordMatchHelpers.test.ts` (4/4 PASS), `jdTitleExtractor.test.ts` & `jdUrlExtractorHelpers.test.ts` (11/11 PASS).
+- [x] **Bước 7:** Build kiểm tra: `vite build` (Exit code 0) & `esbuild server.ts` (Exit code 0).
+- [x] **Bước 8:** Cổng bảo mật Security Audit Gate (`validate-findings.cjs` & `validate-coverage-ledger.cjs`): PASS 100% (0 confirmed vulnerabilities, 2 coverage units valid).
+
+---
+
 ## Đợt 7 (2026-10-29): Tích hợp Cloudflare Security Audit Skill & Thiết lập Cổng Security Audit Gate cho rolematch2
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`

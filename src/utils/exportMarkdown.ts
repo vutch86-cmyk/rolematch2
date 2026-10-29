@@ -1,5 +1,6 @@
 import { CompleteCVAnalysisResponse } from '../types';
 import { normalizeFeature1Data } from './keywordMatchHelpers';
+import { normalizeFeature2Data } from './bulletRewriteHelpers';
 
 export function generateMarkdownReport(
   analysis: CompleteCVAnalysisResponse,
@@ -48,15 +49,28 @@ export function generateMarkdownReport(
     'vi'
   );
 
+  const {
+    clarifyingQuestions: questions,
+    rewrittenBullets: bullets,
+    tailoredSummaries,
+    sectionAudit,
+  } = normalizeFeature2Data(
+    f2,
+    '',
+    '',
+    analysis?.companyName || '',
+    analysis?.jobTitle || '',
+    false
+  );
+
   const missingSkills = f1.summary?.missingKeywordsSkills || [];
   const weakSections = f1.summary?.weakOrVagueSections || [];
   const actions = f1.summary?.immediateActions || [];
-  const questions = f2.clarifyingQuestions || [];
-  const bullets = f2.rewrittenBullets || [];
   const mustFix = f3.top3MustFix || [];
 
   return `# BÁO CÁO PHÂN TÍCH VÀ TỐI ƯU CV CHUẨN TUYỂN DỤNG (SENIOR HR REPORT)
 **Vị trí / Hồ sơ:** ${cvTitle || 'Ứng viên'}
+**Công ty mục tiêu:** ${analysis?.companyName || 'Công ty tuyển dụng'}
 **Ngày thực hiện:** ${new Date().toLocaleDateString('vi-VN')}
 
 ---
@@ -101,21 +115,44 @@ ${normalizedComparisonTable
 
 ---
 
-## TÍNH NĂNG 2: BẢNG VIẾT LẠI CÁC BULLET POINT TRONG CV THEO JD
+## TÍNH NĂNG 2: TỐI ƯU HỒ SƠ, AUDIT CẤU TRÚC & VIẾT LẠI BULLET POINT
 
+### 1. Mở Đầu CV May Đo Riêng Cho Vị Trí (Executive Pitch)
+- **${tailoredSummaries.technicalFocus.title}:**
+  > "${tailoredSummaries.technicalFocus.pitch}"
+  * *Điểm nhấn cốt lõi:* ${tailoredSummaries.technicalFocus.keyHighlights.join(' • ')}
+
+- **${tailoredSummaries.managementFocus.title}:**
+  > "${tailoredSummaries.managementFocus.pitch}"
+  * *Điểm nhấn cốt lõi:* ${tailoredSummaries.managementFocus.keyHighlights.join(' • ')}
+
+### 2. Khám Bệnh Cấu Trúc Từng Phần Của CV (Section-by-Section Audit)
+${sectionAudit.overallSectionRating ? `*Đánh giá chung:* **${sectionAudit.overallSectionRating}**\n` : ''}
+| Mục CV | Điểm số | Trạng thái | Chẩn đoán thực trạng | Hướng khắc phục cụ thể |
+| :--- | :--- | :--- | :--- | :--- |
+${sectionAudit.sections
+  .map(
+    (s) =>
+      `| **${s.sectionName}** | ${s.score}/100 | ${
+        s.status === 'tot' ? '🟢 Tốt' : s.status === 'can_cai_thien' ? '🟡 Cần cải thiện' : '🔴 Điểm yếu nghiêm trọng'
+      } | ${s.comment} | ${s.actionableFix} |`
+  )
+  .join('\n')}
+
+### 3. Bảng Viết Lại Bullet Point Chuẩn XYZ & Lồng Ghép Từ Khóa JD
 ${
   questions.length > 0
-    ? `### Câu hỏi làm rõ:
+    ? `#### Câu hỏi làm rõ:
 ${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}\n`
     : ''
 }
 
-| Bullet gốc | Vấn đề của bullet gốc | Bullet viết lại | Vì sao bản mới tốt hơn |
-| :--- | :--- | :--- | :--- |
+| Bullet gốc trong CV | Vấn đề cần khắc phục | Bullet viết lại (XYZ / STAR) | Từ khóa JD & Chỗ điền số liệu | Vì sao bản mới tốt hơn |
+| :--- | :--- | :--- | :--- | :--- |
 ${bullets
   .map(
     (b) =>
-      `| ${b.originalBullet || ''} | ${b.issueInOriginal || ''} | ${b.rewrittenBullet || ''} | ${b.reasonBetter || ''} |`
+      `| ${b.originalBullet || ''} | ${b.issueInOriginal || ''} | ${b.rewrittenBullet || ''} | **Từ khóa:** ${(b.embeddedKeywords || []).join(', ') || 'N/A'}<br/>**Gợi ý số liệu:** ${(b.metricPlaceholders || []).join(', ') || 'N/A'} | ${b.reasonBetter || ''} |`
   )
   .join('\n')}
 
