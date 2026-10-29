@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  ensureSubstantivePitch,
   inferTailoredSummaries,
   inferSectionAudit,
   normalizeFeature2Data,
@@ -10,7 +11,7 @@ import {
   extractKeyTermsFromJd,
 } from './bulletRewriteHelpers';
 
-test('1. inferTailoredSummaries creates 2 targeted professional summaries (50-150 words) with role and company context', () => {
+test('1. inferTailoredSummaries creates 2 targeted professional summaries (50-200 words) with role and company context', () => {
   const jdText = 'Tuyển dụng Senior DevOps Engineer tại FPT Software. Yêu cầu CI/CD, Docker, Kubernetes, AWS, Agile.';
   const cvText = 'Nguyễn Văn A - 5 năm kinh nghiệm quản trị hệ thống Linux, Docker, CI/CD pipelines.';
 
@@ -28,7 +29,7 @@ test('1. inferTailoredSummaries creates 2 targeted professional summaries (50-15
 
   // Check word count range (50-150 words)
   const techWords = summariesVi.technicalFocus.pitch.trim().split(/\s+/).length;
-  assert.ok(techWords >= 40 && techWords <= 160, `Pitch words should be ~50-150 words, got ${techWords}`);
+  assert.ok(techWords >= 40 && techWords <= 200, `Pitch words should be ~50-200 words, got ${techWords}`);
 
   // Highlights
   assert.ok(summariesVi.technicalFocus.keyHighlights.length >= 3, 'Must have at least 3 technical highlights');
@@ -161,5 +162,27 @@ test('5. UI & Backend Schema Contract check for Phase 1.2 refinements (BulletPoi
   assert.ok(serverSource.includes('suggestedSnippets:'), 'server.ts schema must include suggestedSnippets');
   assert.ok(serverSource.includes('embeddedKeywords'), 'server.ts schema must include embeddedKeywords');
   assert.ok(serverSource.includes('metricPlaceholders'), 'server.ts schema must include metricPlaceholders');
-  assert.ok(serverSource.includes('phase1-step1.2-v1'), 'server.ts must use phase1-step1.2-v1 cache key');
+  assert.ok(serverSource.includes('phase1-step1.2-v2'), 'server.ts must use phase1-step1.2-v1 cache key');
+});
+
+test('6. ensureSubstantivePitch enriches brief summaries (< 50 words) to achieve standard 50-200 words range', () => {
+  // 33-word brief input from real user scenario
+  const briefPitch = 'Chuyên viên tuyển dụng với kinh nghiệm làm việc tại công ty công nghệ, tập trung vào việc tìm kiếm và thu hút nhân tài kỹ thuật thông qua các kênh chuyên biệt.';
+  const briefCount = briefPitch.split(/\s+/).length;
+  assert.ok(briefCount < 50, 'Original brief pitch must be under 50 words');
+
+  const enrichedTechnical = ensureSubstantivePitch(briefPitch, 'technical', 'VNG Corporation', 'Chuyên viên Tuyển dụng IT', false);
+  const techCount = enrichedTechnical.split(/\s+/).length;
+  assert.ok(techCount >= 50 && techCount <= 200, `Enriched technical pitch must be between 50 and 200 words, got ${techCount}`);
+  assert.ok(enrichedTechnical.includes('VNG Corporation'), 'Must mention target company');
+  assert.ok(enrichedTechnical.includes('Chuyên viên Tuyển dụng IT'), 'Must mention target role');
+
+  const enrichedMgmt = ensureSubstantivePitch(briefPitch, 'management', 'TechCorp', 'Talent Lead', true);
+  const mgmtCount = enrichedMgmt.split(/\s+/).length;
+  assert.ok(mgmtCount >= 50 && mgmtCount <= 200, `Enriched English mgmt pitch must be between 50 and 200 words, got ${mgmtCount}`);
+
+  // An already substantive pitch (60 words) should remain unmodified
+  const alreadySubstantive = 'A'.repeat(10).split('').map((_, i) => `Word${i}`).join(' ') + ' ' + 'B'.repeat(55).split('').map((_, i) => `Term${i}`).join(' ');
+  const notChanged = ensureSubstantivePitch(alreadySubstantive, 'technical', 'ABC', 'Role', false);
+  assert.equal(notChanged, alreadySubstantive, 'Pitches >= 50 words must not be modified');
 });
