@@ -171,8 +171,8 @@ export const AuditorReport: React.FC<AuditorReportProps> = ({ feedbackText, lang
             <span className="text-amber-400 font-bold shrink-0">✨ Note:</span>
             <span>
               {lang === 'vi'
-                ? 'Báo cáo phản biện trên đã được Bước 3 (Gemini Synthesizer) tổng hợp và điều chỉnh hoàn thiện vào các bảng kết quả bên dưới.'
-                : 'The above auditor critique report has been synthesized and refined into the final result tables below by Step 3 (Gemini Synthesizer).'}
+                ? 'Báo cáo phản biện trên đã được Bước 3 (Trợ lý AI Synthesizer) tổng hợp và điều chỉnh hoàn thiện vào các bảng kết quả bên dưới.'
+                : 'The above auditor critique report has been synthesized and refined into the final result tables below by Step 3 (AI Synthesizer).'}
             </span>
           </div>
         </div>

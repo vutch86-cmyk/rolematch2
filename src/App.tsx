@@ -557,7 +557,7 @@ export default function App() {
       if (!res.ok) {
         const errMsg = typeof data.error === 'string'
           ? data.error
-          : (data.error?.message || data.message || (lang === 'vi' ? 'Có lỗi xảy ra khi tạo bản CV cập nhật với Gemini.' : 'An error occurred while generating updated CV with Gemini.'));
+          : (data.error?.message || data.message || (lang === 'vi' ? 'Có lỗi xảy ra khi tạo bản CV cập nhật với Trợ lý AI.' : 'An error occurred while generating updated CV with AI Assistant.'));
         throw new Error(errMsg);
       }
 
@@ -847,7 +847,7 @@ export default function App() {
                 <button
                   onClick={() => handleGenerateUpdatedCv()}
                   className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-[1.02]"
-                  title={lang === 'vi' ? 'Cập nhật toàn bộ CV theo các đề xuất ở mục 6 bằng Gemini AI' : 'Generate full updated CV based on Section 6 via Gemini AI'}
+                  title={lang === 'vi' ? 'Cập nhật toàn bộ CV theo các đề xuất ở mục 6 bằng Trợ lý AI' : 'Generate full updated CV based on Section 6 via AI Assistant'}
                 >
                   <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950 shrink-0" />
                   <span>{lang === 'vi' ? 'Cập Nhật CV' : 'Update CV'}</span>

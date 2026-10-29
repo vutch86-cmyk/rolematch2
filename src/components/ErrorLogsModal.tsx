@@ -184,8 +184,8 @@ export const ErrorLogsModal: React.FC<ErrorLogsModalProps> = ({ isOpen, onClose,
                 </div>
                 <p className="text-xs text-slate-400 hidden xs:block">
                   {lang === 'vi'
-                    ? 'Kiểm tra chi tiết lỗi từ Giao diện, Máy chủ API, Upload Tệp & Gemini AI'
-                    : 'Inspect errors from Frontend, Server APIs, File Uploads & Gemini AI'}
+                    ? 'Kiểm tra chi tiết lỗi từ Giao diện, Máy chủ API, Upload Tệp & Dịch vụ AI'
+                    : 'Inspect errors from Frontend, Server APIs, File Uploads & AI Services'}
                 </p>
               </div>
             </div>
