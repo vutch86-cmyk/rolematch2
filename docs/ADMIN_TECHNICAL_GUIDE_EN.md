@@ -2,7 +2,7 @@
 
 > **Document status:** Draft for review and approval. Not yet imported into the repository.
 >
-> **Reviewed source:** `main` at commit `d4a9db0ab5c24b5fc2782677081ca01dd17dda97`.
+> **Reviewed source:** `staging` branch (fully integrating Phase 1: Steps 1.1 -> 1.4 — Candidate Analysis Depth 2.0).
 >
 > **Purpose:** help administrators operate RoleMatch safely while giving CTOs a complete view of product architecture, backend processing, the AI pipeline, data lifecycle, deployment, and production risks.
 
@@ -474,7 +474,12 @@ Recruiter supports up to **15 CVs per batch**. Only successfully extracted CVs c
 3. The frontend calls `POST /api/analyze-cv` with the CV, JD, language, and optional clarifications.
 4. The backend authenticates and reserves **one unit** for a normal user; administrators bypass quota.
 5. The backend executes Draft → Auditor → Synthesizer.
-6. The response includes scores, keywords, evidence, gaps, rewritten bullets, and a recruiter quick scan.
+6. The response conforms to the upgraded schema with 4 comprehensive feature groups and metadata:
+   - `companyName`, `jobTitle`: Extracted directly from JD / AI.
+   - `feature1`: `scores` (including `projectedOverallScore` and 4 `rationale` score breakdowns), `jdKeywords` (with `isMustHave` tracking), `comparisonTable` (`isMustHave` flag, `targetSection` placement guidance, `suggestedPhrasing` snippets with 1-Click copy), `summary`.
+   - `feature2`: `tailoredSummaries` (2 tailored pitches: Technical & Domain Excellence vs Management & Business Impact, 50–200 words), `sectionAudit` (4-section structural CV audit, completion scores 0–100%, statuses, observations, recommendations, grounded `suggestedSnippets`), `rewrittenBullets` (XYZ/STAR formula with `embeddedKeywords` and `metricPlaceholders`), `clarifyingQuestions`.
+   - `feature3`: `recruiterQuickScan` (10s scan, YES/MAYBE/NO decision, strengths, biggest doubt, top 3 fixes), `seniorityFitAssessment` (4-dimension assessment: Seniority Level, Project Complexity, Autonomy/Leadership, Domain Fit), `riskMitigationMatrix` (Identified risks, Recruiter concerns, CV mitigation, Interview talking points).
+   - `feature4`: `interviewPrep` (5–10 practical deep-dive interview questions across 3 categories, including `interviewerIntent`, `starAnswerGuide` grounded in CV, and `pitfallToAvoid`).
 7. The backend saves an `analysis_records` entry; the frontend renders the report and may store browser history.
 
 Quota is currently reserved **before** maximum-length validation and before a cache hit is returned. Oversized requests or cached results can therefore consume units without a corresponding new AI execution.
@@ -555,6 +560,7 @@ Scores include `keywordMatchScore`, `skillMatchScore`, `experienceOutcomeScore`,
 - **EVIDENCE:** directly supported by the CV/JD.
 - **INFERENCE:** reasonable interpretation that remains unconfirmed.
 - **MISSING:** insufficient information; ask instead of inventing.
+- **GROUNDED ANTI-HALLUCINATION GUARD:** All tailored pitches, suggested snippets, rewritten bullets, and STAR interview answer guides are strictly bound by prompt and schema constraints: *MUST be strictly grounded on authentic CV experience, tools, and projects; NEVER fabricate skills, credentials, metrics, or achievements outside the CV*.
 
 Current fallback code can create default skills or achievements such as a **“25% efficiency gain”** and **“saving 15 hours weekly”** without supporting CV evidence. Some paths still label records `COMPLETED`. This is a **P0 product-integrity risk**: never insert unverified achievements, certifications, or skills into a real CV. Some Candidate logs also substitute scores of `75`/`65` when the original score is missing or zero; compare the original report during investigation.
 
@@ -610,7 +616,7 @@ Reservations use hashed request identifiers to reduce duplicate charging. `DEGRA
 |---|---|
 | Authentication | `POST /api/auth/login`, `/register`, `GET /api/auth/me`, `POST /api/auth/logout` |
 | Files | `POST /api/extract-text` |
-| Candidate | `POST /api/analyze-cv` |
+| Candidate | `POST /api/analyze-cv`; `GET/POST/PUT/DELETE /api/candidate/history` (Phase 2 Cloud Sync) |
 | Recruiter | `POST /api/batch-analyze`; `GET/POST/DELETE /api/recruiter/batches` |
 | CV utilities | `POST /api/format-cv-text`, `/api/generate-updated-cv` |
 | Admin users | `GET/POST/DELETE /api/admin/users`; lock, unlock, terminate-session, reset-limit |

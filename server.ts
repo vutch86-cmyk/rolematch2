@@ -16,7 +16,8 @@ import {
   RecruiterBatchOwner,
   RecruiterBatchSummary,
   SavedBatchCandidate,
-  RecruiterBatchDetail
+  RecruiterBatchDetail,
+  HistoryItem
 } from './src/types';
 import { reserveAiQuota, getAiQuotaSettings, updateAiQuotaSettings, getDateKey, getResetAt, normalizeUserId, getUsageDocId, getQuotaHealth, resetUserQuotaForDate, getUserQuotaUsage } from './quotaService';
 
@@ -125,6 +126,7 @@ const ANALYSES_FILE = path.join(DATA_DIR, 'analyses.json');
 const AUDIT_LOGS_FILE = path.join(DATA_DIR, 'audit_logs.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'app_settings.json');
 const RECRUITER_BATCHES_FILE = path.join(DATA_DIR, 'recruiter-batches.json');
+const CANDIDATE_HISTORY_FILE = path.join(DATA_DIR, 'candidate_history.json');
 
 let analysesFileWriter: (records: AnalysisRecordItem[]) => void = (records: AnalysisRecordItem[]) => {
   if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
@@ -528,6 +530,18 @@ function loadAllDataFromFiles() {
     } else {
       fs.writeFileSync(RECRUITER_BATCHES_FILE, JSON.stringify(recruiterBatches, null, 2), 'utf-8');
     }
+
+    // Load Candidate Histories (Phase 2 Cloud Sync)
+    if (fs.existsSync(CANDIDATE_HISTORY_FILE)) {
+      const raw = fs.readFileSync(CANDIDATE_HISTORY_FILE, 'utf-8');
+      const loaded = JSON.parse(raw);
+      if (Array.isArray(loaded)) {
+        candidateHistories.length = 0;
+        candidateHistories.push(...loaded);
+      }
+    } else {
+      fs.writeFileSync(CANDIDATE_HISTORY_FILE, JSON.stringify(candidateHistories, null, 2), 'utf-8');
+    }
     console.log('Successfully loaded baseline data from local files.');
   } catch (err) {
     console.error('Error loading data from files:', err);
@@ -730,7 +744,24 @@ async function syncFromFirestore() {
       throw batchSyncErr;
     }
 
-    console.log(`Firestore Sync Complete: Loaded ${loadedUsers.length} users, ${analysisRecords.length} analysis records, ${auditLogs.length} audit logs, ${uploadedDocuments.length} documents, ${recruiterBatches.length} recruiter batches.`);
+    try {
+      const candidateHistoryCol = collection(db, 'candidate_history');
+      const candidateHistorySnapshot = await getDocs(candidateHistoryCol);
+      if (!candidateHistorySnapshot.empty) {
+        const loadedHistories: StoredCandidateHistoryItem[] = [];
+        candidateHistorySnapshot.forEach((docSnap) => {
+          loadedHistories.push(docSnap.data() as StoredCandidateHistoryItem);
+        });
+        loadedHistories.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        candidateHistories.length = 0;
+        candidateHistories.push(...loadedHistories);
+        saveCandidateHistoriesToFile();
+      }
+    } catch (candHistorySyncErr) {
+      console.warn('Warning: Could not sync candidate_history from Firestore:', candHistorySyncErr);
+    }
+
+    console.log(`Firestore Sync Complete: Loaded ${loadedUsers.length} users, ${analysisRecords.length} analysis records, ${auditLogs.length} audit logs, ${uploadedDocuments.length} documents, ${recruiterBatches.length} recruiter batches, ${candidateHistories.length} candidate histories.`);
   } catch (err) {
     console.error('Error synchronizing data from Firestore:', err);
   }
@@ -1405,6 +1436,28 @@ function sortBatchCandidates(candidates: SavedBatchCandidate[]): SavedBatchCandi
 
 // --- RECRUITER BATCHES REPOSITORY ---
 const recruiterBatches: RecruiterBatchDetail[] = [];
+
+// --- CANDIDATE CLOUD HISTORY REPOSITORY (PHASE 2) ---
+export interface StoredCandidateHistoryItem extends HistoryItem {
+  userId: string;
+  username: string;
+}
+
+const candidateHistories: StoredCandidateHistoryItem[] = [];
+
+function saveCandidateHistoriesToFile(): void {
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+    return;
+  }
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(CANDIDATE_HISTORY_FILE, JSON.stringify(candidateHistories, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.error('Error writing candidate history to file:', err);
+  }
+}
 
 function saveRecruiterBatchesToFile(): void {
   try {
@@ -3454,6 +3507,270 @@ app.delete('/api/recruiter/batches', async (req, res) => {
     res.json({ success: true, deletedCount });
   } catch (err) {
     res.status(500).json({ error: 'Lỗi server nội bộ.' });
+  }
+});
+
+// ==========================================
+// CANDIDATE CLOUD HISTORY API ROUTES (PHASE 2)
+// ==========================================
+
+// 1. GET /api/candidate/history - Fetch user candidate history
+app.get('/api/candidate/history', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập để xem lịch sử phân tích CV.' });
+    }
+
+    // Try fetching from Firestore if available
+    if (db) {
+      try {
+        const historyCol = collection(db, 'candidate_history');
+        const q = query(historyCol, where('userId', '==', currentUser.id));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const cloudItems: StoredCandidateHistoryItem[] = [];
+          snap.forEach((docSnap) => {
+            cloudItems.push(docSnap.data() as StoredCandidateHistoryItem);
+          });
+          // Update in-memory cache for this user
+          const otherUsersItems = candidateHistories.filter((h) => h.userId !== currentUser.id);
+          candidateHistories.length = 0;
+          candidateHistories.push(...cloudItems, ...otherUsersItems);
+          saveCandidateHistoriesToFile();
+        }
+      } catch (firestoreErr) {
+        console.warn('Warning: Firestore read error on /api/candidate/history, falling back to memory/file cache:', firestoreErr);
+      }
+    }
+
+    const userHistories = candidateHistories
+      .filter((h) => h.userId === currentUser.id || h.username?.toLowerCase() === currentUser.username.toLowerCase())
+      .sort((a, b) => (b.updatedAt || b.timestamp || 0) - (a.updatedAt || a.timestamp || 0));
+
+    return res.json({
+      success: true,
+      items: userHistories,
+    });
+  } catch (err: any) {
+    console.error('API /api/candidate/history GET Error:', err);
+    return res.status(500).json({ error: 'Lỗi khi tải lịch sử phân tích CV đám mây.' });
+  }
+});
+
+// 2. POST /api/candidate/history - Save or batch-sync candidate history items
+app.post('/api/candidate/history', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập để lưu lịch sử phân tích CV.' });
+    }
+
+    const { item, items } = req.body || {};
+    const inputItems: HistoryItem[] = Array.isArray(items)
+      ? items
+      : item
+      ? [item]
+      : [];
+
+    if (inputItems.length === 0) {
+      return res.status(400).json({ error: 'Dữ liệu phân tích CV không được để trống.' });
+    }
+
+    let savedCount = 0;
+    const now = Date.now();
+
+    for (const rawItem of inputItems) {
+      if (!rawItem) continue;
+      const historyId = rawItem.id || `cand_hist_${now}_${Math.random().toString(36).substring(2, 7)}`;
+      const storedItem: StoredCandidateHistoryItem = {
+        ...rawItem,
+        id: historyId,
+        userId: currentUser.id,
+        username: currentUser.username,
+        timestamp: rawItem.timestamp || now,
+        updatedAt: rawItem.updatedAt || now,
+        isSynced: true,
+      };
+
+      // Sanitize undefined fields for Firestore
+      const sanitized = removeUndefinedDeep(storedItem);
+
+      // Memory cache update
+      const existingIdx = candidateHistories.findIndex((h) => h.id === historyId);
+      if (existingIdx >= 0) {
+        candidateHistories[existingIdx] = storedItem;
+      } else {
+        candidateHistories.unshift(storedItem);
+      }
+
+      // Firestore persistence
+      if (db) {
+        try {
+          await setDoc(doc(db, 'candidate_history', historyId), sanitized);
+        } catch (fsErr) {
+          console.warn('Warning: Could not save candidate history item to Firestore:', fsErr);
+        }
+      }
+
+      savedCount++;
+    }
+
+    saveCandidateHistoriesToFile();
+
+    recordAuditLog({
+      userEmail: currentUser.username,
+      userRole: currentUser.role === 'admin' ? 'admin' : 'normal',
+      action: 'CANDIDATE_HISTORY_SYNCED',
+      category: 'AI_SERVICE',
+      status: 'success',
+      details: `Đồng bộ ${savedCount} bản ghi phân tích CV của ứng viên ${currentUser.username} lên đám mây.`,
+      ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
+
+    return res.status(201).json({
+      success: true,
+      count: savedCount,
+    });
+  } catch (err: any) {
+    console.error('API /api/candidate/history POST Error:', err);
+    return res.status(500).json({ error: 'Lỗi khi lưu lịch sử phân tích CV lên đám mây.' });
+  }
+});
+
+// 3. PUT /api/candidate/history/:id - Rename or update candidate history item
+app.put('/api/candidate/history/:id', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập.' });
+    }
+
+    const { id } = req.params;
+    const { companyName, jobTitle, title, isCustomTitle } = req.body || {};
+
+    const existingIdx = candidateHistories.findIndex((h) => h.id === id);
+    if (existingIdx === -1) {
+      return res.status(404).json({ error: 'Không tìm thấy bản ghi lịch sử phân tích CV.' });
+    }
+
+    const item = candidateHistories[existingIdx];
+    if (item.userId !== currentUser.id && currentUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Bạn không có quyền chỉnh sửa bản ghi này.' });
+    }
+
+    if (companyName !== undefined) item.companyName = typeof companyName === 'string' ? companyName.trim() : item.companyName;
+    if (jobTitle !== undefined) item.jobTitle = typeof jobTitle === 'string' ? jobTitle.trim() : item.jobTitle;
+    if (title !== undefined) item.title = typeof title === 'string' ? title.trim() : item.title;
+    if (isCustomTitle !== undefined) item.isCustomTitle = Boolean(isCustomTitle);
+    item.updatedAt = Date.now();
+
+    saveCandidateHistoriesToFile();
+
+    if (db) {
+      try {
+        await updateDoc(doc(db, 'candidate_history', id), {
+          companyName: item.companyName || '',
+          jobTitle: item.jobTitle || '',
+          title: item.title,
+          isCustomTitle: item.isCustomTitle,
+          updatedAt: item.updatedAt,
+        });
+      } catch (fsErr) {
+        console.warn('Warning: Could not update candidate history in Firestore:', fsErr);
+      }
+    }
+
+    return res.json({
+      success: true,
+      item,
+    });
+  } catch (err: any) {
+    console.error('API /api/candidate/history/:id PUT Error:', err);
+    return res.status(500).json({ error: 'Lỗi khi cập nhật bản ghi lịch sử CV.' });
+  }
+});
+
+// 4. DELETE /api/candidate/history/:id - Delete single candidate history item
+app.delete('/api/candidate/history/:id', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập.' });
+    }
+
+    const { id } = req.params;
+    const existingIdx = candidateHistories.findIndex((h) => h.id === id);
+    if (existingIdx === -1) {
+      return res.status(404).json({ error: 'Không tìm thấy bản ghi lịch sử phân tích CV.' });
+    }
+
+    const item = candidateHistories[existingIdx];
+    if (item.userId !== currentUser.id && currentUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Bạn không có quyền xóa bản ghi này.' });
+    }
+
+    candidateHistories.splice(existingIdx, 1);
+    saveCandidateHistoriesToFile();
+
+    if (db) {
+      try {
+        await deleteDoc(doc(db, 'candidate_history', id));
+      } catch (fsErr) {
+        console.warn('Warning: Could not delete candidate history from Firestore:', fsErr);
+      }
+    }
+
+    return res.json({ success: true, message: 'Đã xóa bản ghi thành công.' });
+  } catch (err: any) {
+    console.error('API /api/candidate/history/:id DELETE Error:', err);
+    return res.status(500).json({ error: 'Lỗi khi xóa bản ghi lịch sử CV.' });
+  }
+});
+
+// 5. DELETE /api/candidate/history - Clear all candidate history for user
+app.delete('/api/candidate/history', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập.' });
+    }
+
+    const userItems = candidateHistories.filter((h) => h.userId === currentUser.id);
+    const deletedCount = userItems.length;
+
+    // Remove user items from in-memory cache
+    const remaining = candidateHistories.filter((h) => h.userId !== currentUser.id);
+    candidateHistories.length = 0;
+    candidateHistories.push(...remaining);
+    saveCandidateHistoriesToFile();
+
+    if (db) {
+      try {
+        for (const item of userItems) {
+          await deleteDoc(doc(db, 'candidate_history', item.id));
+        }
+      } catch (fsErr) {
+        console.warn('Warning: Could not clear candidate history in Firestore:', fsErr);
+      }
+    }
+
+    recordAuditLog({
+      userEmail: currentUser.username,
+      userRole: currentUser.role === 'admin' ? 'admin' : 'normal',
+      action: 'CANDIDATE_HISTORY_CLEARED',
+      category: 'USER_MGMT',
+      status: 'warning',
+      details: `Đã xóa toàn bộ ${deletedCount} bản ghi lịch sử phân tích CV của ứng viên ${currentUser.username}.`,
+      ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
+
+    return res.json({ success: true, deletedCount });
+  } catch (err: any) {
+    console.error('API /api/candidate/history DELETE Error:', err);
+    return res.status(500).json({ error: 'Lỗi khi xóa toàn bộ lịch sử CV.' });
   }
 });
 

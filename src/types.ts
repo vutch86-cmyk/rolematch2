@@ -275,9 +275,13 @@ export interface HistoryItem {
   jdFileName?: string;
   isCustomTitle?: boolean;
   timestamp: number;
+  updatedAt?: number;
+  userId?: string;
+  isSynced?: boolean;
   cvText: string;
   jdText: string;
   analysis: CompleteCVAnalysisResponse;
+  previousAnalysis?: CompleteCVAnalysisResponse;
   score?: number | null;
 }
 
@@ -496,4 +500,53 @@ export interface RecruiterBatchDetail
   extends RecruiterBatchSummary {
   candidates: SavedBatchCandidate[];
 }
+
+// ==========================================
+// PHASE 2: QUICK RE-EVALUATE & CLOUD SYNC TYPES
+// ==========================================
+
+export interface ScoreDeltaItem {
+  before: number;
+  after: number;
+  delta: number;
+}
+
+export interface ReEvaluationScoreDelta {
+  overallScore: ScoreDeltaItem;
+  keywordScore: ScoreDeltaItem;
+  skillScore: ScoreDeltaItem;
+  experienceScore: ScoreDeltaItem;
+}
+
+export interface ReEvaluationComparison {
+  beforeAnalysis: CompleteCVAnalysisResponse;
+  afterAnalysis: CompleteCVAnalysisResponse;
+  scoresDelta: ReEvaluationScoreDelta;
+  resolvedRedFlags: string[];
+  remainingRedFlags: string[];
+  newStrengths: string[];
+  scoreIncreased: boolean;
+  overallImprovementPct: number;
+}
+
+export type ExportDocumentType =
+  | 'full_report_docx'
+  | 'full_report_pdf'
+  | 'full_report_md'
+  | 'cv_docx'
+  | 'cv_pdf'
+  | 'cv_txt';
+
+export interface CloudCandidateHistorySyncPayload {
+  items: HistoryItem[];
+}
+
+export interface CloudCandidateHistoryResponse {
+  success: boolean;
+  items: HistoryItem[];
+  syncedCount?: number;
+  message?: string;
+  error?: string;
+}
+
 
