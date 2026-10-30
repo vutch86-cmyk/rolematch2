@@ -617,7 +617,7 @@ Reservations use hashed request identifiers to reduce duplicate charging. `DEGRA
 | Authentication | `POST /api/auth/login`, `/register`, `GET /api/auth/me`, `POST /api/auth/logout` |
 | Files | `POST /api/extract-text` |
 | Candidate | `POST /api/analyze-cv`; `GET/POST/PUT/DELETE /api/candidate/history` (Phase 2 Cloud Sync) |
-| Recruiter | `POST /api/batch-analyze`; `GET/POST/DELETE /api/recruiter/batches` |
+| Recruiter | `POST /api/batch-analyze`; `GET/POST/PUT/DELETE /api/recruiter/batches` (Phase 3: Update weights, knockout criteria, pipeline stage, notes, ratings) |
 | CV utilities | `POST /api/format-cv-text`, `/api/generate-updated-cv` |
 | Admin users | `GET/POST/DELETE /api/admin/users`; lock, unlock, terminate-session, reset-limit |
 | Admin data | `/api/admin/stats`, `/audit-logs`, `/documents`, `/analyses` |

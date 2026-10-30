@@ -18,6 +18,13 @@ interface CandidateResult {
   errorMessage?: string;
   cvText?: string;
   fullAnalysis?: any;
+  pipelineStage?: string;
+  notes?: string;
+  rating?: number;
+  tags?: string[];
+  weightedScore?: number | null;
+  isKnockedOut?: boolean;
+  knockoutReason?: string;
 }
 
 interface SaveBatchModalProps {
@@ -29,6 +36,8 @@ interface SaveBatchModalProps {
   jdText: string;
   jdFileName: string | null;
   results: CandidateResult[];
+  weights?: any;
+  knockoutCriteria?: any;
   onSaveSuccess: (savedBatch: RecruiterBatchDetail) => void;
 }
 
@@ -115,6 +124,8 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
   jdText,
   jdFileName,
   results,
+  weights,
+  knockoutCriteria,
   onSaveSuccess,
 }) => {
   const [batchName, setBatchName] = useState('');
@@ -180,6 +191,13 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
         errorMessage: c.errorMessage,
         cvText: c.cvText,
         fullAnalysis: c.fullAnalysis,
+        pipelineStage: c.pipelineStage || 'INBOX',
+        notes: c.notes,
+        rating: c.rating,
+        tags: c.tags,
+        weightedScore: c.weightedScore,
+        isKnockedOut: c.isKnockedOut,
+        knockoutReason: c.knockoutReason
       }));
 
       const payload = {
@@ -188,6 +206,8 @@ export const SaveBatchModal: React.FC<SaveBatchModalProps> = ({
         roleTitle: roleTitle.trim(),
         jdText,
         jdFileName: jdFileName || undefined,
+        weights,
+        knockoutCriteria,
         candidates: preparedCandidates,
       };
 
