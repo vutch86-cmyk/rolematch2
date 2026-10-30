@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng RoleMatch dành cho Nhà tuyển dụng
 
-> **Mục tiêu:** Giúp Nhà tuyển dụng và Hiring Manager đọc đúng báo cáo phân tích AI, làm chủ ma trận tầm vóc 4 trục, nhận diện rủi ro hồ sơ và ứng dụng bộ câu hỏi phỏng vấn thực chiến theo mô hình STAR để đưa ra quyết định tuyển dụng chuẩn xác, có kiểm chứng.
+> **Mục tiêu:** Giúp Nhà tuyển dụng và Hiring Manager làm chủ các công cụ sàng lọc nâng cao của **Recruiter Module 2.0 (Phase 3)**: tùy chỉnh trọng số chấm điểm đa chiều, thiết lập tiêu chí loại trực tiếp (Knock-out), quản lý pipeline tuyển dụng, đánh giá tầm vóc 4 trục và ứng dụng bộ câu hỏi phỏng vấn thực chiến theo mô hình STAR để ra quyết định tuyển dụng chuẩn xác, có kiểm chứng.
 
 ---
 
@@ -9,7 +9,9 @@
 RoleMatch hỗ trợ nhà tuyển dụng và bộ phận thu hút nhân tài (Talent Acquisition):
 
 - **Phân tích hàng loạt CV theo cùng một JD:** Tải lên tối đa 15 CV hoặc tệp nén ZIP để đối chiếu công bằng, nhất quán theo cùng tiêu chuẩn tuyển dụng.
-- **Bảng xếp hạng (Leaderboard) & Thống kê trực quan:** Tự động xếp hạng ứng viên dựa trên mức độ phù hợp tổng thể, tỷ lệ đề xuất phỏng vấn (`YES` / `MAYBE` / `NO`) và phân bố năng lực toàn batch.
+- **Tùy biến Trọng số Chấm điểm & Xếp hạng Động (Custom Scoring Weights):** Tự do phân bổ tỷ trọng phần trăm giữa Từ khóa, Kỹ năng và Kinh nghiệm (hoặc dùng các preset mẫu) để tính điểm có trọng số (`weightedScore`) và tái sắp xếp bảng xếp hạng.
+- **Bộ lọc Loại trực tiếp (Knock-out Criteria):** Thiết lập ngưỡng điểm sàn tối thiểu và tự động loại các hồ sơ thiếu kỹ năng bắt buộc cốt lõi (`Must-Have`), kèm lý do vi phạm minh bạch.
+- **Quản lý Pipeline Tuyển dụng & Đánh giá Nội bộ:** Phân loại ứng viên theo 5 giai đoạn (`Mới nạp`, `Sơ tuyển`, `Phỏng vấn`, `Offer`, `Từ chối`), chấm điểm sao (1–5 sao), ghi chú nội bộ và gắn nhãn (tags).
 - **Đánh giá tầm vóc 4 trục (Seniority Fit) & Ma trận rủi ro hồ sơ:** Đánh giá cấp bậc, độ phức tạp dự án, mức độ tự chủ/lãnh đạo, độ khớp ngành nghề và các điểm nghi ngại (Red Flags) của từng ứng viên.
 - **Cẩm nang phỏng vấn thực chiến (5–10 câu hỏi STAR):** Trang bị sẵn bộ câu hỏi đào sâu bám sát khoảng trống thực tế của từng hồ sơ, giải mã ý đồ phỏng vấn và cạm bẫy ứng viên để chuẩn bị vòng phỏng vấn chuyên nghiệp.
 - **Lưu trữ và mở lại báo cáo ngoại tuyến:** Lưu đợt tuyển dụng vào hệ thống để mở lại và xem chi tiết bất kỳ lúc nào mà không cần tốn thêm lượt phân tích AI.
@@ -23,90 +25,114 @@ RoleMatch hỗ trợ nhà tuyển dụng và bộ phận thu hút nhân tài (Ta
 
 ```mermaid
 flowchart LR
-    A["1. Nhập JD & Tải CVs/ZIP<br/>(File / URL / Drag-Drop)"] --> B["2. Bắt Đầu Phân Tích Batch<br/>(AI Assistant Pool)"]
-    B --> C["3. Bảng Xếp Hạng Batch<br/>(Leaderboard & Charts)"]
-    C --> D["4. Đọc Chi Tiết Ứng Viên<br/>(4 Trục Tầm Vóc & Rủi Ro)"]
-    D --> E["5. Chuẩn Bị Phỏng Vấn<br/>(Bộ 5-10 Câu Hỏi STAR)"]
-    E --> F["6. Lưu Batch & Xuất Báo Cáo<br/>(Markdown / Offline View)"]
+    A["1. Nhập JD & Tải CVs/ZIP<br/>(File / URL / Drag-Drop)"] --> B["2. Phân Tích Batch<br/>(AI Assistant Pool)"]
+    B --> C["3. Tùy Chỉnh Trọng Số & Knock-out<br/>(Recruiter 2.0 Scoring)"]
+    C --> D["4. Bảng Xếp Hạng & Pipeline<br/>(Inbox -> Shortlist -> Offer)"]
+    D --> E["5. Đọc Chi Tiết & Phỏng Vấn<br/>(4 Trục Tầm Vóc & STAR)"]
+    E --> F["6. Lưu Batch & Đồng Bộ Đám Mây<br/>(Firestore / Export Markdown)"]
 ```
 
 1. Chuyển sang chế độ **Nhà tuyển dụng / Recruiter**.
-2. Cung cấp Mô tả công việc (JD) rõ ràng: dán văn bản trực tiếp, kéo thả tệp tải lên, hoặc bấm **Dán Link JD / Import Link** để trích xuất tự động từ tin tuyển dụng online (LinkedIn, ITviec, TopCV...). Nếu trang yêu cầu đăng nhập, hệ thống sẽ mở cửa sổ an toàn để bạn đăng nhập và hỗ trợ nút 1-chạm đọc từ Clipboard.
+2. Cung cấp Mô tả công việc (JD) rõ ràng: dán văn bản trực tiếp, kéo thả tệp tải lên, hoặc bấm **Dán Link JD / Import Link** để trích xuất tự động từ tin tuyển dụng online (LinkedIn, ITviec, TopCV...).
 3. Tải lên danh sách CV cần phân tích (tối đa 15 tệp riêng lẻ hoặc 1 tệp `.zip`).
 4. Bấm **Bắt Đầu Phân Tích / Start Analysis**.
-5. Đọc tổng quan đợt phân tích: tỷ lệ phỏng vấn (`YES` / `MAYBE` / `NO`), phân bố điểm số và danh sách Top 10 ứng viên.
-6. Mở chi tiết từng ứng viên để kiểm tra bằng chứng, khoảng trống Must-Have, đánh giá tầm vóc 4 trục và ma trận rủi ro hồ sơ.
-7. Mở **Cẩm nang phỏng vấn thực chiến (5–10 câu)** của ứng viên để chuẩn bị kịch bản phỏng vấn chuyên sâu theo mô hình STAR.
-8. Ghi nhận quyết định tuyển dụng; sau đó bấm **Lưu đợt này** hoặc **Xuất Báo Cáo (Markdown)**.
+5. **Cấu hình Trọng số & Tiêu chí Knock-out:** Chọn preset phân bổ điểm phù hợp với vị trí tuyển dụng hoặc điều chỉnh tỷ trọng và ngưỡng điểm sàn.
+6. **Điều phối Pipeline Tuyển dụng:** Cập nhật trạng thái vòng tuyển dụng, xếp hạng sao, thêm ghi chú phỏng vấn và gắn nhãn cho ứng viên sáng giá.
+7. Mở chi tiết từng ứng viên để kiểm tra bằng chứng, khoảng trống Must-Have, đánh giá tầm vóc 4 trục và ma trận rủi ro hồ sơ.
+8. Mở **Cẩm nang phỏng vấn thực chiến (5–10 câu STAR)** để chuẩn bị kịch bản phỏng vấn chuyên sâu.
+9. Bấm **Lưu đợt này** để lưu toàn bộ dữ liệu (bao gồm cả trọng số, knock-out và pipeline) lên hệ thống.
 
 ---
 
-## 3. Chuẩn bị dữ liệu trước khi phân tích
+## 3. Tùy Chỉnh Trọng Số Chấm Điểm & Tiêu Chí Knock-out (Phase 3)
 
-### 3.1. Chuẩn bị JD
+Hệ thống cung cấp cơ chế **Recruiter Scoring 2.0** giúp nhà tuyển dụng linh hoạt điều chỉnh cách đánh giá phù hợp với từng vị trí công việc:
 
-JD càng rõ thì kết quả càng hữu ích. Trước khi phân tích, bạn nên kiểm tra:
+### 3.1. Các Preset Trọng Số Mẫu
 
-- Chức danh và phạm vi công việc có nhất quán hay không.
-- Các yêu cầu bắt buộc (**Must-Have**) có được phân biệt rõ với tiêu chí điểm cộng (**Nice-to-Have**) hay không.
-- Kinh nghiệm được mô tả bằng trách nhiệm, phạm vi và kết quả mong đợi, không chỉ bằng số năm thâm niên thuần túy.
-- Kỹ năng công nghệ, công cụ, ngành nghề đặc thù có thực sự cần thiết hay không.
+| Preset | Tỷ trọng (Từ khóa / Kỹ năng / Kinh nghiệm) | Phù hợp cho vị trí |
+|---|:---:|---|
+| **Cân bằng chuẩn (Balanced Standard)** | **33% / 34% / 33%** | Đa số các vị trí chuyên môn tổng quát. |
+| **Ưu tiên Kinh nghiệm & Tác động** | **20% / 30% / 50%** | Senior, Tech Lead, Engineering Manager, Giám đốc khối. |
+| **Ưu tiên Năng lực Kỹ thuật** | **20% / 50% / 30%** | Chuyên gia R&D, System Architect, Specialist công nghệ mới. |
+| **Tùy chỉnh linh hoạt (Custom)** | Tự do cấu hình (tổng = 100%) | Các bài toán tuyển dụng đặc thù của doanh nghiệp. |
 
-### 3.2. Chuẩn bị CV
+Điểm có trọng số (`weightedScore`) được tính toán tức thì và tự động tái xếp hạng thứ bậc ứng viên trên bảng xếp hạng mà không cần phân tích lại AI.
 
-- Đảm bảo các tệp CV không bị khóa mật khẩu hoặc hỏng cấu trúc. Hỗ trợ định dạng `.pdf`, `.docx`, `.doc`, `.txt`, `.rtf`, `.md`.
-- Với CV dạng ảnh hoặc PDF scan, hệ thống tự động kích hoạt Gemini Vision OCR để nhận diện nội dung.
-- Các hồ sơ lỗi định dạng hoặc không đọc được chữ sẽ được đánh dấu rõ ràng trên giao diện và không bị trừ vào lượt quota của bạn.
+### 3.2. Tiêu Chí Loại Trực Tiếp (Knock-out Criteria)
+
+Khi bật các điều kiện loại trực tiếp, ứng viên không đáp ứng sẽ được tự động gắn nhãn **Bị loại (Knocked Out)** kèm lý do cụ thể và được đưa xuống cuối bảng xếp hạng:
+- **Ngưỡng điểm tổng thể tối thiểu:** Ví dụ điểm dưới `60` sẽ bị đánh dấu không đạt chuẩn sơ tuyển.
+- **Ngưỡng điểm kỹ năng hoặc kinh nghiệm tối thiểu:** Đảm bảo ứng viên phải đạt mức sàn năng lực nhất định.
+- **Bắt buộc đáp ứng tiêu chí cốt lõi (Require Must-Have Skills):** Tự động phát hiện nếu ứng viên còn thiếu bất kỳ kỹ năng nào được đánh dấu là `Must-Have / Knock-out` trong JD.
 
 ---
 
-## 4. Hiểu đúng điểm số và mức độ phù hợp
+## 4. Quản Lý Pipeline Tuyển Dụng & Ghi Chú Đánh Giá (Phase 3)
 
-### 4.1. Bốn nhóm điểm đánh giá
+RoleMatch tích hợp quy trình theo dõi ứng viên (Candidate Pipeline Management) trực tiếp trong mỗi đợt tuyển dụng:
+
+### 4.1. 5 Giai Đoạn Tuyển Dụng Chuẩn Hóa
+
+```mermaid
+stateDiagram-v2
+    [*] --> INBOX: Mới nạp (Mặc định)
+    INBOX --> SHORTLIST: Duyệt vòng sơ tuyển
+    SHORTLIST --> INTERVIEW: Mời phỏng vấn
+    INTERVIEW --> OFFER: Đề nghị tuyển dụng (Offer)
+    INBOX --> REJECTED: Không phù hợp
+    SHORTLIST --> REJECTED: Không phù hợp
+    INTERVIEW --> REJECTED: Không phù hợp
+```
+
+- **Mới nạp (`INBOX`):** Hồ sơ vừa phân tích xong, đang chờ HR đọc lướt.
+- **Duyệt vòng sơ tuyển (`SHORTLIST`):** Hồ sơ đạt chuẩn, chuyển cho Hiring Manager xem xét.
+- **Mời phỏng vấn (`INTERVIEW`):** Ứng viên được chọn để tiến hành phỏng vấn trực tiếp.
+- **Đề nghị tuyển dụng (`OFFER`):** Ứng viên vượt qua các vòng phỏng vấn, chuẩn bị nhận offer.
+- **Không phù hợp (`REJECTED`):** Hồ sơ bị từ chối hoặc không đạt yêu cầu.
+
+### 4.2. Công Cụ Đánh Giá Nội Bộ Của Tuyển Dụng
+
+- **Đánh giá sao (Rating 1–5):** Đánh giá nhanh chất lượng hồ sơ theo cảm nhận của người sàng lọc.
+- **Ghi chú nội bộ (Internal Notes):** Lưu lại thông tin lương kỳ vọng, thời gian có thể nhận việc hoặc ấn tượng khi gọi điện sơ tuyển.
+- **Gắn nhãn (Candidate Tags):** Gắn các nhãn nhanh như `Top Candidate`, `Tech Lead`, `Culture Fit`, `Urgent Hire`, `High Salary Expectation`.
+- **Giao diện Kanban Trực Quan (5 Cột Tuyển Dụng):** Hỗ trợ chuyển đổi 1-click giữa Bảng Xếp Hạng truyền thống và Bảng Kanban 5 cột tuyển dụng, giúp quản lý tiến độ ứng viên trực quan và thuận tiện.
+
+Mọi thay đổi về Pipeline, Trọng số, Ghi chú và Đánh giá đều được cập nhật và lưu trữ qua endpoint `PUT /api/recruiter/batches/:id`.
+
+---
+
+## 5. Hiểu Đúng Điểm Số và Mức Độ Phù Hợp
+
+### 5.1. Bốn nhóm điểm đánh giá
 
 | Chỉ số | Ý nghĩa | Lưu ý cho Nhà tuyển dụng |
 |---|---|---|
-| **Overall Score** | Điểm phù hợp tổng thể đa chiều từ 0–100 do AI đánh giá độc lập từ toàn bộ CV và JD. | Không phải xác suất ứng viên sẽ nhận việc; không phải trung bình cộng đơn thuần của 3 điểm thành phần. |
+| **Overall Score** | Điểm phù hợp tổng thể đa chiều từ 0–100 do AI đánh giá độc lập từ toàn bộ CV và JD. | Không phải xác suất ứng viên sẽ nhận việc; phản ánh độ khớp ban đầu của hồ sơ. |
+| **Weighted Score** | Điểm tổng hợp sau khi áp dụng trọng số chấm điểm tùy chỉnh (`weights`). | Dùng để xếp hạng thực tế theo ưu tiên tuyển dụng của tổ chức. |
 | **Keyword Alignment** | Mức độ tương đồng về thuật ngữ, công nghệ, công cụ chuyên ngành. | Điểm thấp có thể do ứng viên dùng từ đồng nghĩa; cần kiểm tra kỹ năng chuyển đổi. |
 | **Experience Fit** | Mức độ phù hợp về số năm công tác, quy mô dự án và thành tựu kết quả đã chứng minh. | Đánh giá mức độ vững vàng thực chiến và trách nhiệm trực tiếp của ứng viên. |
 | **Skills Fit** | Mức độ đáp ứng của hệ thống kỹ năng cứng và kỹ năng mềm theo yêu cầu vai trò. | Cho biết ứng viên đã có đủ bộ công cụ cần thiết để hoàn thành công việc hay chưa. |
 
-### 4.2. Thang phân loại mức độ phù hợp
+### 5.2. Thang phân loại mức độ phù hợp
 
-| Overall Score | Mức hiển thị | Khuyến nghị hành động cho HR |
+| Điểm số | Mức hiển thị | Khuyến nghị hành động cho HR |
 |:---:|---|---|
-| 85–100 | **Phù hợp rất cao / Very High** | Ưu tiên mời phỏng vấn sớm; đối chiếu các tiêu chí Must-Have và chuẩn bị câu hỏi chuyên môn sâu. |
+| 85–100 | **Phù hợp rất cao / Very High** | Chuyển ngay sang `SHORTLIST` hoặc `INTERVIEW`; chuẩn bị câu hỏi chuyên môn sâu. |
 | 70–84 | **Phù hợp cao / High** | Hồ sơ sáng giá; cần kiểm tra các khoảng trống cụ thể và kế hoạch thích ứng nghiệp vụ. |
 | 50–69 | **Phù hợp trung bình / Medium** | Cần đánh giá kỹ khả năng chuyển đổi kỹ năng hoặc năng lực học hỏi; dùng screening call để thẩm định. |
-| Dưới 50 | **Phù hợp thấp / Low** | Khoảng cách năng lực lớn; chỉ cân nhắc nếu thị trường nhân sự quá khan hiếm hoặc ứng viên có tố chất đặc biệt. |
+| Dưới 50 | **Phù hợp thấp / Low** | Khoảng cách năng lực lớn; chỉ cân nhắc nếu thị trường nhân sự quá khan hiếm. |
 | Không có điểm | **Chưa có dữ liệu / Not available** | File bị lỗi nhận dạng hoặc xử lý; cần kiểm tra thủ công hoặc phân tích lại. |
 
 ---
 
-## 5. Đọc trang tổng quan của batch
+## 6. Đọc Chi Tiết Từng Ứng Viên & Đánh Giá Tầm Vóc 4 Trục
 
-### 5.1. Các số liệu tổng quan
-
-- Tổng số hồ sơ đã xử lý thành công vs thất bại.
-- Phân bổ đề xuất: số lượng hồ sơ `YES`, `MAYBE`, `NO`.
-- Điểm trung bình và điểm cao nhất của cả đợt tuyển dụng.
-
-### 5.2. Biểu đồ phân bố đề xuất & Mức độ phù hợp
-
-- **YES — Đề xuất phỏng vấn:** Đủ tín hiệu mạnh để ưu tiên xếp lịch phỏng vấn.
-- **MAYBE — Cần xem xét thêm:** Có tiềm năng tốt nhưng tồn tại một vài điểm nghi vấn cần phỏng vấn làm rõ.
-- **NO — Không ưu tiên:** Mức độ phù hợp thấp hoặc thiếu các điều kiện tiên quyết (Must-Have).
-
----
-
-## 6. Đọc chi tiết từng ứng viên
-
-Khi chọn một ứng viên từ danh sách bảng xếp hạng, bạn có thể xem báo cáo tóm tắt hoặc mở chế độ **Toàn màn hình / Xem chi tiết ứng viên (Candidate Deep-Dive)** với đầy đủ 4 tab phân tích:
+Khi chọn một ứng viên từ danh sách bảng xếp hạng, bạn có thể xem báo cáo tóm tắt hoặc mở chế độ **Toàn màn hình / Xem chi tiết ứng viên (Candidate Deep-Dive)**:
 
 ### A. Đánh giá Tầm vóc 4 trục (Seniority & Scope Fit Assessment)
 
 Giúp nhà tuyển dụng thẩm định nhanh xem ứng viên có thực sự "đúng tầm" với vị trí hay không:
-
 1. **Cấp bậc & Thâm niên:** Đối chiếu xem ứng viên đang ở cấp độ nào (Junior, Mid, Senior, Lead, Manager) so với mong đợi của JD.
 2. **Quy mô & Độ phức tạp dự án:** Đánh giá quy mô hệ thống, số lượng người dùng hoặc ngân sách dự án ứng viên từng phụ trách.
 3. **Phạm vi Tự chủ / Lãnh đạo:** Xác định ứng viên phù hợp làm việc độc lập (IC) hay có năng lực dẫn dắt, quản lý đội nhóm.
@@ -115,7 +141,6 @@ Giúp nhà tuyển dụng thẩm định nhanh xem ứng viên có thực sự "
 ### B. Ma trận Rủi ro & Cách Hóa giải (Risk Mitigation Matrix)
 
 Phát hiện các điểm nghi ngờ (Red Flags) thường gặp và cung cấp góc nhìn đa chiều:
-
 - **Rủi ro nhận diện:** Nhảy việc, chuyển ngành, hụt cấp bậc, thiếu số liệu đo lường, khoảng trống thời gian.
 - **Góc nhìn e ngại của HR:** Lý do vì sao đây là điểm rủi ro đối với tổ chức.
 - **Chiến lược hóa giải trên CV:** Cách ứng viên trình bày để giải tỏa lo lắng.
@@ -128,7 +153,7 @@ Phát hiện các điểm nghi ngờ (Red Flags) thường gặp và cung cấp 
 
 ---
 
-## 7. Sử dụng Cẩm nang Phỏng vấn Thực chiến (STAR)
+## 7. Sử Dụng Cẩm Nang Phỏng Vấn Thực Chiến (STAR)
 
 RoleMatch trang bị cho Nhà tuyển dụng một công cụ đắc lực: **Bộ 5–10 câu hỏi phỏng vấn xoáy sâu** được tạo riêng cho từng ứng viên theo mô hình STAR:
 
@@ -147,26 +172,37 @@ Mỗi câu hỏi cung cấp:
 
 ---
 
-## 8. So sánh đa ứng viên
+## 8. Ma Trận So Sánh Đa Chiều & Bộ Kit Phỏng Vấn HR (Deep-Dive Comparison Matrix)
 
-- Hỗ trợ chọn tối đa **3 ứng viên** để đặt lên bàn cân đối chiếu trực diện.
-- So sánh song song điểm số thành phần, đề xuất AI, điểm mạnh nổi bật, rủi ro chính và mức độ đáp ứng các yêu cầu bắt buộc của từng người.
-- Giúp hội đồng tuyển dụng đưa ra quyết định dựa trên bằng chứng minh bạch, loại bỏ định kiến cá nhân.
+- **So sánh tối đa 5 ứng viên cùng lúc:** Đặt lên bàn cân trực diện từ 2 đến 5 hồ sơ xuất sắc nhất (hỗ trợ nút nhanh *So sánh Top 3* và *So sánh Top 5*).
+- **Ma trận đối chiếu chuyên sâu:**
+  - Điểm tổng thể gốc vs Điểm theo trọng số tùy chỉnh (`weightedScore`).
+  - Kiểm tra điều kiện loại trực tiếp (`Knock-out Check`) và cảnh báo lý do vi phạm.
+  - Đánh giá Tầm vóc & Cấp bậc (Seniority & Scope Fit).
+  - Đối đầu Lợi thế vượt trội (Key Edge) vs Mối e ngại / Rủi ro lớn nhất (Critical Concern).
+  - Đối chiếu danh sách các tiêu chí JD chưa có bằng chứng trong CV.
+- **Bộ Kịch Bản Phỏng Vấn Thẩm Định Dành Riêng Cho HR (HR Interview Kit):**
+  - Tự động tập hợp các câu hỏi phỏng vấn đào sâu vào khoảng trống thực tế của từng ứng viên được chọn so sánh.
+  - Đi kèm checklist *"Điều HR cần lắng nghe trong câu trả lời (What to listen for)"* và *"Cờ đỏ Red Flags cần cảnh giác"* khi ứng viên trả lời.
+- **Xuất Báo Cáo So Sánh:** Cho phép tải xuống file Markdown (`.md`) hoàn chỉnh hoặc sao chép nhanh vào clipboard để gửi cho ban giám đốc hoặc hội đồng tuyển dụng.
 
 ---
 
-## 9. Lưu, mở lại và xuất báo cáo
+## 9. Lưu, Mở Lại và Xuất Báo Cáo
 
-- **Lưu đợt tuyển dụng (Save Batch):** Lưu lại toàn bộ dữ liệu batch (gồm JD, danh sách ứng viên, điểm số, thứ hạng và toàn bộ báo cáo chi tiết) vào cơ sở dữ liệu.
+- **Lưu đợt tuyển dụng (Save Batch):** Lưu lại toàn bộ dữ liệu batch (gồm JD, danh sách ứng viên, điểm số, trọng số chấm điểm, tiêu chí knock-out, trạng thái pipeline và toàn bộ báo cáo chi tiết) vào cơ sở dữ liệu.
 - **Mở lại từ Saved Batches:** Xem lại kết quả bất cứ lúc nào với tốc độ tức thì, không tốn quota AI.
+- **Cập nhật đợt tuyển dụng:** Bất kỳ thay đổi nào về Pipeline, Ghi chú, Rating hoặc Trọng số đều được tự động đồng bộ vào bản lưu.
 - **Xuất Báo Cáo Markdown:** Tải xuống file Markdown chứa toàn bộ bảng xếp hạng và báo cáo phân tích chi tiết để đính kèm vào hệ thống ATS nội bộ hoặc gửi cho Hiring Manager.
 
 ---
 
-## 10. Checklist phỏng vấn và ra quyết định dành cho HR
+## 10. Checklist Tuyển Dụng Dành Cho HR & Hiring Manager
 
 - [ ] JD đã phân tách rõ tiêu chí Bắt buộc (Must-Have) và Điểm cộng (Nice-to-Have).
-- [ ] Đã kiểm tra trạng thái của các ứng viên trong đợt tuyển dụng (không bỏ sót hồ sơ No Score do lỗi file).
+- [ ] Đã lựa chọn preset Trọng số chấm điểm phù hợp với cấp bậc và tính chất công việc.
+- [ ] Đã rà soát danh sách ứng viên bị loại bởi tiêu chí Knock-out để tránh bỏ sót nhân tài đặc biệt.
+- [ ] Đã phân loại ứng viên vào các giai đoạn Pipeline (`SHORTLIST`, `INTERVIEW`).
 - [ ] Đã đọc kỹ Đánh giá tầm vóc 4 trục và Ma trận rủi ro của Top ứng viên sáng giá.
 - [ ] Đã chọn lọc 3–5 câu hỏi phỏng vấn trọng tâm từ Cẩm nang Phỏng vấn STAR để đưa vào kịch bản phỏng vấn.
-- [ ] Đã ghi nhận nhận xét đánh giá của hội đồng phỏng vấn và lý do lựa chọn cuối cùng.
+- [ ] Đã ghi nhận nhận xét đánh giá, rating và lý do lựa chọn cuối cùng vào phần Ghi chú nội bộ.

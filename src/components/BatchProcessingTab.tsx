@@ -41,7 +41,12 @@ import {
   FolderOpen,
   Maximize2,
   Minimize2,
-  BookOpen
+  BookOpen,
+  Sliders,
+  Star,
+  Tag,
+  Kanban,
+  LayoutList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -59,7 +64,26 @@ import {
   LabelList
 } from 'recharts';
 
-import { HistoryItem, ComparisonRow, RecruiterBatchDetail, SavedBatchCandidate } from '../types';
+import { HistoryItem, ComparisonRow, RecruiterBatchDetail, SavedBatchCandidate, ScoringWeights, KnockoutCriteria, PipelineStage } from '../types';
+import {
+  SCORING_PRESETS,
+  DEFAULT_SCORING_WEIGHTS,
+  DEFAULT_KNOCKOUT_CRITERIA,
+  recalculateLeaderboard,
+  ScoringPresetKey
+} from '../utils/recruiterScoringHelpers';
+import {
+  PIPELINE_STAGES,
+  ORDERED_PIPELINE_STAGES,
+  getPipelineStageStats,
+  updateCandidateStage,
+  updateCandidateNotes,
+  updateCandidateRating
+} from '../utils/recruiterPipelineHelpers';
+import { ScoringWeightsKnockoutPanel } from './ScoringWeightsKnockoutPanel';
+import { CandidateNotesModal } from './CandidateNotesModal';
+import { RecruiterKanbanBoard } from './RecruiterKanbanBoard';
+import { DeepDiveComparisonMatrix } from './DeepDiveComparisonMatrix';
 import { SaveBatchModal } from './SaveBatchModal';
 import { SavedBatchesModal } from './SavedBatchesModal';
 import { RecruiterGuideDrawer } from './RecruiterGuideDrawer';
@@ -74,6 +98,7 @@ interface BatchProcessingTabProps {
 }
 
 interface CandidateResult {
+  id?: string;
   filename: string;
   success: boolean;
   candidateName: string;
@@ -90,6 +115,14 @@ interface CandidateResult {
   fullAnalysis?: any;
   savedRank?: number | null;
   processingStatus?: 'COMPLETED' | 'NO_SCORE' | 'FAILED';
+  pipelineStage?: PipelineStage;
+  notes?: string;
+  rating?: number;
+  tags?: string[];
+  weightedScore?: number | null;
+  isKnockedOut?: boolean;
+  knockoutReason?: string;
+  dynamicRank?: number | null;
 }
 
 export type DetectedLanguage = 'vi' | 'en' | 'neutral' | 'mixed';
@@ -276,9 +309,18 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [filterRecommendation, setFilterRecommendation] = useState<'All' | 'YES' | 'MAYBE' | 'NO'>('All');
   const [requirementFilter, setRequirementFilter] = useState<'ALL' | 'KHOP' | 'CAN_BO_SUNG' | 'THIEU'>('ALL');
 
-  // Candidate comparison (Max 3 candidates)
+  // Candidate comparison (Max 5 candidates)
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [compareNotice, setCompareNotice] = useState<string>('');
+
+  // --- PHASE 3: Recruiter Module 2.0 States ---
+  const [weights, setWeights] = useState<ScoringWeights>(DEFAULT_SCORING_WEIGHTS);
+  const [activePreset, setActivePreset] = useState<ScoringPresetKey>('balanced');
+  const [knockoutCriteria, setKnockoutCriteria] = useState<KnockoutCriteria>(DEFAULT_KNOCKOUT_CRITERIA);
+  const [isScoringConfigOpen, setIsScoringConfigOpen] = useState<boolean>(false);
+  const [pipelineFilter, setPipelineFilter] = useState<PipelineStage | 'ALL'>('ALL');
+  const [recruiterViewMode, setRecruiterViewMode] = useState<'leaderboard' | 'kanban'>('leaderboard');
+  const [notesModalCandidate, setNotesModalCandidate] = useState<CandidateResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
@@ -307,14 +349,29 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     errorMessage: c.errorMessage,
     cvText: c.cvText,
     fullAnalysis: c.fullAnalysis,
+    id: c.id,
     savedRank: typeof c.rank === 'number' ? c.rank : null,
-    processingStatus: c.processingStatus || 'COMPLETED'
+    processingStatus: c.processingStatus || 'COMPLETED',
+    pipelineStage: c.pipelineStage || 'INBOX',
+    notes: c.notes || '',
+    rating: typeof c.rating === 'number' ? c.rating : 0,
+    tags: Array.isArray(c.tags) ? c.tags : [],
+    weightedScore: typeof c.weightedScore === 'number' ? c.weightedScore : c.overallScore,
+    isKnockedOut: !!c.isKnockedOut,
+    knockoutReason: c.knockoutReason
   });
 
   const handleRestoreBatch = (batch: RecruiterBatchDetail) => {
     setActiveSavedBatch(batch);
     setJdText(batch.jdText || '');
     setJdFileName(batch.jdFileName || null);
+    if (batch.weights) {
+      setWeights(batch.weights);
+      setActivePreset('custom');
+    }
+    if (batch.knockoutCriteria) {
+      setKnockoutCriteria(batch.knockoutCriteria);
+    }
 
     const mappedResults: CandidateResult[] = batch.candidates.map(mapSavedCandidateToResult);
 
@@ -331,6 +388,12 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
 
   const handleSaveSuccess = (savedBatch: RecruiterBatchDetail) => {
     setActiveSavedBatch(savedBatch);
+    if (savedBatch.weights) {
+      setWeights(savedBatch.weights);
+    }
+    if (savedBatch.knockoutCriteria) {
+      setKnockoutCriteria(savedBatch.knockoutCriteria);
+    }
     const mappedResults: CandidateResult[] = savedBatch.candidates.map(mapSavedCandidateToResult);
     setResults(mappedResults);
 
@@ -709,15 +772,15 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     return 'NONE';
   };
 
-  // Toggle candidate comparison (Max 3 candidates)
+  // Toggle candidate comparison (Max 5 candidates)
   const toggleCandidateComparison = (filename: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setSelectedForComparison(prev => {
       if (prev.includes(filename)) {
         return prev.filter(f => f !== filename);
       }
-      if (prev.length >= 3) {
-        setCompareNotice(isEn ? 'Max 3 candidates can be compared at once.' : 'Chỉ có thể so sánh tối đa 3 ứng viên cùng lúc.');
+      if (prev.length >= 5) {
+        setCompareNotice(isEn ? 'Max 5 candidates can be compared at once.' : 'Chỉ có thể so sánh tối đa 5 ứng viên cùng lúc.');
         setTimeout(() => setCompareNotice(''), 3000);
         return [...prev.slice(1), filename];
       }
@@ -726,12 +789,89 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   };
 
   const handleSelectTop3ForComparison = () => {
-    const top3 = [...results]
-      .filter(r => r.success !== false && !r.errorMessage && typeof r.overallScore === 'number' && Number.isFinite(r.overallScore))
-      .sort((a, b) => (b.overallScore as number) - (a.overallScore as number))
+    const top3 = [...evaluatedResults]
+      .filter(r => r.success !== false && !r.errorMessage && typeof (r.weightedScore ?? r.overallScore) === 'number' && !r.isKnockedOut)
+      .sort((a, b) => ((b.weightedScore ?? b.overallScore) as number) - ((a.weightedScore ?? a.overallScore) as number))
       .slice(0, 3)
       .map(r => r.filename);
     setSelectedForComparison(top3);
+  };
+
+  const handleSelectTop5ForComparison = () => {
+    const top5 = [...evaluatedResults]
+      .filter(r => r.success !== false && !r.errorMessage && typeof (r.weightedScore ?? r.overallScore) === 'number' && !r.isKnockedOut)
+      .sort((a, b) => ((b.weightedScore ?? b.overallScore) as number) - ((a.weightedScore ?? a.overallScore) as number))
+      .slice(0, 5)
+      .map(r => r.filename);
+    setSelectedForComparison(top5);
+  };
+
+  const handleUpdateBatchSnapshot = async (updatedResults: CandidateResult[], updatedWeights?: ScoringWeights, updatedCriteria?: KnockoutCriteria) => {
+    const batchId = activeSavedBatch?.id || currentBatchId;
+    const authToken = token || localStorage.getItem('auth_token');
+    if (!batchId || !authToken) return;
+
+    try {
+      await fetch(`/api/recruiter/batches/${batchId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          weights: updatedWeights || weights,
+          knockoutCriteria: updatedCriteria || knockoutCriteria,
+          candidates: updatedResults.map(c => ({
+            id: c.id,
+            filename: c.filename,
+            pipelineStage: c.pipelineStage || 'INBOX',
+            notes: c.notes,
+            rating: c.rating,
+            tags: c.tags,
+            weightedScore: c.weightedScore,
+            isKnockedOut: c.isKnockedOut,
+            knockoutReason: c.knockoutReason,
+            rank: c.dynamicRank || c.savedRank
+          }))
+        })
+      });
+    } catch (err) {
+      console.warn('Silent auto-update batch error:', err);
+    }
+  };
+
+  const handleChangeCandidateStage = (idOrFilename: string, newStage: PipelineStage) => {
+    setResults((prev: CandidateResult[]) => {
+      const updated: CandidateResult[] = updateCandidateStage<CandidateResult>(prev, idOrFilename, newStage);
+      handleUpdateBatchSnapshot(updated);
+      return updated;
+    });
+  };
+
+  const handleChangeCandidateRating = (idOrFilename: string, rating: number) => {
+    setResults((prev: CandidateResult[]) => {
+      const updated: CandidateResult[] = updateCandidateRating<CandidateResult>(prev, idOrFilename, rating);
+      handleUpdateBatchSnapshot(updated);
+      return updated;
+    });
+  };
+
+  const handleSaveCandidateNotes = (payload: { notes: string; rating: number; stage: PipelineStage; tags: string[] }) => {
+    if (!notesModalCandidate) return;
+    const targetKey = notesModalCandidate.id || notesModalCandidate.filename;
+    setResults((prev: CandidateResult[]) => {
+      let updated: CandidateResult[] = updateCandidateNotes<CandidateResult>(prev, targetKey, payload.notes);
+      updated = updateCandidateRating<CandidateResult>(updated, targetKey, payload.rating);
+      updated = updateCandidateStage<CandidateResult>(updated, targetKey, payload.stage);
+      updated = updated.map(c => {
+        if (c.id === targetKey || c.filename === targetKey) {
+          return { ...c, tags: payload.tags };
+        }
+        return c;
+      });
+      handleUpdateBatchSnapshot(updated);
+      return updated;
+    });
   };
 
   // --- Robust Candidate Name Sanitizer ---
@@ -790,21 +930,29 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     return isEn ? 'Candidate' : 'Ứng viên';
   };
 
+  // --- Dynamic Recruiter 2.0 Evaluation & Pipeline Stats ---
+  const evaluatedResults = React.useMemo(() => {
+    return recalculateLeaderboard(results, weights, knockoutCriteria, lang);
+  }, [results, weights, knockoutCriteria, lang]);
+
+  const pipelineStats = React.useMemo(() => {
+    return getPipelineStageStats(evaluatedResults);
+  }, [evaluatedResults]);
+
   // Ranking list of valid candidates with finite numeric scores
-  const validRankedCandidates = results
+  const validRankedCandidates = evaluatedResults
     .filter(c => 
       c.success !== false && 
       !c.errorMessage && 
-      typeof c.overallScore === 'number' && 
-      Number.isFinite(c.overallScore)
+      typeof (c.weightedScore ?? c.overallScore) === 'number' && 
+      Number.isFinite(c.weightedScore ?? c.overallScore) &&
+      !c.isKnockedOut
     )
     .sort((a, b) => {
-      if (activeSavedBatch !== null) {
-        const aRank = a.savedRank ?? 999999;
-        const bRank = b.savedRank ?? 999999;
-        return aRank - bRank;
+      if (activeSavedBatch !== null && typeof a.savedRank === 'number' && typeof b.savedRank === 'number') {
+        return a.savedRank - b.savedRank;
       }
-      return (b.overallScore as number) - (a.overallScore as number);
+      return ((b.weightedScore ?? b.overallScore) as number) - ((a.weightedScore ?? a.overallScore) as number);
     });
 
   const detailRankIdx = selectedCandidate ? (
@@ -815,7 +963,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const detailRankNum = detailRankIdx !== -1 ? detailRankIdx + 1 : undefined;
 
   // --- Filtering & Sorting Logic ---
-  const filterCandidates = results.filter(candidate => {
+  const filterCandidates = evaluatedResults.filter(candidate => {
     const displayName = getCandidateDisplayName(candidate);
     const matchesSearch = displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (candidate.candidateName && candidate.candidateName.toLowerCase().includes(searchTerm.toLowerCase())) || 
@@ -823,20 +971,21 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     const matchesLevel = filterLevel === 'All' || candidate.matchLevel === filterLevel;
     const recType = getCandidateRecType(candidate);
     const matchesRec = filterRecommendation === 'All' || recType === filterRecommendation;
-    return matchesSearch && matchesLevel && matchesRec;
+    const matchesPipeline = pipelineFilter === 'ALL' || (candidate.pipelineStage || 'INBOX') === pipelineFilter;
+    return matchesSearch && matchesLevel && matchesRec && matchesPipeline;
   });
 
-  const group1 = filterCandidates.filter(c => c.success !== false && !c.errorMessage && typeof c.overallScore === 'number' && Number.isFinite(c.overallScore));
-  const group2 = filterCandidates.filter(c => c.success !== false && !c.errorMessage && !(typeof c.overallScore === 'number' && Number.isFinite(c.overallScore)));
-  const group3 = filterCandidates.filter(c => c.success === false || !!c.errorMessage);
+  const group1 = filterCandidates.filter(c => c.success !== false && !c.errorMessage && typeof (c.weightedScore ?? c.overallScore) === 'number' && !c.isKnockedOut);
+  const group2 = filterCandidates.filter(c => c.success !== false && !c.errorMessage && c.isKnockedOut);
+  const group3 = filterCandidates.filter(c => c.success === false || !!c.errorMessage || !(typeof (c.weightedScore ?? c.overallScore) === 'number'));
 
   const sortGroup = (list: CandidateResult[]) => {
     return [...list].sort((a, b) => {
       let comparison = 0;
       if (sortBy === 'score') {
-        const aScore = typeof a.overallScore === 'number' && Number.isFinite(a.overallScore) ? a.overallScore : 0;
-        const bScore = typeof b.overallScore === 'number' && Number.isFinite(b.overallScore) ? b.overallScore : 0;
-        comparison = aScore - bScore;
+        const aScore = typeof (a.weightedScore ?? a.overallScore) === 'number' && Number.isFinite(a.weightedScore ?? a.overallScore) ? (a.weightedScore ?? a.overallScore) : 0;
+        const bScore = typeof (b.weightedScore ?? b.overallScore) === 'number' && Number.isFinite(b.weightedScore ?? b.overallScore) ? (b.weightedScore ?? b.overallScore) : 0;
+        comparison = (aScore as number) - (bScore as number);
       } else {
         comparison = getCandidateDisplayName(a).localeCompare(getCandidateDisplayName(b));
       }
@@ -1033,7 +1182,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     }
   ];
 
-  const comparisonColors = ['#4f46e5', '#059669', '#d97706']; // Indigo, Emerald, Amber
+  const comparisonColors = ['#4f46e5', '#059669', '#d97706', '#ec4899', '#8b5cf6']; // Indigo, Emerald, Amber, Pink, Purple
 
   // --- Style Helpers ---
   const getCandidateRole = (candidate: CandidateResult) => {
@@ -2055,6 +2204,109 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </div>
           </div>
 
+          {/* Recruiter 2.0 Action Bar: Scoring Weights & Pipeline Views */}
+          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Scoring Weights Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsScoringConfigOpen(!isScoringConfigOpen)}
+                className={'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ' + (
+                  isScoringConfigOpen
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
+                )}
+              >
+                <Sliders className="w-4 h-4" />
+                <span>{isEn ? 'Scoring Weights & Knock-out Rules' : '⚙️ Trọng Số & Tiêu Chí Knock-out'}</span>
+              </button>
+
+              {/* View Mode Toggle: Leaderboard vs Kanban */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setRecruiterViewMode('leaderboard')}
+                  className={'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ' + (
+                    recruiterViewMode === 'leaderboard'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  )}
+                >
+                  <Award className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{isEn ? 'Leaderboard' : 'Bảng Xếp Hạng'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecruiterViewMode('kanban')}
+                  className={'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ' + (
+                    recruiterViewMode === 'kanban'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  )}
+                >
+                  <Kanban className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{isEn ? 'Kanban Pipeline' : 'Kanban Tuyển Dụng'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Pipeline Stage Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              {(['ALL', ...ORDERED_PIPELINE_STAGES] as (PipelineStage | 'ALL')[]).map((stg) => {
+                const isAll = stg === 'ALL';
+                const count = isAll ? pipelineStats.ALL : pipelineStats[stg];
+                const label = isAll ? (isEn ? 'All' : 'Tất cả') : (isEn ? PIPELINE_STAGES[stg].labelEn : PIPELINE_STAGES[stg].labelVi);
+                const isSelected = pipelineFilter === stg;
+
+                return (
+                  <button
+                    key={stg}
+                    type="button"
+                    onClick={() => setPipelineFilter(stg)}
+                    className={'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ' + (
+                      isSelected
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    )}
+                  >
+                    <span>{label}</span>
+                    <span className={'text-[10px] px-1.5 py-0.2 rounded-full ' + (isSelected ? 'bg-slate-700 text-white' : 'bg-white text-slate-600')}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Expandable Scoring Weights & Knockout Panel */}
+          {isScoringConfigOpen && (
+            <ScoringWeightsKnockoutPanel
+              weights={weights}
+              onChangeWeights={setWeights}
+              criteria={knockoutCriteria}
+              onChangeCriteria={setKnockoutCriteria}
+              activePreset={activePreset}
+              onSelectPreset={(pKey) => {
+                setActivePreset(pKey);
+                if (pKey !== 'custom') {
+                  setWeights(SCORING_PRESETS[pKey].weights);
+                }
+              }}
+              onApply={() => {
+                setIsScoringConfigOpen(false);
+                setBatchNotice(isEn ? 'Scores and rankings dynamically re-evaluated!' : 'Đã tính lại điểm và thứ hạng theo trọng số mới!');
+                setTimeout(() => setBatchNotice(''), 4000);
+              }}
+              onReset={() => {
+                setWeights(DEFAULT_SCORING_WEIGHTS);
+                setActivePreset('balanced');
+                setKnockoutCriteria(DEFAULT_KNOCKOUT_CRITERIA);
+              }}
+              isEn={isEn}
+            />
+          )}
+
           {/* Dashboard Charts & Controls */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
             
@@ -2321,238 +2573,48 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
               </div>
             </div>
 
-            {/* 3. Component Comparison (Chỉ xuất hiện khi chọn tối đa 3 ứng viên) */}
+            {/* 3. Deep-Dive Comparison Matrix (Selected Candidates, up to 5) */}
             {selectedForComparison.length > 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 12 }}
-                className="bg-indigo-50/40 rounded-2xl p-5 sm:p-6 border-2 border-indigo-200/90 space-y-5"
-              >
-                {/* Comparison Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-100 pb-3.5">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-md text-[10px] font-black uppercase">
-                        {isEn ? 'Comparison' : 'So Sánh'}
-                      </span>
-                      <h4 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                        <Users className="w-4 h-4 text-indigo-600" />
-                        {isEn ? 'Component Comparison (Selected Candidates)' : 'So Sánh Chi Tiết Thành Phần (Tối Đa 3 Ứng Viên)'}
-                      </h4>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">
-                      {isEn 
-                        ? `Comparing component scores: Keywords, Experience, Skills, and Overall Score.` 
-                        : `Đối chiếu trực tiếp từng tiêu chí cốt lõi: Keywords, Kinh nghiệm, Kỹ năng và Điểm tổng hợp.`
-                      }
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setSelectedForComparison([])}
-                      className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 shadow-sm transition-colors cursor-pointer"
-                    >
-                      {isEn ? 'Clear Selection' : 'Bỏ chọn tất cả'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Selected candidate chips */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-slate-500">
-                    {isEn ? 'Comparing:' : 'Đang so sánh:'}
-                  </span>
-                  {comparedCandidatesList.map((cand, idx) => (
-                    <span 
-                      key={`comp-tag-${cand.filename}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-slate-800 shadow-xs"
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: comparisonColors[idx % comparisonColors.length] }} />
-                      <span>{getCandidateDisplayName(cand, idx + 1)}</span>
-                      <span className="text-indigo-600 font-extrabold">({cand.overallScore}%)</span>
-                      <button
-                        onClick={() => toggleCandidateComparison(cand.filename)}
-                        className="p-0.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full ml-0.5 cursor-pointer"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                  {comparedCandidatesList.length < 3 && (
-                    <span className="text-[11px] text-indigo-600 font-medium italic">
-                      ({isEn ? `You can select ${3 - comparedCandidatesList.length} more` : `Có thể chọn thêm ${3 - comparedCandidatesList.length} ứng viên nữa`})
-                    </span>
-                  )}
-                </div>
-
-                {/* Multi-Bar Chart Comparison */}
-                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-indigo-100 shadow-xs">
-                  <h5 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3">
-                    {isEn ? 'Component Breakdown Comparison Chart' : 'Biểu Đồ So Sánh Từng Thành Phần (%)'}
-                  </h5>
-                  <div className="h-64 sm:h-72 w-full text-xs font-semibold">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={componentComparisonChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="component" stroke="#64748b" fontSize={11} tickLine={false} />
-                        <YAxis domain={[0, 100]} stroke="#64748b" fontSize={11} tickLine={false} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px' }}
-                          formatter={(value: any, name: any) => [`${value}%`, name]}
-                        />
-                        <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', fontWeight: 'bold' }} />
-                        {comparedCandidatesList.map((c, i) => (
-                          <Bar 
-                            key={`bar-${c.filename}`} 
-                            dataKey={getCandidateDisplayName(c, i + 1)} 
-                            fill={comparisonColors[i % comparisonColors.length]} 
-                            radius={[6, 6, 0, 0]} 
-                          />
-                        ))}
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Side-by-Side Comparison Metrics Table */}
-                <div className="bg-white rounded-2xl border border-indigo-100 overflow-hidden shadow-xs">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-slate-50 border-b border-slate-100 font-black text-slate-700">
-                        <tr>
-                          <th className="p-3.5 min-w-[130px]">{isEn ? 'Metric / Criteria' : 'Tiêu chí'}</th>
-                          {comparedCandidatesList.map((c, idx) => (
-                            <th key={`th-${c.filename}`} className="p-3.5 min-w-[180px]">
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: comparisonColors[idx % comparisonColors.length] }} />
-                                <span className="truncate">{getCandidateDisplayName(c, idx + 1)}</span>
-                              </div>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Overall Score' : 'Điểm Tổng'}</td>
-                          {comparedCandidatesList.map(c => (
-                            <td key={`td-score-${c.filename}`} className="p-3.5">
-                              <span className="text-sm font-black text-indigo-700">
-                                {typeof c.overallScore === 'number' && Number.isFinite(c.overallScore) ? `${c.overallScore}%` : '—'}
-                              </span>
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Match Level' : 'Mức Phù Hợp'}</td>
-                          {comparedCandidatesList.map(c => (
-                            <td key={`td-lvl-${c.filename}`} className="p-3.5">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${getMatchLevelColor(c.matchLevel)}`}>
-                                {getMatchLevelLabel(c.matchLevel)}
-                              </span>
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'AI Recommendation' : 'Đề Xuất AI'}</td>
-                          {comparedCandidatesList.map(c => (
-                            <td key={`td-rec-${c.filename}`} className="p-3.5 font-bold text-indigo-900">
-                              {getAiRecommendationText(c)}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'JD Match Strength' : 'Điểm mạnh phù hợp JD'}</td>
-                          {comparedCandidatesList.map(c => (
-                            <td key={`td-str-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
-                              {c.fullAnalysis?.feature1?.summary?.biggestStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? '10s Quick Scan Strength' : 'Điểm mạnh khi đọc nhanh'}</td>
-                          {comparedCandidatesList.map(c => (
-                            <td key={`td-imm-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
-                              {c.fullAnalysis?.feature3?.immediateStrength || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Main Recruiter Concern' : 'Nghi ngờ chính'}</td>
-                          {comparedCandidatesList.map(c => (
-                            <td key={`td-doubt-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
-                              {c.fullAnalysis?.feature3?.biggestDoubt || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Fastest Point Loss Factor' : 'Yếu tố làm mất điểm'}</td>
-                          {comparedCandidatesList.map(c => (
-                            <td key={`td-loss-${c.filename}`} className="p-3.5 text-slate-800 text-[11px] leading-relaxed">
-                              {c.fullAnalysis?.feature3?.fastestPointLossSection || (isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích')}
-                            </td>
-                          ))}
-                        </tr>
-                        <tr>
-                          <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">{isEn ? 'Unproven JD Requirements' : 'Yêu cầu JD chưa có bằng chứng'}</td>
-                          {comparedCandidatesList.map(c => {
-                            const rawMissing = c.fullAnalysis?.feature1?.summary?.missingKeywordsSkills;
-                            if (!Array.isArray(rawMissing)) {
-                              return (
-                                <td key={`td-gap-${c.filename}`} className="p-3.5">
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
-                                    {isEn ? 'No analysis data available' : 'Chưa có dữ liệu từ kết quả phân tích'}
-                                  </span>
-                                </td>
-                              );
-                            }
-                            const missingList = rawMissing.filter((k: any) => typeof k === 'string' && k.trim().length > 0);
-                            return (
-                              <td key={`td-gap-${c.filename}`} className="p-3.5">
-                                {missingList.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {missingList.map((tag, i) => (
-                                      <span key={`comp-tag-${i}`} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100/70 text-amber-900 border border-amber-200/80">
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/80">
-                                    {isEn ? 'No missing JD requirements identified' : 'Không ghi nhận yêu cầu JD còn thiếu'}
-                                  </span>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-              </motion.div>
+              <DeepDiveComparisonMatrix
+                candidates={comparedCandidatesList}
+                onRemoveCandidate={(fn) => toggleCandidateComparison(fn)}
+                onClearSelection={() => setSelectedForComparison([])}
+                roleTitle={activeSavedBatch?.roleTitle || jdFileName || 'Vị trí tuyển dụng'}
+                isEn={isEn}
+                comparisonColors={comparisonColors}
+              />
             ) : (
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 text-slate-600">
                   <Users className="w-4 h-4 text-indigo-600 shrink-0" />
                   <span>
                     {isEn 
-                      ? '💡 Tip: Select up to 3 candidates with "+ Compare" on their card to unlock side-by-side Component Comparison.' 
-                      : '💡 Mẹo so sánh: Nhấn "+ So sánh" trên tối đa 3 thẻ ứng viên bên dưới để kích hoạt bảng & biểu đồ so sánh chi tiết các thành phần.'
+                      ? '💡 Tip: Select up to 5 candidates with "+ Compare" on their card to unlock side-by-side Deep-Dive Comparison & HR Interview Kit.' 
+                      : '💡 Mẹo so sánh: Nhấn "+ So sánh" trên tối đa 5 thẻ ứng viên bên dưới để kích hoạt Ma trận so sánh chuyên sâu & Bộ kịch bản phỏng vấn HR.'
                     }
                   </span>
                 </div>
                 {results.length >= 2 && (
-                  <button
-                    type="button"
-                    onClick={handleSelectTop3ForComparison}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl border border-indigo-200 shrink-0 transition-colors cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>{isEn ? 'Quick compare Top 3' : '⚡ So sánh nhanh Top 3'}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectTop3ForComparison}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl border border-indigo-200 shrink-0 transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>{isEn ? 'Compare Top 3' : '⚡ So sánh Top 3'}</span>
+                    </button>
+                    {results.length >= 4 && (
+                      <button
+                        type="button"
+                        onClick={handleSelectTop5ForComparison}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold rounded-xl border border-purple-200 shrink-0 transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                        <span>{isEn ? 'Compare Top 5' : '⚡ So sánh Top 5'}</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -2641,8 +2703,30 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </span>
           </div>
 
-          {/* Interactive Table / Cards Leaderboard */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* View Toggle Mode: Kanban vs Leaderboard */}
+          {recruiterViewMode === 'kanban' ? (
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                    <Kanban className="w-4 h-4 text-indigo-600" />
+                    <span>{isEn ? 'Recruiter Kanban Pipeline (5 Stages)' : 'Bảng Kanban Quản Lý Tuyển Dụng (5 Giai Đoạn)'}</span>
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {isEn ? 'Manage applicant progression, internal notes, ratings, and tags.' : 'Chuyển đổi giai đoạn tuyển dụng, ghi chú bảo mật và chấm điểm sao cho từng ứng viên.'}
+                  </p>
+                </div>
+              </div>
+              <RecruiterKanbanBoard
+                candidates={filteredResults}
+                onSelectCandidate={(c) => setSelectedCandidate(c as CandidateResult)}
+                onChangeStage={handleChangeCandidateStage}
+                onOpenNotes={(c) => setNotesModalCandidate(c as CandidateResult)}
+                isEn={isEn}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Left Hand: Leaders List Grid */}
             <div className={isDetailExpanded ? 'hidden' : 'lg:col-span-5 space-y-4 min-w-0'}>
@@ -3469,6 +3553,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </div>
 
           </div>
+          )}
 
         </div>
       )}
@@ -3483,6 +3568,8 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
           jdText={jdText}
           jdFileName={jdFileName}
           results={results}
+          weights={weights}
+          knockoutCriteria={knockoutCriteria}
           isEn={isEn}
           token={token}
         />

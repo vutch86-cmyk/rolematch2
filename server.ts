@@ -1490,7 +1490,9 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
     candidateCount: batch.candidateCount,
     rankedCount: batch.rankedCount,
     noScoreCount: batch.noScoreCount,
-    failedCount: batch.failedCount
+    failedCount: batch.failedCount,
+    weights: batch.weights !== undefined ? batch.weights : undefined,
+    knockoutCriteria: batch.knockoutCriteria !== undefined ? batch.knockoutCriteria : undefined
   };
 
   try {
@@ -1520,7 +1522,14 @@ async function persistRecruiterBatchToFirestore(batch: RecruiterBatchDetail): Pr
         shortRecommendation: candidate.shortRecommendation !== undefined ? candidate.shortRecommendation : '',
         errorMessage: candidate.errorMessage !== undefined ? candidate.errorMessage : undefined,
         cvText: candidate.cvText !== undefined ? candidate.cvText : undefined,
-        fullAnalysis: candidate.fullAnalysis !== undefined ? candidate.fullAnalysis : undefined
+        fullAnalysis: candidate.fullAnalysis !== undefined ? candidate.fullAnalysis : undefined,
+        pipelineStage: candidate.pipelineStage !== undefined ? candidate.pipelineStage : 'INBOX',
+        notes: candidate.notes !== undefined ? candidate.notes : undefined,
+        rating: candidate.rating !== undefined ? candidate.rating : undefined,
+        tags: candidate.tags !== undefined ? candidate.tags : undefined,
+        weightedScore: candidate.weightedScore !== undefined ? candidate.weightedScore : undefined,
+        isKnockedOut: candidate.isKnockedOut !== undefined ? candidate.isKnockedOut : undefined,
+        knockoutReason: candidate.knockoutReason !== undefined ? candidate.knockoutReason : undefined
       };
       try {
         await setDoc(candDocRef, removeUndefinedDeep(cleanCandidate));
@@ -3130,7 +3139,14 @@ app.post('/api/recruiter/batches', async (req, res) => {
         shortRecommendation,
         errorMessage: isFailed ? (raw.errorMessage !== undefined ? raw.errorMessage : 'Phân tích ứng viên thất bại') : undefined,
         cvText: raw.cvText !== undefined ? raw.cvText : undefined,
-        fullAnalysis: raw.fullAnalysis !== undefined ? raw.fullAnalysis : undefined
+        fullAnalysis: raw.fullAnalysis !== undefined ? raw.fullAnalysis : undefined,
+        pipelineStage: (typeof raw.pipelineStage === 'string' && ['INBOX', 'SHORTLIST', 'INTERVIEW', 'OFFER', 'REJECTED'].includes(raw.pipelineStage)) ? raw.pipelineStage : 'INBOX',
+        notes: (typeof raw.notes === 'string') ? raw.notes.trim() : undefined,
+        rating: (typeof raw.rating === 'number' && Number.isFinite(raw.rating)) ? Math.max(0, Math.min(5, Math.round(raw.rating))) : undefined,
+        tags: Array.isArray(raw.tags) ? raw.tags.filter((t) => typeof t === 'string' && t.trim().length > 0).map((t) => t.trim()) : undefined,
+        weightedScore: (typeof raw.weightedScore === 'number' && Number.isFinite(raw.weightedScore)) ? raw.weightedScore : undefined,
+        isKnockedOut: typeof raw.isKnockedOut === 'boolean' ? raw.isKnockedOut : undefined,
+        knockoutReason: (typeof raw.knockoutReason === 'string') ? raw.knockoutReason.trim() : undefined
       };
     });
 
@@ -3175,6 +3191,8 @@ app.post('/api/recruiter/batches', async (req, res) => {
       rankedCount,
       noScoreCount,
       failedCount,
+      weights: (req.body?.weights && typeof req.body.weights === 'object') ? req.body.weights : undefined,
+      knockoutCriteria: (req.body?.knockoutCriteria && typeof req.body.knockoutCriteria === 'object') ? req.body.knockoutCriteria : undefined,
       candidates: normalizedCandidates
     };
 
@@ -3420,6 +3438,122 @@ app.get('/api/recruiter/batches/:id', async (req, res) => {
   } catch (err: any) {
     console.error('API /api/recruiter/batches/:id GET Error:', err);
     return res.status(500).json({ error: 'Lỗi server nội bộ.' });
+  }
+});
+
+// 3.5. PUT /api/recruiter/batches/:id - Update batch metadata, weights, knockout criteria, and candidates (pipeline, notes, ratings, tags)
+app.put('/api/recruiter/batches/:id', async (req, res) => {
+  try {
+    const currentUser = getUserFromRequest(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập.' });
+    }
+
+    const { id } = req.params;
+    let batchIndex = recruiterBatches.findIndex(b => b.id === id);
+
+    if (batchIndex === -1 && db) {
+      try {
+        const batchDocRef = doc(db, 'recruiter_batches', id);
+        const batchDocSnap = await getDoc(batchDocRef);
+        if (batchDocSnap.exists()) {
+          const summary = batchDocSnap.data() as RecruiterBatchSummary;
+          const candidatesCol = collection(db, 'recruiter_batches', id, 'candidates');
+          const candSnapshot = await getDocs(candidatesCol);
+          const candidates = candSnapshot.docs.map(d => {
+            const c = d.data() as SavedBatchCandidate;
+            c.rank = hasValidRank(c.rank) ? c.rank : null;
+            return c;
+          });
+          sortBatchCandidates(candidates);
+          const loadedBatch = { ...summary, candidates };
+          recruiterBatches.unshift(loadedBatch);
+          batchIndex = 0;
+        }
+      } catch (fErr) {
+        console.warn('Error loading batch from Firestore for PUT:', fErr);
+      }
+    }
+
+    if (batchIndex === -1) {
+      return res.status(404).json({ error: 'Không tìm thấy đợt tuyển dụng.' });
+    }
+
+    const batch = recruiterBatches[batchIndex];
+    if (batch.createdBy.userId !== currentUser.id && currentUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Truy cập bị từ chối.' });
+    }
+
+    const body = req.body || {};
+    const nowIso = new Date().toISOString();
+
+    if (body.weights && typeof body.weights === 'object') {
+      batch.weights = body.weights;
+    }
+    if (body.knockoutCriteria && typeof body.knockoutCriteria === 'object') {
+      batch.knockoutCriteria = body.knockoutCriteria;
+    }
+    if (typeof body.batchName === 'string' && body.batchName.trim()) {
+      batch.batchName = body.batchName.trim();
+    }
+    if (typeof body.roleTitle === 'string' && body.roleTitle.trim()) {
+      batch.roleTitle = body.roleTitle.trim();
+    }
+
+    if (Array.isArray(body.candidates)) {
+      for (const updatedCand of body.candidates) {
+        const targetCand = batch.candidates.find(c => c.id === updatedCand.id || c.filename === updatedCand.filename);
+        if (targetCand) {
+          if (updatedCand.pipelineStage) targetCand.pipelineStage = updatedCand.pipelineStage;
+          if (updatedCand.notes !== undefined) targetCand.notes = updatedCand.notes;
+          if (updatedCand.rating !== undefined) targetCand.rating = updatedCand.rating;
+          if (Array.isArray(updatedCand.tags)) targetCand.tags = updatedCand.tags;
+          if (updatedCand.weightedScore !== undefined) targetCand.weightedScore = updatedCand.weightedScore;
+          if (updatedCand.isKnockedOut !== undefined) targetCand.isKnockedOut = updatedCand.isKnockedOut;
+          if (updatedCand.knockoutReason !== undefined) targetCand.knockoutReason = updatedCand.knockoutReason;
+          if (updatedCand.rank !== undefined) targetCand.rank = updatedCand.rank;
+        }
+      }
+    }
+
+    batch.updatedAt = nowIso;
+
+    if (db) {
+      try {
+        const batchDocRef = doc(db, 'recruiter_batches', batch.id);
+        const updateSummary: Partial<RecruiterBatchSummary> = {
+          batchName: batch.batchName,
+          roleTitle: batch.roleTitle,
+          updatedAt: nowIso,
+          weights: batch.weights,
+          knockoutCriteria: batch.knockoutCriteria
+        };
+        await updateDoc(batchDocRef, removeUndefinedDeep(updateSummary));
+
+        if (Array.isArray(body.candidates)) {
+          for (const cand of batch.candidates) {
+            const candDocRef = doc(db, 'recruiter_batches', batch.id, 'candidates', cand.id);
+            await setDoc(candDocRef, removeUndefinedDeep(cand), { merge: true });
+          }
+        }
+      } catch (fsErr) {
+        console.warn('Warning: Firestore update failed for batch:', fsErr);
+      }
+    }
+
+    try {
+      saveRecruiterBatchesToFile();
+    } catch (lErr) {
+      console.warn('Local file cache write failed on update:', lErr);
+    }
+
+    return res.json({
+      success: true,
+      batch
+    });
+  } catch (err: any) {
+    console.error('API /api/recruiter/batches/:id PUT Error:', err);
+    return res.status(500).json({ error: 'Lỗi server nội bộ khi cập nhật đợt tuyển dụng.' });
   }
 });
 

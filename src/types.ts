@@ -465,6 +465,23 @@ export interface RecruiterBatchSummary {
   rankedCount: number;
   noScoreCount: number;
   failedCount: number;
+  weights?: ScoringWeights;
+  knockoutCriteria?: KnockoutCriteria;
+}
+
+export type PipelineStage = 'INBOX' | 'SHORTLIST' | 'INTERVIEW' | 'OFFER' | 'REJECTED';
+
+export interface ScoringWeights {
+  keywordWeight: number;    // % (0-100)
+  skillWeight: number;      // % (0-100)
+  experienceWeight: number; // % (0-100)
+}
+
+export interface KnockoutCriteria {
+  minSkillScore?: number | null;
+  minExperienceScore?: number | null;
+  minOverallScore?: number | null;
+  requireMustHaveSkills?: boolean;
 }
 
 export interface SavedBatchCandidate {
@@ -494,6 +511,15 @@ export interface SavedBatchCandidate {
   errorMessage?: string;
   cvText?: string;
   fullAnalysis?: CompleteCVAnalysisResponse | null;
+
+  // PHASE 3: Recruiter Module 2.0 extensions
+  pipelineStage?: PipelineStage;
+  notes?: string;
+  rating?: number; // 1 to 5
+  tags?: string[];
+  weightedScore?: number | null;
+  isKnockedOut?: boolean;
+  knockoutReason?: string;
 }
 
 export interface RecruiterBatchDetail

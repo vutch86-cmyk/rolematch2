@@ -4,6 +4,72 @@
 
 ---
 
+## Đợt 14 (2026-10-30): Triển khai PHASE 3 — Nâng Cấp Chiều Sâu Cho Module Nhà Tuyển Dụng (Recruiter Module 2.0)
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Triển khai trọn vẹn 3 trụ cột nâng cấp của **Phase 3: Nâng Cấp Chiều Sâu Cho Module Nhà Tuyển Dụng (Recruiter Module 2.0)** theo đúng lộ trình sản phẩm:
+  1. **Tùy biến Trọng số Chấm điểm & Xếp hạng Động (Custom Scoring Weights & Recalculate Leaderboard):**
+     - Cho phép HR tự do phân bổ tỷ trọng phần trăm giữa Từ khóa, Kỹ năng và Kinh nghiệm (hoặc chọn 3 preset mẫu: Cân bằng 33/34/33, Ưu tiên Kinh nghiệm 20/30/50, Ưu tiên Kỹ thuật 20/50/30, hoặc Custom).
+     - Module `recruiterScoringHelpers.ts` tự động tính toán điểm có trọng số (`weightedScore`) và tái sắp xếp bảng xếp hạng tức thì mà không tốn thêm quota AI.
+     - Tích hợp giao diện cấu hình chuyên nghiệp `ScoringWeightsKnockoutPanel.tsx` với các thanh trượt và nút chuẩn hóa 100%.
+  2. **Tiêu chí Loại trực tiếp Minh bạch (Hard Knockout Criteria):**
+     - Cho phép HR thiết lập ngưỡng điểm sàn tối thiểu (Overall, Skills, Experience) hoặc cờ bắt buộc đáp ứng các kỹ năng cốt lõi (`requireMustHaveSkills`).
+     - Tự động gắn nhãn bị loại sàn (`isKnockedOut`) kèm lý do cụ thể (`knockoutReason`) và đưa xuống cuối bảng xếp hạng, bảo vệ tổ chức khỏi việc tuyển nhầm ứng viên thiếu kỹ năng sống còn.
+  3. **Ma trận So sánh Chuyên sâu Top 5 & Bộ Kịch bản Phỏng vấn HR (Deep-Dive Comparison Matrix & HR Interview Kit):**
+     - Mở rộng năng lực so sánh lên tới 5 ứng viên cùng lúc (nút nhanh *So sánh Top 3* và *So sánh Top 5*).
+     - Component `DeepDiveComparisonMatrix.tsx` đối chiếu đa chiều: Biểu đồ thành phần 5 màu, bảng đối chiếu 7 trục sâu (Tầm vóc Seniority, Lợi thế nổi bật vs Mối e ngại lớn nhất của HR, Lỗ hổng JD).
+     - Bộ kịch bản phỏng vấn thẩm định độc quyền cho HR: Tự động tổng hợp câu hỏi theo khoảng trống của từng ứng viên kèm checklist *"Điều HR cần nghe (What to listen for)"* và *"Cờ đỏ Red Flags cần cảnh giác"*.
+     - Hỗ trợ xuất Báo Cáo So Sánh ra file Markdown (`.md`) hoặc sao chép 1-click vào clipboard (`recruiterComparisonExport.ts`).
+  4. **Quản lý Pipeline Tuyển dụng, Bảng Kanban & Ghi chú Nội bộ (Hiring Pipeline & Internal Notes):**
+     - Theo dõi vòng đời tuyển dụng của ứng viên qua 5 giai đoạn chuẩn hóa: `INBOX` (Mới nạp), `SHORTLIST` (Sơ tuyển), `INTERVIEW` (Phỏng vấn), `OFFER` (Đề nghị tuyển dụng), `REJECTED` (Từ chối).
+     - Chuyển đổi linh hoạt 1-click giữa chế độ xem Bảng Xếp Hạng (Leaderboard) và Bảng Kanban 5 cột (`RecruiterKanbanBoard.tsx`).
+     - Modal ghi chú nội bộ bảo mật (`CandidateNotesModal.tsx`): Đánh giá 1–5 sao (⭐), gắn nhãn phân loại (`Top Candidate`, `Tech Lead`, `Culture Fit`...), và ghi chép thẩm định nội bộ.
+     - Xây dựng endpoint `PUT /api/recruiter/batches/:id` trên `server.ts` để đồng bộ tức thì mọi cập nhật pipeline, ghi chú, rating, tags, trọng số và knockout criteria vào Firestore và local snapshot cache.
+  5. **Đồng bộ hóa Tài liệu Hướng Dẫn:**
+     - Cập nhật `docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md` và `docs/RECRUITER_USER_GUIDE_EN.md` với toàn bộ hướng dẫn sử dụng Phase 3.
+     - Cập nhật `docs/ADMIN_TECHNICAL_GUIDE_VI.md` và `docs/ADMIN_TECHNICAL_GUIDE_EN.md` bổ sung endpoint `PUT /api/recruiter/batches/:id` và cấu trúc dữ liệu mở rộng.
+
+### 2. Files Affected (Danh sách file tạo mới & sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/types.ts` | **Modified** | Định nghĩa `ScoringWeights`, `KnockoutCriteria`, `PipelineStage`, mở rộng `SavedBatchCandidate` (`pipelineStage`, `notes`, `rating`, `tags`, `weightedScore`, `isKnockedOut`, `knockoutReason`) và `RecruiterBatchSummary`. |
+| `src/utils/recruiterScoringHelpers.ts` | **Created** | Module tính điểm có trọng số, đánh giá vi phạm tiêu chí knock-out và thuật toán tái xếp hạng leaderboard. |
+| `src/utils/recruiterScoringHelpers.test.ts` | **Created** | Bộ 9 unit tests kiểm thử toàn diện thuật toán trọng số, knockout criteria và xếp hạng. |
+| `src/utils/recruiterPipelineHelpers.ts` | **Created** | Module cấu hình 5 pipeline stages, thống kê ứng viên theo stage, preset tags và helper lọc pipeline. |
+| `src/utils/recruiterPipelineHelpers.test.ts` | **Created** | Bộ 6 unit tests kiểm thử pipeline counts, phân loại stage và lọc danh sách. |
+| `src/utils/recruiterComparisonExport.ts` | **Created** | Helper xuất Báo Cáo So Sánh Chuyên Sâu dạng Markdown đa chiều & tiện ích tải file. |
+| `src/utils/recruiterComparisonExport.test.ts` | **Created** | Bộ 2 unit tests kiểm tra tính toàn vẹn và song ngữ Việt - Anh của báo cáo so sánh. |
+| `src/components/ScoringWeightsKnockoutPanel.tsx` | **Created** | Giao diện điều khiển Trọng Số & Knock-out với thanh trượt và presets. |
+| `src/components/CandidateNotesModal.tsx` | **Created** | Modal ghi chú nội bộ bảo mật cho HR, chấm sao 1-5, gắn nhãn tags và chọn stage. |
+| `src/components/RecruiterKanbanBoard.tsx` | **Created** | Bảng Kanban Tuyển Dụng 5 cột trực quan với kéo chuyển và xem nhanh. |
+| `src/components/DeepDiveComparisonMatrix.tsx` | **Created** | Ma trận so sánh chuyên sâu lên tới 5 ứng viên, biểu đồ 5 màu, bảng đối chiếu 7 trục và HR Interview Kit. |
+| `src/components/BatchProcessingTab.tsx` | **Modified** | Tích hợp thanh tác vụ Recruiter 2.0, chuyển đổi Leaderboard/Kanban, bộ lọc pipeline, thẻ ứng viên cải tiến và đồng bộ snapshot tự động. |
+| `src/components/SaveBatchModal.tsx` | **Modified** | Bổ sung lưu trữ cấu hình weights, knockoutCriteria, pipelineStage, notes, rating, tags vào snapshot đợt tuyển dụng. |
+| `server.ts` | **Modified** | Hỗ trợ lưu trữ các trường Phase 3 vào Firestore và bổ sung endpoint `PUT /api/recruiter/batches/:id`. |
+| `docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md` | **Modified** | Cập nhật hướng dẫn sử dụng tính năng Phase 3 (Trọng số, Knockout, Pipeline, Kanban, So sánh 5 ứng viên và HR Kit). |
+| `docs/RECRUITER_USER_GUIDE_EN.md` | **Modified** | Bản dịch tiếng Anh đồng bộ hướng dẫn Nhà tuyển dụng cho Phase 3. |
+| `docs/ADMIN_TECHNICAL_GUIDE_VI.md` & `EN.md` | **Modified** | Bổ sung API `PUT /api/recruiter/batches/:id` và cấu trúc dữ liệu Phase 3. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Mở rộng kiểu dữ liệu trong `src/types.ts`.
+- [x] **Bước 2:** Xây dựng `recruiterScoringHelpers.ts` và unit test `recruiterScoringHelpers.test.ts` (9/9 PASS).
+- [x] **Bước 3:** Xây dựng `recruiterPipelineHelpers.ts` và unit test `recruiterPipelineHelpers.test.ts` (6/6 PASS).
+- [x] **Bước 4:** Xây dựng `recruiterComparisonExport.ts` và unit test `recruiterComparisonExport.test.ts` (2/2 PASS).
+- [x] **Bước 5:** Xây dựng 4 component giao diện Recruiter 2.0: `ScoringWeightsKnockoutPanel.tsx`, `CandidateNotesModal.tsx`, `RecruiterKanbanBoard.tsx`, `DeepDiveComparisonMatrix.tsx`.
+- [x] **Bước 6:** Nâng cấp `BatchProcessingTab.tsx` và `SaveBatchModal.tsx` kết nối trọn vẹn luồng dữ liệu Recruiter 2.0.
+- [x] **Bước 7:** Nâng cấp backend persistence và thêm endpoint `PUT /api/recruiter/batches/:id` trong `server.ts`.
+- [x] **Bước 8:** Cập nhật tài liệu hướng dẫn nhà tuyển dụng (`docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md`, `docs/RECRUITER_USER_GUIDE_EN.md`) và tài liệu kỹ thuật admin.
+- [x] **Bước 9:** Chạy kiểm thử chuỗi 3 lệnh tiêu chuẩn:
+  * `npm run lint` (`tsc --noEmit`): Exit 0 (0 errors).
+  * `npm test` (`vitest run`): Exit 0 (14/14 test suites, 108/108 tests passed).
+  * `npm run build` (`vite build && esbuild`): Exit 0 (Frontend & Backend dist bundle build thành công).
+- [x] **Bước 10:** Chạy cổng an toàn Cloudflare Security Audit Gate: PASS 100% (`validate-coverage-ledger.test.cjs` & `validate-findings.test.cjs`).
+
+---
+
 ## Đợt 13 (2026-10-30): Triển khai PHASE 2 — Tiện Ích Hoàn Thiện Hồ Sơ & Đồng Bộ Đám Mây Cho Ứng Viên
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`

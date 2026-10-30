@@ -492,7 +492,12 @@ Quota hiện được reserve **trước** kiểm tra maximum-length và trướ
 4. Xử lý các CV hợp lệ với concurrency pool tối đa **3**.
 5. Mỗi CV chạy pipeline riêng với cùng JD.
 6. Frontend tạo leaderboard, match level, detail và recommendation.
-7. Saved batch có thể chứa JD, CV text và full analysis; quyền mở lại được kiểm tra theo owner.
+7. Saved batch chứa JD, CV text, full analysis, cùng các tiện ích nâng cao của **Recruiter Module 2.0 (Phase 3)**:
+   - Tùy chỉnh trọng số chấm điểm (`weights`: Keyword, Skill, Experience) với các preset mẫu (Cân bằng, Ưu tiên Kinh nghiệm, Ưu tiên Kỹ thuật, Tùy chỉnh).
+   - Thiết lập tiêu chí loại trực tiếp (`knockoutCriteria`: điểm sàn tối thiểu tổng thể/kỹ năng/kinh nghiệm, bắt buộc kỹ năng Must-Have).
+   - Quản lý trạng thái Pipeline tuyển dụng (`pipelineStage`: INBOX, SHORTLIST, INTERVIEW, OFFER, REJECTED).
+   - Đánh giá sao (`rating` 1-5), ghi chú nội bộ (`notes`), và gắn nhãn (`tags`).
+   - Cập nhật linh hoạt qua endpoint `PUT /api/recruiter/batches/:id` và đồng bộ Firestore.
 
 ```mermaid
 flowchart TD
@@ -617,7 +622,7 @@ Reservation dùng request ID đã hash để giảm tính trùng. `DEGRADED` ngh
 | Auth | `POST /api/auth/login`, `/register`, `GET /api/auth/me`, `POST /api/auth/logout` |
 | File | `POST /api/extract-text` |
 | Candidate | `POST /api/analyze-cv`; `GET/POST/PUT/DELETE /api/candidate/history` (Phase 2 Cloud Sync) |
-| Recruiter | `POST /api/batch-analyze`; `GET/POST/DELETE /api/recruiter/batches` |
+| Recruiter | `POST /api/batch-analyze`; `GET/POST/PUT/DELETE /api/recruiter/batches` (Phase 3: Update weights, knockout criteria, pipeline stage, notes, ratings) |
 | CV utilities | `POST /api/format-cv-text`, `/api/generate-updated-cv` |
 | Admin users | `GET/POST/DELETE /api/admin/users`; lock, unlock, terminate-session, reset-limit |
 | Admin data | `/api/admin/stats`, `/audit-logs`, `/documents`, `/analyses` |
