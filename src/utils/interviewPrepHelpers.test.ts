@@ -104,7 +104,7 @@ test('3. inferInterviewQuestions generates 5 to 10 tailored questions based on g
 
 test('4. normalizeFeature4Data safeguards missing data, handles backward compatibility, and constrains to 5-10 questions', () => {
   // Empty rawFeature4 -> should infer fallback with 5-10 questions
-  const emptyRes = normalizeFeature4Data(null, 'CV dev', 'JD dev', false);
+  const emptyRes = normalizeFeature4Data(null, 'CV dev', 'JD dev', 'vi');
   assert.ok(emptyRes.questions.length >= 5 && emptyRes.questions.length <= 10);
   assert.ok(emptyRes.interviewPrepSummary && emptyRes.interviewPrepSummary.length > 10);
 
@@ -130,7 +130,7 @@ test('4. normalizeFeature4Data safeguards missing data, handles backward compati
     },
     'CV text',
     'JD text',
-    false
+    'vi'
   );
 
   assert.ok(partialRes.questions.length >= 5, `Expected >= 5 questions after supplementing, got ${partialRes.questions.length}`);

@@ -6,10 +6,22 @@ import { BulletPointRewriteTab } from './components/BulletPointRewriteTab';
 import { RecruiterScanTab } from './components/RecruiterScanTab';
 import { InterviewPrepTab } from './components/InterviewPrepTab';
 import { HistorySidebar } from './components/HistorySidebar';
-import { CompleteCVAnalysisResponse, HistoryItem, SamplePreset, UpdatedCvResponse } from './types';
+import { CompleteCVAnalysisResponse, HistoryItem, SamplePreset, UpdatedCvResponse, ReEvaluationComparison } from './types';
 import { AnalysisProgressBar } from './components/AnalysisProgressBar';
 import { generateMarkdownReport } from './utils/exportMarkdown';
 import { UpdatedCvModal } from './components/UpdatedCvModal';
+import { QuickReEvaluateModal } from './components/QuickReEvaluateModal';
+import { ExportReportModal } from './components/ExportReportModal';
+import { buildReEvaluationComparison } from './utils/quickReEvaluateHelpers';
+import {
+  fetchCloudCandidateHistory,
+  pushCandidateHistoryToCloud,
+  deleteCloudCandidateHistoryItem,
+  renameCloudCandidateHistoryItem,
+  clearAllCloudCandidateHistory,
+  mergeHistoryLists,
+  getUnsyncedHistoryItems,
+} from './utils/candidateHistoryHelpers';
 import { AuditorReport } from './components/AuditorReport';
 import { ErrorLogsModal } from './components/ErrorLogsModal';
 import { LoginModal } from './components/LoginModal';
@@ -42,6 +54,7 @@ import {
   FileCheck,
   Users,
   BookOpen,
+  TrendingUp,
 } from 'lucide-react';
 
 const LOCAL_STORAGE_CV_KEY = 'cv_matcher_cvText';
@@ -324,6 +337,45 @@ export default function App() {
   const [updatedCvData, setUpdatedCvData] = useState<UpdatedCvResponse | null>(null);
   const [isGeneratingUpdatedCv, setIsGeneratingUpdatedCv] = useState<boolean>(false);
 
+  // Phase 2: Quick Re-evaluate & Export States
+  const [isQuickReEvaluateModalOpen, setIsQuickReEvaluateModalOpen] = useState<boolean>(false);
+  const [isReEvaluating, setIsReEvaluating] = useState<boolean>(false);
+  const [reEvaluationComparison, setReEvaluationComparison] = useState<ReEvaluationComparison | null>(null);
+  const [stagedNewAnalysis, setStagedNewAnalysis] = useState<CompleteCVAnalysisResponse | null>(null);
+  const [stagedNewCvText, setStagedNewCvText] = useState<string>('');
+  const [isExportReportModalOpen, setIsExportReportModalOpen] = useState<boolean>(false);
+  const [isSyncingHistory, setIsSyncingHistory] = useState<boolean>(false);
+
+  const syncCandidateHistory = React.useCallback(async () => {
+    if (!currentUser) return;
+    setIsSyncingHistory(true);
+    try {
+      const res = await fetchCloudCandidateHistory(token || undefined);
+      if (res.success && Array.isArray(res.items)) {
+        setHistoryItems((currentLocal) => {
+          const merged = mergeHistoryLists(currentLocal, res.items);
+          const unsynced = getUnsyncedHistoryItems(merged);
+          if (unsynced.length > 0) {
+            pushCandidateHistoryToCloud(unsynced, token || undefined).catch((err) =>
+              console.warn('Failed to push unsynced history to cloud:', err)
+            );
+          }
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Cloud candidate history sync error:', err);
+    } finally {
+      setIsSyncingHistory(false);
+    }
+  }, [currentUser, token]);
+
+  useEffect(() => {
+    if (currentUser) {
+      syncCandidateHistory();
+    }
+  }, [currentUser, syncCandidateHistory]);
+
   const handleSelectPreset = (preset: SamplePreset) => {
     setCvText(preset.cvText);
     setJdText(preset.jdText);
@@ -414,6 +466,15 @@ export default function App() {
       setHistoryItems((prev) =>
         [newHistoryItem, ...prev.filter((item) => item.id !== newHistoryItem.id)].slice(0, 30)
       );
+
+      // Cloud Sync new item
+      pushCandidateHistoryToCloud([newHistoryItem], token || undefined).then((res) => {
+        if (res.success) {
+          setHistoryItems((prev) =>
+            prev.map((it) => (it.id === newHistoryItem.id ? { ...it, isSynced: true } : it))
+          );
+        }
+      }).catch((err) => console.warn('Failed to push history item to cloud:', err));
     } catch (err: any) {
       console.error('Error analyzing CV:', err);
       if (err?.code === 'AUTH_REQUIRED') {
@@ -446,6 +507,9 @@ export default function App() {
     if (currentActiveHistoryId === id) {
       setCurrentActiveHistoryId(undefined);
     }
+    deleteCloudCandidateHistoryItem(id, token || undefined).catch((err) =>
+      console.warn('Failed to delete cloud history item:', err)
+    );
   };
 
   const handleRenameHistoryItem = (
@@ -475,14 +539,86 @@ export default function App() {
           companyName: nextCompany || undefined,
           jobTitle: nextRole || undefined,
           isCustomTitle: true,
+          updatedAt: Date.now(),
         };
       })
+    );
+    renameCloudCandidateHistoryItem(id, updates, token || undefined).catch((err) =>
+      console.warn('Failed to rename cloud history item:', err)
     );
   };
 
   const handleClearHistory = () => {
     setHistoryItems([]);
     setCurrentActiveHistoryId(undefined);
+    clearAllCloudCandidateHistory(token || undefined).catch((err) =>
+      console.warn('Failed to clear cloud history:', err)
+    );
+  };
+
+  const handleRunReEvaluation = async (newCvText: string) => {
+    if (!newCvText.trim() || !jdText.trim() || !analysis) return;
+    setIsReEvaluating(true);
+    try {
+      const res = await fetchWithRetry('/api/analyze-cv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          cvText: newCvText,
+          jdText,
+          companyName: analysis.companyName,
+          jobTitle: analysis.jobTitle,
+          lang,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || (lang === 'vi' ? 'Không thể chấm điểm lại' : 'Failed to re-evaluate'));
+      }
+      const comp = buildReEvaluationComparison(analysis, data);
+      setReEvaluationComparison(comp);
+      setStagedNewAnalysis(data);
+      setStagedNewCvText(newCvText);
+    } catch (err: any) {
+      console.error('Re-evaluation error:', err);
+      alert(err?.message || (lang === 'vi' ? 'Chấm điểm lại thất bại.' : 'Re-evaluation failed.'));
+    } finally {
+      setIsReEvaluating(false);
+    }
+  };
+
+  const handleApplyReEvaluation = () => {
+    if (!stagedNewAnalysis || !stagedNewCvText || !analysis) return;
+    const oldAnalysis = analysis;
+    setCvText(stagedNewCvText);
+    setAnalysis(stagedNewAnalysis);
+
+    const updatedHistoryItem: HistoryItem = {
+      id: Date.now().toString(),
+      title: currentRoleTitle || `${stagedNewAnalysis.companyName || ''} - ${stagedNewAnalysis.jobTitle || ''}`,
+      companyName: stagedNewAnalysis.companyName,
+      jobTitle: stagedNewAnalysis.jobTitle,
+      timestamp: Date.now(),
+      cvText: stagedNewCvText,
+      jdText,
+      analysis: stagedNewAnalysis,
+      previousAnalysis: oldAnalysis,
+      score: stagedNewAnalysis.feature1?.scores?.overallRoleScore,
+      isSynced: false,
+    };
+
+    setCurrentActiveHistoryId(updatedHistoryItem.id);
+    setHistoryItems((prev) => [updatedHistoryItem, ...prev]);
+    pushCandidateHistoryToCloud([updatedHistoryItem], token || undefined).then((res) => {
+      if (res.success) {
+        setHistoryItems((prev) =>
+          prev.map((it) => (it.id === updatedHistoryItem.id ? { ...it, isSynced: true } : it))
+        );
+      }
+    }).catch((err) => console.warn('Failed to push re-evaluated item to cloud:', err));
   };
 
   const handleSaveBatchHistoryItems = (items: HistoryItem[]) => {
@@ -859,6 +995,21 @@ export default function App() {
               {/* Export / Print Action Buttons */}
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 justify-end flex-wrap max-w-full">
                 <button
+                  type="button"
+                  onClick={() => {
+                    setReEvaluationComparison(null);
+                    setStagedNewAnalysis(null);
+                    setStagedNewCvText('');
+                    setIsQuickReEvaluateModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 bg-linear-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-[1.02]"
+                  title={lang === 'vi' ? 'Sửa CV và chấm điểm lại ngay với cùng JD (Before vs. After)' : 'Edit CV and re-score with the same JD'}
+                >
+                  <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                  <span>{lang === 'vi' ? 'Chấm Điểm Lại' : 'Re-evaluate'}</span>
+                </button>
+
+                <button
                   onClick={() => handleGenerateUpdatedCv()}
                   className="flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-slate-950 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-[1.02]"
                   title={lang === 'vi' ? 'Cập nhật toàn bộ CV theo các đề xuất ở mục 6 bằng Trợ lý AI' : 'Generate full updated CV based on Section 6 via AI Assistant'}
@@ -866,6 +1017,16 @@ export default function App() {
                   <Sparkles className="w-3.5 h-3.5 text-slate-950 fill-slate-950 shrink-0" />
                   <span>{lang === 'vi' ? 'Cập Nhật CV' : 'Update CV'}</span>
                   <span className="hidden sm:inline text-[10px] opacity-80">(AI)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsExportReportModalOpen(true)}
+                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-[1.02]"
+                  title={lang === 'vi' ? 'Xuất Báo Cáo Phân Tích & Bản Nháp CV (Word, PDF, Markdown)' : 'Export Full Report & CV Draft (Word, PDF, Markdown)'}
+                >
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <span>{lang === 'vi' ? 'Xuất Báo Cáo' : 'Export'}</span>
                 </button>
 
                 <button
@@ -887,21 +1048,12 @@ export default function App() {
                 </button>
 
                 <button
-                  onClick={handleDownloadReport}
-                  className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-lg text-xs font-semibold border border-indigo-200/60 transition-colors cursor-pointer"
-                  title={lang === 'vi' ? 'Tải tệp .md về máy' : 'Download .md file'}
-                >
-                  <Download className="w-3.5 h-3.5 shrink-0" />
-                  <span>{lang === 'vi' ? 'Tải .md' : 'Download .md'}</span>
-                </button>
-
-                <button
                   onClick={handlePrint}
                   className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                   title={lang === 'vi' ? 'In báo cáo' : 'Print report'}
                 >
                   <Printer className="w-3.5 h-3.5 shrink-0" />
-                  <span>{lang === 'vi' ? 'In Báo Cáo' : 'Print'}</span>
+                  <span>{lang === 'vi' ? 'In' : 'Print'}</span>
                 </button>
               </div>
             </div>
@@ -988,6 +1140,38 @@ export default function App() {
           onDeleteHistoryItem={handleDeleteHistoryItem}
           onRenameHistoryItem={handleRenameHistoryItem}
           onClearHistory={handleClearHistory}
+          onSyncHistory={syncCandidateHistory}
+          isSyncing={isSyncingHistory}
+          lang={lang}
+        />
+
+        {/* Phase 2: Quick Re-evaluate Modal */}
+        {analysis && (
+          <QuickReEvaluateModal
+            isOpen={isQuickReEvaluateModalOpen}
+            onClose={() => setIsQuickReEvaluateModalOpen(false)}
+            originalCvText={cvText}
+            suggestedCvText={updatedCvData?.updatedCvMarkdown}
+            jdText={jdText}
+            companyName={analysis.companyName}
+            jobTitle={analysis.jobTitle || currentRoleTitle}
+            currentAnalysis={analysis}
+            comparison={reEvaluationComparison}
+            isReEvaluating={isReEvaluating}
+            onRunReEvaluation={handleRunReEvaluation}
+            onApplyNewAnalysis={handleApplyReEvaluation}
+            lang={lang}
+          />
+        )}
+
+        {/* Phase 2: Export Report & CV Modal */}
+        <ExportReportModal
+          isOpen={isExportReportModalOpen}
+          onClose={() => setIsExportReportModalOpen(false)}
+          analysis={analysis}
+          currentRoleTitle={currentRoleTitle}
+          updatedCvData={updatedCvData}
+          onOpenUpdatedCvModal={() => setIsUpdatedCvModalOpen(true)}
           lang={lang}
         />
 

@@ -4,6 +4,110 @@
 
 ---
 
+## Đợt 13 (2026-10-30): Triển khai PHASE 2 — Tiện Ích Hoàn Thiện Hồ Sơ & Đồng Bộ Đám Mây Cho Ứng Viên
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Triển khai trọn vẹn 3 trụ cột của **Phase 2: Tiện Ích Hoàn Thiện Hồ Sơ & Đồng Bộ Đám Mây Cho Ứng Viên** theo đúng lộ trình sản phẩm:
+  1. **Chế độ Chấm điểm lại nhanh & So sánh Trước vs. Sau (Quick Re-evaluate / Before vs. After):**
+     - Cho phép ứng viên sửa trực tiếp văn bản CV trong ô soạn thảo hoặc nạp bản CV gợi ý từ AI rồi bấm "Chấm điểm lại nhanh" với cùng JD.
+     - Hiển thị bảng so sánh Trước vs. Sau: bước nhảy điểm tổng thể (Delta `+X%`), 4 trục điểm thành phần, danh sách Red Flags đã khắc phục (`resolvedRedFlags`), và các điểm mạnh mới bổ sung (`newStrengths`).
+     - Cho phép lưu đè bản phân tích tối ưu vào màn hình chính và tự động gắn nhãn `Re-evaluated` trong lịch sử.
+  2. **Bộ Tiện ích Xuất Báo Cáo Đa Định Dạng & Bản Nháp CV Chuẩn ATS:**
+     - Tích hợp modal xuất tài liệu chuyên nghiệp (`ExportReportModal.tsx`) với nút "Xuất Báo Cáo" trên thanh công cụ.
+     - Báo Cáo Toàn Diện (Senior HR Audit): Xuất Word (`.docx`), PDF (`.pdf`), hoặc Markdown (`.md`) bao gồm trọn vẹn cả 4 tabs.
+     - Bản Nháp CV Tối Ưu: Xuất Word (`.docx`) chuẩn ATS 1 cột, PDF in ấn, hoặc Text (`.txt`).
+  3. **Đồng bộ Lịch sử Phân tích lên Cloud Database (Cloud Sync):**
+     - Xây dựng 5 endpoint `/api/candidate/history` (GET, POST, PUT, DELETE) trên `server.ts` với lưu trữ Firestore `candidate_history` và local cache `data/candidate_history.json`.
+     - Tự động đồng bộ 2 chiều (`candidateHistoryHelpers.ts`): Tự hòa trộn lịch sử đám mây với `localStorage` khi đăng nhập, đẩy bản ghi mới/offline lên đám mây, fallback mượt mà khi mất mạng.
+     - Nâng cấp `HistorySidebar.tsx`: Nút "Đồng bộ ngay", bộ lọc 4 nấc phân tầng điểm số (`≥80%`, `60–79%`, `<60%`), bộ lọc dropdown gom nhóm theo Công ty tuyển dụng, và huy hiệu `Cloud` / `Re-evaluated`.
+  4. **Kiểm thử Bảo mật Cloudflare Security Audit Gate (`run-3`):**
+     - Thực hiện kiểm thử an toàn các bề mặt thay đổi với `ATTACK-CLASSES.md`, `WEB-PROTOCOL-AND-AUTH.md`, `DATA-ISOLATION-AND-LIFECYCLE.md`, và `CLIENT-SIDE.md`.
+     - Chạy 2 script validator: `validate-findings.cjs` (PASS 0 findings) và `validate-coverage-ledger.cjs` (PASS 2 coverage units).
+
+### 2. Files Affected (Danh sách file tạo mới & sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/types.ts` | **Modified** | Bổ sung các kiểu dữ liệu `ReEvaluationComparison`, `ReEvaluationScoreDelta`, `ExportDocumentType`, mở rộng `HistoryItem` (`updatedAt`, `isSynced`, `previousAnalysis`). |
+| `server.ts` | **Modified** | Thêm 5 endpoint `/api/candidate/history` (GET, POST, PUT, DELETE), in-memory cache `candidateHistories`, local file `data/candidate_history.json`, và Firestore collection `candidate_history`. |
+| `src/utils/quickReEvaluateHelpers.ts` | **Created** | Helper tính toán delta điểm số 4 trục, nhận diện Red Flags đã hóa giải và tiêu chí mới đáp ứng. |
+| `src/utils/quickReEvaluateHelpers.test.ts` | **Created** | Bộ 4 unit tests kiểm tra tính chính xác và an toàn dữ liệu của helper chấm điểm lại. |
+| `src/utils/candidateHistoryHelpers.ts` | **Created** | Helper quản lý hòa trộn dữ liệu local/cloud, gọi API đồng bộ, xóa, đổi tên lịch sử đám mây. |
+| `src/utils/candidateHistoryHelpers.test.ts` | **Created** | Bộ 3 unit tests kiểm tra thuật toán hòa trộn (merge) và phát hiện bản ghi chưa đồng bộ. |
+| `src/components/QuickReEvaluateModal.tsx` | **Created** | Giao diện Modal chấm điểm lại nhanh, chỉnh sửa văn bản CV, bảng so sánh Before vs. After trực quan. |
+| `src/components/ExportReportModal.tsx` | **Created** | Giao diện Modal xuất tài liệu đa định dạng (Word .docx, PDF, Markdown, TXT) cho Báo cáo HR và Bản nháp CV ATS. |
+| `src/components/HistorySidebar.tsx` | **Modified** | Bổ sung nút đồng bộ đám mây, bộ lọc theo phân tầng điểm số, dropdown lọc theo công ty, huy hiệu Cloud & Re-evaluated. |
+| `src/App.tsx` | **Modified** | Kết nối luồng Cloud Sync tự động, nút "Chấm Điểm Lại", nút "Xuất Báo Cáo", tích hợp 2 Modal mới. |
+| `src/utils/i18n.ts` | **Modified** | Bổ sung đầy đủ bộ thuật ngữ song ngữ Việt - Anh cho Phase 2 (`quickReEvaluate`, `exportReportModal`, `history`). |
+| `docs/HUONG_DAN_SU_DUNG_CHO_UNG_VIEN.md` | **Modified** | Cập nhật hướng dẫn tính năng Chấm điểm lại nhanh, Trung tâm xuất báo cáo và Đồng bộ lịch sử đám mây. |
+| `docs/CANDIDATE_USER_GUIDE_EN.md` | **Modified** | Bản dịch tiếng Anh đồng bộ 100% tài liệu hướng dẫn ứng viên. |
+| `docs/ADMIN_TECHNICAL_GUIDE_VI.md` & `EN.md` | **Modified** | Bổ sung tài liệu cụm API `/api/candidate/history` và collection `candidate_history`. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Định nghĩa kiểu dữ liệu trong `src/types.ts` và xây dựng `candidateHistoryHelpers.ts` + `quickReEvaluateHelpers.ts`.
+- [x] **Bước 2:** Triển khai bộ API `/api/candidate/history` trong `server.ts` với persistence Firestore và local cache file JSON.
+- [x] **Bước 3:** Xây dựng 2 Modal giao diện `QuickReEvaluateModal.tsx` và `ExportReportModal.tsx`.
+- [x] **Bước 4:** Nâng cấp `HistorySidebar.tsx` với bộ lọc Công ty, phân tầng điểm số, và huy hiệu Cloud Sync.
+- [x] **Bước 5:** Tích hợp luồng Cloud Sync và các nút hành động mới trong `src/App.tsx`.
+- [x] **Bước 6:** Cập nhật tài liệu hướng dẫn người dùng và quản trị trong `docs/`.
+- [x] **Bước 7:** Chạy kiểm thử chuỗi 3 lệnh tiêu chuẩn:
+  * `npm run lint` (`tsc --noEmit`): Exit 0 (0 errors).
+  * `npm test` (`vitest run`): Exit 0 (11/11 test suites, 91/91 tests passed).
+  * `npm run build` (`vite build && esbuild`): Exit 0 (Frontend & Backend dist bundle build thành công).
+- [x] **Bước 8:** Chạy cổng an toàn Cloudflare Security Audit Gate (`run-3`): PASS 100% (0 findings, 2 coverage units valid).
+
+---
+
+## Đợt 12 (2026-10-30): Rà Soát & Cập Nhật Toàn Bộ Tài Liệu Hướng Dẫn (`docs/`) Đồng Bộ 100% với Codebase Bước 1.1 -> 1.4
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Sẵn sàng duyệt commit staging`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Tiếp thu yêu cầu rà soát và cập nhật toàn bộ tài liệu hướng dẫn người dùng và quản trị hệ thống trong thư mục `docs/` tương ứng với các thay đổi mã nguồn từ Bước 1.1 đến Bước 1.4:
+  1. **Tài liệu Hướng dẫn Ứng viên (`HUONG_DAN_SU_DUNG_CHO_UNG_VIEN.md` & `CANDIDATE_USER_GUIDE_EN.md`):**
+     - Đồng bộ quy trình 4 tab kết quả độc lập: Tab 1 `Góc Nhìn HR & Rủi Ro`, Tab 2 `Chỉ Số Khớp & Từ Khóa JD`, Tab 3 `Tối ưu & Viết lại CV`, Tab 4 `Cẩm Nang Phỏng Vấn (5–10 câu)`.
+     - Cập nhật chi tiết Bước 1.1: Giải trình điểm số đa chiều (4 rationales), điểm tiềm năng sau tối ưu (`projectedOverallScore`), phân loại tiêu chí Bắt buộc (`Must-Have`) vs Điểm cộng (`Nice-to-Have`), vị trí chèn (`targetSection`) và câu mẫu gợi ý (`suggestedPhrasing`) kèm nút chép 1-Click.
+     - Cập nhật chi tiết Bước 1.2: Tóm tắt mở đầu 2 bản may đo (50–200 từ, tối đa 250 từ cho Senior/Quản lý) kèm huy hiệu đếm từ động 4 phân tầng; đánh giá cấu trúc 4 phần CV với điểm hoàn thiện, nhận xét, đề xuất và mẫu câu tham khảo trực tiếp (chống bịa đặt); bullet points chuẩn STAR/XYZ với nhãn từ khóa JD và gợi ý số liệu.
+     - Cập nhật chi tiết Bước 1.3: Đánh giá tầm vóc 4 trục (Cấp bậc, Quy mô dự án, Phạm vi lãnh đạo, Khớp ngành); Ma trận rủi ro hồ sơ & chiến lược hóa giải (Red Flags, e ngại HR, xử lý trên CV và phỏng vấn).
+     - Bổ sung chương mới hoàn chỉnh cho Bước 1.4: Cẩm nang phỏng vấn thực chiến với bộ 5–10 câu hỏi xoáy sâu (3 nhóm danh mục), ý đồ sâu xa của Nhà tuyển dụng, khung trả lời STAR bám sát dữ liệu thật của CV và cạm bẫy cần tránh.
+     - Cập nhật chuẩn hóa định dạng Lịch sử `[Company Name] - [Job Title]` kèm nút `✏️ Sửa tên`.
+  2. **Tài liệu Hướng dẫn Nhà tuyển dụng (`HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md` & `RECRUITER_USER_GUIDE_EN.md`):**
+     - Cập nhật hướng dẫn khai thác chế độ xem chi tiết ứng viên (Candidate Deep-Dive) với đầy đủ 4 tab phân tích.
+     - Hướng dẫn thẩm định hồ sơ qua Đánh giá tầm vóc 4 trục và Ma trận rủi ro.
+     - Hướng dẫn sử dụng Cẩm nang Phỏng vấn 5–10 câu STAR để xây dựng kịch bản phỏng vấn có cấu trúc cao, bám sát khoảng trống thực tế của ứng viên.
+  3. **Tài liệu Kỹ thuật Quản trị (`ADMIN_TECHNICAL_GUIDE_VI.md` & `ADMIN_TECHNICAL_GUIDE_EN.md`):**
+     - Đồng bộ schema response gồm 4 features (`feature1` đến `feature4`) và top-level metadata (`companyName`, `jobTitle`).
+     - Cập nhật bảng thành phần kết quả, giải thích cấu trúc dữ liệu mới và nguyên tắc bảo vệ dữ liệu Grounded Anti-Hallucination.
+  4. **Kiểm tra & Sửa lỗi kiểu dữ liệu:** Sửa tham số `false` thành `'vi'` trong test case 4 của `src/utils/interviewPrepHelpers.test.ts`, đưa `npm run lint` về 0 errors tuyệt đối.
+
+### 2. Files Affected (Danh sách file sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `docs/HUONG_DAN_SU_DUNG_CHO_UNG_VIEN.md` | **Modified** | Cập nhật cấu trúc 4 tab, Đánh giá tầm vóc 4 trục, Ma trận rủi ro, Giải trình điểm, Điểm tiềm năng, Tóm tắt 50–200 từ, Đánh giá cấu trúc 4 phần, và Cẩm nang phỏng vấn STAR. |
+| `docs/CANDIDATE_USER_GUIDE_EN.md` | **Modified** | Bản dịch tiếng Anh chuyên nghiệp đồng bộ 100% với nội dung tiếng Việt của Hướng dẫn Ứng viên. |
+| `docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md` | **Modified** | Cập nhật hướng dẫn khai thác 4 tab chi tiết, thẩm định tầm vóc 4 trục, ma trận rủi ro và ứng dụng bộ câu hỏi STAR vào phỏng vấn. |
+| `docs/RECRUITER_USER_GUIDE_EN.md` | **Modified** | Bản tiếng Anh đồng bộ hướng dẫn Nhà tuyển dụng. |
+| `docs/ADMIN_TECHNICAL_GUIDE_VI.md` | **Modified** | Cập nhật response schema 4 features, bảng thành phần kết quả và nguyên tắc Grounded Anti-Hallucination. |
+| `docs/ADMIN_TECHNICAL_GUIDE_EN.md` | **Modified** | Bản tiếng Anh đồng bộ tài liệu kiến trúc kỹ thuật admin/CTO. |
+| `src/utils/interviewPrepHelpers.test.ts` | **Modified** | Sửa kiểu tham số `'vi'` trong `normalizeFeature4Data` giúp `tsc --noEmit` pass 0 lỗi. |
+
+### 3. Implementation Steps & Test Results
+- [x] **Bước 1:** Rà soát mã nguồn Bước 1.1 -> 1.4 và lập danh mục toàn bộ các cập nhật tính năng.
+- [x] **Bước 2:** Cập nhật tài liệu Ứng viên tiếng Việt (`HUONG_DAN_SU_DUNG_CHO_UNG_VIEN.md`) và tiếng Anh (`CANDIDATE_USER_GUIDE_EN.md`).
+- [x] **Bước 3:** Cập nhật tài liệu Nhà tuyển dụng tiếng Việt (`HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md`) và tiếng Anh (`RECRUITER_USER_GUIDE_EN.md`).
+- [x] **Bước 4:** Cập nhật tài liệu Kỹ thuật Quản trị tiếng Việt (`ADMIN_TECHNICAL_GUIDE_VI.md`) và tiếng Anh (`ADMIN_TECHNICAL_GUIDE_EN.md`).
+- [x] **Bước 5:** Khắc phục lỗi kiểu dữ liệu trong `src/utils/interviewPrepHelpers.test.ts`.
+- [x] **Bước 6:** Chạy kiểm thử chuỗi 3 lệnh tiêu chuẩn:
+  * `npm run lint` (`tsc --noEmit`): Exit 0 (0 errors).
+  * `npm test` (`vitest run`): Exit 0 (9/9 test suites, 84/84 tests passed).
+  * `npm run build` (`vite build && esbuild`): Exit 0 (Frontend & Backend dist bundle build thành công).
+- [x] **Bước 7:** Chạy cổng an toàn Security Audit Gate: PASS 100%.
+
+---
+
 ## Đợt 11 (2026-10-29): Triển khai Cơ chế Phân tầng Độ dài Tóm tắt Mở đầu (50–200 từ, tối đa 250 từ cho Senior/Quản lý) & Huy hiệu Đếm từ Động
 - **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved to commit staging`
 - **Nhánh (Branch):** `staging`

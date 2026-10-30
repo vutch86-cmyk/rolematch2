@@ -2,7 +2,7 @@
 
 > **Trạng thái tài liệu:** Bản nháp để review và phê duyệt. Chưa import vào repository.
 >
-> **Source được đối chiếu:** `main` tại commit `d4a9db0ab5c24b5fc2782677081ca01dd17dda97`.
+> **Source được đối chiếu:** Nhánh `staging` (tích hợp đầy đủ Phase 1: Bước 1.1 -> 1.4 — Chiều Sâu Phân Tích Ứng Viên 2.0).
 >
 > **Mục tiêu:** giúp Admin vận hành RoleMatch an toàn; đồng thời giúp CTO hiểu kiến trúc sản phẩm, backend, pipeline AI, vòng đời dữ liệu, mô hình triển khai và các rủi ro trước production.
 
@@ -474,7 +474,12 @@ Recruiter nhận tối đa **15 CV/batch**. Chỉ CV trích xuất được nộ
 3. Frontend gọi `POST /api/analyze-cv` với CV, JD, ngôn ngữ và câu trả lời bổ sung.
 4. Backend xác thực và reserve **1 lượt** cho normal user; Admin bypass quota.
 5. Backend chạy Draft → Auditor → Synthesizer.
-6. Response gồm score, keyword, evidence, gap, bullet rewrite và recruiter quick scan.
+6. Response hoàn chỉnh theo schema gồm 4 nhóm tính năng chính và metadata:
+   - `companyName`, `jobTitle`: Trích xuất trực tiếp từ JD / AI.
+   - `feature1`: `scores` (kèm `projectedOverallScore`, 4 trường `rationale` giải trình điểm số), `jdKeywords` (phân loại `isMustHave`), `comparisonTable` (đánh dấu `isMustHave`, vị trí chèn `targetSection`, câu mẫu gợi ý `suggestedPhrasing` kèm sao chép 1-Click), `summary`.
+   - `feature2`: `tailoredSummaries` (2 bản tóm tắt mở đầu may đo 50–200 từ: Chuyên môn/Kỹ thuật vs Quản trị/Kinh doanh), `sectionAudit` (đánh giá cấu trúc 4 phần CV, điểm hoàn thiện 0–100%, trạng thái, nhận xét, đề xuất điều chỉnh, `suggestedSnippets` chống bịa đặt), `rewrittenBullets` (chuẩn XYZ/STAR kèm `embeddedKeywords`, `metricPlaceholders`), `clarifyingQuestions`.
+   - `feature3`: `recruiterQuickScan` (ấn tượng 10s, quyết định YES/MAYBE/NO, điểm mạnh, nghi ngờ chính, top 3 must-fix), `seniorityFitAssessment` (đánh giá tầm vóc 4 trục: Cấp bậc/Thâm niên, Quy mô dự án, Mức độ tự chủ, Độ khớp ngành), `riskMitigationMatrix` (nhận diện Red Flags, e ngại của HR, chiến lược hóa giải trên CV và phỏng vấn).
+   - `feature4`: `interviewPrep` (bộ 5–10 câu hỏi phỏng vấn thực chiến xoáy sâu chia theo 3 nhóm danh mục, kèm `interviewerIntent`, khung trả lời `starAnswerGuide` bám sát CV thật, và `pitfallToAvoid`).
 7. Backend lưu `analysis_records`; frontend hiển thị và có thể lưu browser history.
 
 Quota hiện được reserve **trước** kiểm tra maximum-length và trước cache hit. Do đó request quá dài hoặc kết quả lấy từ cache vẫn có thể tiêu thụ lượt mà không có AI execution mới.
@@ -555,6 +560,7 @@ Score gồm `keywordMatchScore`, `skillMatchScore`, `experienceOutcomeScore`, `o
 - **EVIDENCE:** được CV/JD hỗ trợ trực tiếp.
 - **INFERENCE:** nhận định hợp lý nhưng chưa xác nhận.
 - **MISSING:** thiếu dữ liệu; phải hỏi lại, không tự điền.
+- **NGUYÊN TẮC CHỐNG BỊA ĐẶT (GROUNDED ANTI-HALLUCINATION):** Toàn bộ các đề xuất mở đầu, mẫu câu tham khảo (`suggestedSnippets`), bullet points viết lại và khung trả lời phỏng vấn STAR đều bị ràng buộc nghiêm ngặt trong AI prompt và backend schema: *BẮT BUỘC phải dựa trên thông tin thực tế từ CV của ứng viên, TUYỆT ĐỐI KHÔNG tự ý sáng tạo hay bịa đặt kinh nghiệm/kỹ năng/số liệu ngoài CV*.
 
 Fallback hiện có thể tạo kỹ năng mặc định hoặc thành tích **“25% efficiency gain”**, **“saving 15 hours weekly”** dù CV không có. Một số nhánh vẫn ghi `COMPLETED`. Đây là rủi ro **P0 về tính trung thực**: tuyệt đối không đưa thành tích, chứng chỉ hoặc kỹ năng chưa xác minh vào CV thật. Một số Candidate logs còn dùng fallback score `75`/`65` khi score thiếu hoặc bằng `0`; Admin cần đối chiếu report gốc.
 
@@ -610,7 +616,7 @@ Reservation dùng request ID đã hash để giảm tính trùng. `DEGRADED` ngh
 |---|---|
 | Auth | `POST /api/auth/login`, `/register`, `GET /api/auth/me`, `POST /api/auth/logout` |
 | File | `POST /api/extract-text` |
-| Candidate | `POST /api/analyze-cv` |
+| Candidate | `POST /api/analyze-cv`; `GET/POST/PUT/DELETE /api/candidate/history` (Phase 2 Cloud Sync) |
 | Recruiter | `POST /api/batch-analyze`; `GET/POST/DELETE /api/recruiter/batches` |
 | CV utilities | `POST /api/format-cv-text`, `/api/generate-updated-cv` |
 | Admin users | `GET/POST/DELETE /api/admin/users`; lock, unlock, terminate-session, reset-limit |
