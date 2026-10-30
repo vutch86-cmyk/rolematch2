@@ -139,6 +139,40 @@ export interface RecruiterScanResult {
   riskMitigationMatrix?: RiskMitigationItem[]; // Bước 1.3: Ma trận Hóa giải Rủi ro
 }
 
+// ==========================================
+// Phase 1.4: Cẩm Nang Phỏng Vấn Thực Chiến (5-10 Câu Hỏi Linh Hoạt)
+// ==========================================
+
+export interface StarAnswerGuide {
+  situationTask: string; // Tình huống & Thách thức từ kinh nghiệm thực tế (Situation & Task)
+  action: string; // Hành động cụ thể, kỹ thuật/công cụ và phương pháp giải quyết (Action)
+  result: string; // Kết quả định lượng, giá trị kinh doanh hoặc bài học rút ra (Result)
+}
+
+export type InterviewQuestionCategory =
+  | 'gap_verification'
+  | 'deep_dive_scenario'
+  | 'seniority_culture'
+  | string;
+
+export type InterviewQuestionDifficulty = 'critical' | 'hard' | 'very_hard' | string;
+
+export interface InterviewQuestionItem {
+  id?: string;
+  question: string; // Câu hỏi phỏng vấn cụ thể từ HR / Hiring Manager
+  category: string; // Nhóm câu hỏi (VD: 'Kiểm chứng khoảng trống CV' | 'Tình huống & Chuyên môn sâu' | 'Tầm vóc & Cách làm việc')
+  difficulty: string; // Độ khó (VD: 'Trọng tâm' | 'Khó' | 'Rất khó')
+  sourceGapOrDoubt: string; // Khoảng trống hoặc điểm nghi ngờ nào trong CV dẫn đến câu hỏi này
+  interviewerIntent: string; // Ý đồ thực sự của Nhà tuyển dụng khi hỏi câu này
+  starAnswerGuide: StarAnswerGuide; // Gợi ý khung trả lời theo mô hình STAR
+  pitfallToAvoid: string; // Sai lầm / bẫy ứng viên tuyệt đối cần tránh khi trả lời
+}
+
+export interface InterviewPrepData {
+  interviewPrepSummary?: string; // Tóm tắt chiến lược phỏng vấn tổng quan
+  questions: InterviewQuestionItem[]; // Danh sách linh động từ 5 đến 10 câu hỏi
+}
+
 export interface PipelineAuditStep {
   step: number;
   name: string;
@@ -216,6 +250,7 @@ export interface CompleteCVAnalysisResponse {
     sectionAudit?: SectionBySectionAudit; // Khám bệnh 4 phần của CV
   };
   feature3: RecruiterScanResult;
+  feature4?: InterviewPrepData;
 }
 
 export interface SamplePreset {

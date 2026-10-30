@@ -4,6 +4,7 @@ import { InputSection } from './components/InputSection';
 import { KeywordMatchTab } from './components/KeywordMatchTab';
 import { BulletPointRewriteTab } from './components/BulletPointRewriteTab';
 import { RecruiterScanTab } from './components/RecruiterScanTab';
+import { InterviewPrepTab } from './components/InterviewPrepTab';
 import { HistorySidebar } from './components/HistorySidebar';
 import { CompleteCVAnalysisResponse, HistoryItem, SamplePreset, UpdatedCvResponse } from './types';
 import { AnalysisProgressBar } from './components/AnalysisProgressBar';
@@ -286,10 +287,10 @@ export default function App() {
   }, [currentUser?.username, lang]);
 
   const [appMode, setAppMode] = useState<'single' | 'batch'>('single');
-  const [activeTab, setActiveTab] = useState<'feature1' | 'feature2' | 'feature3'>('feature3');
+  const [activeTab, setActiveTab] = useState<'feature1' | 'feature2' | 'feature3' | 'feature4'>('feature3');
   const tabsHeaderRef = useRef<HTMLDivElement>(null);
 
-  const handleTabChange = (tab: 'feature1' | 'feature2' | 'feature3') => {
+  const handleTabChange = (tab: 'feature1' | 'feature2' | 'feature3' | 'feature4') => {
     setActiveTab(tab);
 
     requestAnimationFrame(() => {
@@ -840,6 +841,19 @@ export default function App() {
                   <span className="hidden xl:inline">{t.tabs.tab3}</span>
                   <span className="inline xl:hidden">{lang === 'vi' ? '3. Cập nhật CV' : '3. Update CV'}</span>
                 </button>
+
+                <button
+                  onClick={() => handleTabChange('feature4')}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'feature4'
+                      ? 'bg-indigo-600 text-white shadow-sm font-bold'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 font-semibold'
+                  }`}
+                >
+                  <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'feature4' ? 'text-white' : 'text-purple-600'}`} />
+                  <span className="hidden xl:inline">{t.tabs.tab4}</span>
+                  <span className="inline xl:hidden">{lang === 'vi' ? '4. Phỏng Vấn' : '4. Interview'}</span>
+                </button>
               </div>
 
               {/* Export / Print Action Buttons */}
@@ -925,6 +939,17 @@ export default function App() {
 
               {activeTab === 'feature3' && analysis.feature3 && (
                 <RecruiterScanTab result={analysis.feature3} lang={lang} cvText={cvText} jdText={jdText} />
+              )}
+
+              {activeTab === 'feature4' && (
+                <InterviewPrepTab
+                  data={analysis.feature4}
+                  lang={lang}
+                  cvText={cvText}
+                  jdText={jdText}
+                  comparisonGaps={analysis.feature1?.comparisonTable}
+                  risks={analysis.feature3?.riskMitigationMatrix}
+                />
               )}
             </div>
           </div>
