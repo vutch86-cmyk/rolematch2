@@ -5789,6 +5789,175 @@ function createFallbackAnalysis(cvText: string, jdText: string, lang: 'vi' | 'en
         },
       ],
     },
+    feature4: {
+      interviewPrepSummary: isEn
+        ? 'Curated 6 practical interview battle questions focusing on quantified project outcomes, production crisis handling, and fast 90-day onboarding value.'
+        : 'Bộ 6 câu hỏi phỏng vấn thực chiến xoáy sâu vào kỹ năng định lượng kết quả dự án, xử lý sự cố hệ thống và lộ trình tạo giá trị trong 90 ngày đầu.',
+      questions: [
+        {
+          question: isEn
+            ? 'In your CV, achievements are described qualitatively. Can you walk through a specific project and quantify your direct business or performance impact?'
+            : 'Trong CV của bạn, các thành tựu phần lớn được mô tả định tính. Bạn hãy chia sẻ một dự án cụ thể và định lượng kết quả hoặc giá trị kinh doanh mà bạn trực tiếp tạo ra?',
+          category: isEn ? 'CV Gap Verification' : 'Kiểm chứng khoảng trống CV',
+          difficulty: isEn ? 'High Priority' : 'Trọng tâm',
+          sourceGapOrDoubt: isEn
+            ? 'CV lacks explicit metric baselines, ROI, or percentage gains in work history.'
+            : 'CV còn thiếu các mốc chỉ số định lượng (%, ngân sách, thời gian, SLA) ở các vị trí gần nhất.',
+          interviewerIntent: isEn
+            ? 'Verify whether you truly owned business results or merely participated in routine team tasks.'
+            : 'Kiểm chứng ứng viên thực sự làm chủ kết quả đầu ra hay chỉ tham gia hỗ trợ các công việc thường nhật.',
+          starAnswerGuide: {
+            situationTask: isEn
+              ? 'Name a major project where operational inefficiency or technical delay created a business challenge.'
+              : 'Nêu một dự án trọng điểm gặp vấn đề về hiệu suất vận hành hoặc tắc nghẽn kỹ thuật cần khắc phục.',
+            action: isEn
+              ? 'Detail the architecture/process optimizations you introduced and how you tracked progress.'
+              : 'Trình bày giải pháp tối ưu hóa bạn trực tiếp đề xuất, công cụ đo lường và cách phối hợp triển khai.',
+            result: isEn
+              ? 'Cite verified outcome: e.g. 25% throughput increase, 15 hours saved weekly, 100% on-time delivery.'
+              : 'Đưa ra con số cụ thể: tăng 25% hiệu suất, tiết kiệm 15 giờ/tuần, đạt 100% mục tiêu tiến độ.',
+          },
+          pitfallToAvoid: isEn
+            ? 'Avoid claiming credit for the entire team work without specifying your exact individual contribution.'
+            : 'Tránh nhận vơ thành tích chung của cả tập thể mà không nói rõ vai trò và đóng góp cá nhân của mình.',
+        },
+        {
+          question: isEn
+            ? 'Our role requires rapid integration into domain workflows. How did you adapt when working with an unfamiliar business domain in the past?'
+            : 'Vị trí này đòi hỏi khả năng thích ứng nghiệp vụ nhanh. Bạn từng làm quen và làm chủ một lĩnh vực hoàn toàn mới như thế nào trong quá khứ?',
+          category: isEn ? 'CV Gap Verification' : 'Kiểm chứng khoảng trống CV',
+          difficulty: isEn ? 'Hard' : 'Khó',
+          sourceGapOrDoubt: isEn
+            ? 'Potential domain transition between candidate past companies and target industry.'
+            : 'Độ lệch ngành nghề/nghiệp vụ giữa môi trường làm việc trước đây và lĩnh vực của công ty tuyển dụng.',
+          interviewerIntent: isEn
+            ? 'Evaluate self-learning agility, curiosity, and speed of reaching peak productivity.'
+            : 'Đánh giá khả năng tự học, độ nhạy bén với nghiệp vụ mới và tốc độ hòa nhập để tạo giá trị.',
+          starAnswerGuide: {
+            situationTask: isEn
+              ? 'Describe joining a company or project with complex, unfamiliar business logic.'
+              : 'Lấy dẫn chứng khi bạn mới nhận việc tại một công ty/dự án có mô hình nghiệp vụ lạ và phức tạp.',
+            action: isEn
+              ? 'Explain how you proactively studied documentation, shadowed domain experts, and built practical prototypes.'
+              : 'Nêu cách bạn chủ động đọc tài liệu, trao đổi với chuyên gia nghiệp vụ (BA/PO) và lập bản đồ quy trình.',
+            result: isEn
+              ? 'Delivered first key feature ahead of schedule within 30 days with zero domain defects.'
+              : 'Hoàn thành đầu việc độc lập ngay trong tháng đầu tiên và được khách hàng/quản lý đánh giá cao.',
+          },
+          pitfallToAvoid: isEn
+            ? 'Do not say you expect the company to provide full hand-holding training from scratch.'
+            : 'Tuyệt đối không tỏ ra thụ động hoặc chờ đợi công ty phải cử người "cầm tay chỉ việc" từng li từng tí.',
+        },
+        {
+          question: isEn
+            ? 'Can you describe a critical production incident or major bottleneck you handled under strict deadline pressure?'
+            : 'Hãy mô tả một sự cố nghiêm trọng hoặc nút thắt cổ chai kỹ thuật lớn nhất bạn từng trực tiếp ứng cứu dưới áp lực thời gian?',
+          category: isEn ? 'Deep-Dive Technical & Scenario' : 'Tình huống & Chuyên môn sâu',
+          difficulty: isEn ? 'Very Hard' : 'Rất khó',
+          sourceGapOrDoubt: isEn
+            ? 'JD requires robust troubleshooting and system stability maintenance under enterprise conditions.'
+            : 'JD yêu cầu tính sẵn sàng cao và khả năng phản ứng nhanh với các sự cố bất ngờ.',
+          interviewerIntent: isEn
+            ? 'Assess root-cause diagnostic method, emotional composure, and communication during critical downtime.'
+            : 'Xem xét tư duy chẩn đoán nguyên nhân gốc, sự bình tĩnh và cách thông tin liên lạc khi xảy ra sự cố.',
+          starAnswerGuide: {
+            situationTask: isEn
+              ? 'State the incident trigger, business impact, and recovery SLA deadline.'
+              : 'Tóm lược sự cố: triệu chứng ban đầu, dịch vụ bị gián đoạn và giới hạn thời gian xử lý.',
+            action: isEn
+              ? 'Explain log analysis, containment strategy, root cause identification, and remediation.'
+              : 'Trình bày cách phân tích log/monitoring, cô lập vùng ảnh hưởng, tìm ra điểm lỗi và đưa ra bản vá.',
+            result: isEn
+              ? 'Restored service within SLA and instituted automated preventive monitoring.'
+              : 'Khôi phục hệ thống trong thời hạn SLA và thiết lập thêm cảnh báo tự động để không lặp lại lỗi.',
+          },
+          pitfallToAvoid: isEn
+            ? 'Never blame previous colleagues or vendors. Stay focused on technical troubleshooting facts.'
+            : 'Tuyệt đối không đổ lỗi cho đồng nghiệp, khách hàng hay hạ tầng bên thứ ba. Hãy tập trung vào giải pháp.',
+        },
+        {
+          question: isEn
+            ? 'How do you balance technical quality / clean architecture with urgent business deadlines?'
+            : 'Bạn cân bằng giữa chất lượng kỹ thuật (chuẩn hóa code/kiến trúc) và áp lực bàn giao tiến độ gấp của kinh doanh như thế nào?',
+          category: isEn ? 'Deep-Dive Technical & Scenario' : 'Tình huống & Chuyên môn sâu',
+          difficulty: isEn ? 'Hard' : 'Khó',
+          sourceGapOrDoubt: isEn
+            ? 'Testing engineering pragmatism vs theoretical idealism.'
+            : 'Kiểm tra tính thực tế và khả năng cân đối giữa nợ kỹ thuật (technical debt) và nhu cầu kinh doanh.',
+          interviewerIntent: isEn
+            ? 'Identify whether the candidate is dogmatic or practical when commercial realities require compromise.'
+            : 'Nhà tuyển dụng muốn biết ứng viên có tư duy linh hoạt vì mục tiêu chung hay cố chấp áp dụng sách vở.',
+          starAnswerGuide: {
+            situationTask: isEn
+              ? 'Recall a release with tight deadline where building a perfect architecture would cause a business delay.'
+              : 'Kể lại một đợt bàn giao sản phẩm gấp mà nếu áp dụng kiến trúc hoàn hảo 100% sẽ bị trễ hạn thương mại.',
+            action: isEn
+              ? 'Explain how you phased the solution: MVP launch first with safeguards, followed by technical refactoring.'
+              : 'Trình bày cách bạn chia nhỏ giải pháp: bàn giao bản MVP an toàn trước, ghi nhận nợ kỹ thuật và lên kế hoạch refactor sau.',
+            result: isEn
+              ? 'Hit release date successfully and eliminated technical debt during the subsequent sprint.'
+              : 'Kịp tiến độ ra mắt thị trường và dọn dẹp sạch nợ kỹ thuật ngay ở sprint kế tiếp.',
+          },
+          pitfallToAvoid: isEn
+            ? 'Do not say you always cut corners without later paying off technical debt.'
+            : 'Không được nói "cứ làm ẩu cho kịp là được" mà không có kế hoạch kiểm soát chất lượng lâu dài.',
+        },
+        {
+          question: isEn
+            ? 'Describe a technical disagreement you had with a team lead or peer. How did you resolve it collaboratively?'
+            : 'Chia sẻ một lần bạn có quan điểm kỹ thuật khác biệt hoặc bất đồng giải pháp với đồng nghiệp/trưởng nhóm. Bạn đã giải quyết ra sao?',
+          category: isEn ? 'Seniority & Behavioral Leadership' : 'Tầm vóc & Cách làm việc',
+          difficulty: isEn ? 'Hard' : 'Khó',
+          sourceGapOrDoubt: isEn
+            ? 'Assessing interpersonal maturity, emotional intelligence, and team harmony.'
+            : 'Đánh giá độ chín chắn trong giao tiếp, khả năng lắng nghe và tôn trọng sự đa dạng quan điểm.',
+          interviewerIntent: isEn
+            ? 'Hiring team wants to know if you can debate with data rather than ego, and commit once decided.'
+            : 'Hội đồng tuyển dụng kiểm tra xem bạn có dựa trên dữ liệu để tranh luận và sẵn sàng cam kết thực thi khi có quyết định chung hay không.',
+          starAnswerGuide: {
+            situationTask: isEn
+              ? 'Provide context on the opposing viewpoints regarding a technology choice or workflow.'
+              : 'Nêu ngắn gọn bản chất hai luồng ý kiến khác nhau về mặt kỹ thuật mà không chỉ trích quan điểm của đối phương.',
+            action: isEn
+              ? 'Describe setting up an objective benchmark, prototyping both, and discussing trade-offs calmly.'
+              : 'Nêu cách bạn đề xuất làm thử nghiệm so sánh khách quan (benchmark/POC), phân tích ưu-nhược điểm dựa trên số liệu.',
+            result: isEn
+              ? 'Reached unanimous agreement and delivered the chosen approach with full team support.'
+              : 'Đạt được sự đồng thuận cao trong nhóm, duy trì tinh thần đoàn kết và giải pháp vận hành tối ưu.',
+          },
+          pitfallToAvoid: isEn
+            ? 'Avoid portraying yourself as a lone genius who had to tolerate incompetent teammates.'
+            : 'Tránh thái độ ngạo mạn tự cho mình luôn đúng, coi thường năng lực đồng nghiệp hoặc có thái độ ấm ức khi không được chọn.',
+        },
+        {
+          question: isEn
+            ? 'What is your structured 30-60-90 day plan to make a tangible impact if selected for this role?'
+            : 'Nếu được lựa chọn, kế hoạch hành động 30-60-90 ngày đầu tiên của bạn để tạo ra giá trị thiết thực là gì?',
+          category: isEn ? 'Seniority & Behavioral Leadership' : 'Tầm vóc & Cách làm việc',
+          difficulty: isEn ? 'High Priority' : 'Trọng tâm',
+          sourceGapOrDoubt: isEn
+            ? 'Evaluating readiness, initiative, and strategic vision for this role.'
+            : 'Đánh giá tính chủ động, khả năng tự định hướng và tầm nhìn công việc của ứng viên.',
+          interviewerIntent: isEn
+            ? 'Ensure candidate has a proactive mindset and understands how to ramp up smoothly without high friction.'
+            : 'Xác định xem ứng viên có phương pháp hòa nhập bài bản và mục tiêu rõ ràng hay chỉ thụ động chờ người khác hướng dẫn.',
+          starAnswerGuide: {
+            situationTask: isEn
+              ? 'Address target job responsibilities and onboarding expectations.'
+              : 'Xác định kỳ vọng then chốt của vị trí ứng tuyển trong 3 tháng đầu.',
+            action: isEn
+              ? 'Break into 3 clear phases: Days 1-30 (deep dive into architecture & processes), Days 31-60 (independent ownership & first feature delivery), Days 61-90 (process optimization & mentoring).'
+              : 'Chia rõ 3 giai đoạn: 30 ngày (học hỏi quy trình, nắm chắc hệ thống), 60 ngày (nhận trách nhiệm độc lập, bàn giao tính năng đầu tiên), 90 ngày (đề xuất cải tiến và tối ưu hóa).',
+            result: isEn
+              ? 'Achieves full autonomous productivity quickly and contributes directly to core team KPIs.'
+              : 'Trở thành nhân sự chủ lực tự chủ trong vận hành, đóng góp ngay vào các chỉ tiêu KPI chung của phòng ban.',
+          },
+          pitfallToAvoid: isEn
+            ? 'Do not give a vague answer like "I will do whatever tasks my manager assigns me".'
+            : 'Tuyệt đối không trả lời thụ động kiểu "Sếp giao gì em làm nấy". Cần thể hiện tư duy làm chủ công việc.',
+        },
+      ],
+    },
   };
 }
 
@@ -5949,6 +6118,25 @@ Act as a strict, pragmatic Senior Talent Acquisition Lead and Hiring Manager rev
      * cvMitigation: Specific, actionable fix directly on the CV to neutralize the concern
      * interviewDefense: Tactical talking points to address and pivot this concern smoothly in an interview
 
+--- FEATURE 4: PRACTICAL INTERVIEW BATTLE GUIDE & STAR ANSWER BLUEPRINTS (5 TO 10 QUESTIONS) ---
+Generate dynamically 5 to 10 sharp, tailored interview questions that an experienced Hiring Manager and HR Lead will realistically ask this specific candidate.
+Group questions into 3 strategic categories:
+1. "CV Gap Verification": Direct questions targeting unverified skills, lack of metrics, tenure jumps, or missing JD prerequisites in the CV.
+2. "Deep-Dive Technical & Scenario": Complex scenarios testing troubleshooting under pressure, system trade-offs, architecture decisions, or performance tuning.
+3. "Seniority & Behavioral Leadership": Behavioral probes testing team conflict resolution, cross-functional collaboration, culture fit, and the 30-60-90 day onboarding roadmap.
+
+For each question, provide:
+- question: The exact, probing question.
+- category: "CV Gap Verification" | "Deep-Dive Technical & Scenario" | "Seniority & Behavioral Leadership"
+- difficulty: "High Priority" | "Hard" | "Very Hard"
+- sourceGapOrDoubt: The specific gap or suspicion in the CV that triggers this question.
+- interviewerIntent: What the interviewers are secretly evaluating behind the question.
+- starAnswerGuide: Structured answer guidance following the STAR method grounded in candidate's actual CV:
+  * situationTask: Context and specific challenge from the candidate's CV background (Situation & Task).
+  * action: Explicit technical actions, methodology, and tools to highlight (Action).
+  * result: Quantified metric impact, business value, or lessons learned (Result).
+- pitfallToAvoid: The critical blunder or dangerous answer trap the candidate must avoid.
+
 === LANGUAGE & FACTUAL ACCURACY RULES ===
 - Write response explanations, gaps, and reasons IN ENGLISH. However, each 'rewrittenBullet' MUST strictly match the SAME LANGUAGE as the original bullet point in the candidate's CV.
 - Preserve candidate's original company names, dates, tools, numbers, and facts 100% accurately.
@@ -6073,6 +6261,25 @@ Thực hiện trọn vẹn 3 khối đánh giá:
      * recruiterConcern: Nỗi e ngại thực tế của HR khi xem hồ sơ
      * cvMitigation: Hướng xử lý / viết lại cụ thể ngay trên CV
      * interviewDefense: Cách giải thích khéo léo, tự tin khi Hội đồng phỏng vấn xoáy sâu
+
+--- TÍNH NĂNG 4: CẨM NANG PHỎNG VẤN THỰC CHIẾN & KHUNG TRẢ LỜI STAR (5 ĐẾN 10 CÂU HỎI LINH HOẠT) ---
+Tạo danh sách linh động từ 5 đến 10 câu hỏi phỏng vấn xoáy sâu, sát thực tế nhất giữa CV và JD mà Hội đồng tuyển dụng / Hiring Manager chắc chắn sẽ hỏi ứng viên này.
+Phân chia câu hỏi thành 3 nhóm cốt lõi:
+1. "Kiểm chứng khoảng trống CV": Nhắm thẳng vào các kỹ năng chưa có số liệu, kinh nghiệm chưa đủ sâu hoặc những nghi ngại/Red Flags phát hiện từ CV so với JD.
+2. "Tình huống & Chuyên môn sâu": Các tình huống xử lý sự cố thực tế, bài toán kỹ thuật hóc búa, tối ưu hóa hiệu năng, hoặc lựa chọn đánh đổi kiến trúc.
+3. "Tầm vóc & Cách làm việc": Các câu hỏi hành vi đánh giá giải quyết xung đột ý kiến, phối hợp liên phòng ban, khả năng thích ứng văn hóa, và kế hoạch 30-60-90 ngày đầu tiên.
+
+Với mỗi câu hỏi, cung cấp:
+- question: Câu hỏi phỏng vấn sắc bén, đúng trọng tâm.
+- category: "Kiểm chứng khoảng trống CV" | "Tình huống & Chuyên môn sâu" | "Tầm vóc & Cách làm việc"
+- difficulty: "Trọng tâm" | "Khó" | "Rất khó"
+- sourceGapOrDoubt: Khoảng trống hoặc điểm nghi ngờ cụ thể nào trong CV dẫn đến câu hỏi này.
+- interviewerIntent: Ý đồ thực sự đằng sau câu hỏi mà Nhà tuyển dụng muốn kiểm chứng.
+- starAnswerGuide: Khung trả lời gợi ý theo mô hình STAR dựa trên kinh nghiệm thực tế của ứng viên:
+  * situationTask: Tóm tắt bối cảnh và thách thức thực tế từ CV (Situation & Task).
+  * action: Hành động cụ thể, kỹ thuật/công cụ và phương pháp giải quyết (Action).
+  * result: Kết quả định lượng, giá trị kinh doanh hoặc bài học rút ra (Result).
+- pitfallToAvoid: Bẫy hoặc sai lầm nguy hiểm ứng viên tuyệt đối cần tránh khi trả lời câu hỏi này.
 
 === QUY TẮC RÀNH RẠCH (STRICT BOUNDARIES) ===
 - Tuyệt đối trung thực với dữ liệu trong CV. KHÔNG BỊA kinh nghiệm, công cụ, thành tích.
@@ -6453,8 +6660,77 @@ const analysisResponseSchema = {
         'top3MustFix',
       ],
     },
+    feature4: {
+      type: Type.OBJECT,
+      properties: {
+        interviewPrepSummary: {
+          type: Type.STRING,
+          description: 'Tóm tắt chiến lược chuẩn bị phỏng vấn tổng quan',
+        },
+        questions: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              question: {
+                type: Type.STRING,
+                description: 'Câu hỏi phỏng vấn thực chiến cụ thể từ HR hoặc Hiring Manager',
+              },
+              category: {
+                type: Type.STRING,
+                description: 'Nhóm câu hỏi: "Kiểm chứng khoảng trống CV", "Tình huống & Chuyên môn sâu", hoặc "Tầm vóc & Cách làm việc"',
+              },
+              difficulty: {
+                type: Type.STRING,
+                description: 'Độ khó: "Trọng tâm", "Khó", hoặc "Rất khó"',
+              },
+              sourceGapOrDoubt: {
+                type: Type.STRING,
+                description: 'Khoảng trống hoặc điểm nghi ngờ cụ thể nào trong CV dẫn đến câu hỏi này',
+              },
+              interviewerIntent: {
+                type: Type.STRING,
+                description: 'Ý đồ thực sự của Nhà tuyển dụng khi hỏi câu này',
+              },
+              starAnswerGuide: {
+                type: Type.OBJECT,
+                properties: {
+                  situationTask: {
+                    type: Type.STRING,
+                    description: 'Tình huống & Thách thức thực tế từ CV (Situation & Task)',
+                  },
+                  action: {
+                    type: Type.STRING,
+                    description: 'Hành động cụ thể, kỹ thuật/công cụ và phương pháp giải quyết (Action)',
+                  },
+                  result: {
+                    type: Type.STRING,
+                    description: 'Kết quả định lượng, giá trị kinh doanh hoặc bài học rút ra (Result)',
+                  },
+                },
+                required: ['situationTask', 'action', 'result'],
+              },
+              pitfallToAvoid: {
+                type: Type.STRING,
+                description: 'Sai lầm / bẫy ứng viên tuyệt đối cần tránh khi trả lời',
+              },
+            },
+            required: [
+              'question',
+              'category',
+              'difficulty',
+              'sourceGapOrDoubt',
+              'interviewerIntent',
+              'starAnswerGuide',
+              'pitfallToAvoid',
+            ],
+          },
+        },
+      },
+      required: ['questions'],
+    },
   },
-  required: ['feature1', 'feature2', 'feature3'],
+  required: ['feature1', 'feature2', 'feature3', 'feature4'],
 };
 
 const generateCvResponseSchema = {

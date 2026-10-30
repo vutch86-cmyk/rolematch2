@@ -2,6 +2,7 @@ import { CompleteCVAnalysisResponse } from '../types';
 import { normalizeFeature1Data } from './keywordMatchHelpers';
 import { normalizeFeature2Data } from './bulletRewriteHelpers';
 import { normalizeFeature3Data } from './recruiterScanHelpers';
+import { normalizeFeature4Data } from './interviewPrepHelpers';
 
 export function generateMarkdownReport(
   analysis: CompleteCVAnalysisResponse,
@@ -69,6 +70,15 @@ export function generateMarkdownReport(
     seniorityFit,
     riskMitigationMatrix,
   } = normalizeFeature3Data(f3, '', '', 'vi');
+
+  const feature4Data = normalizeFeature4Data(
+    analysis?.feature4,
+    '',
+    '',
+    'vi',
+    normalizedComparisonTable,
+    riskMitigationMatrix
+  );
 
   const missingSkills = f1.summary?.missingKeywordsSkills || [];
   const weakSections = f1.summary?.weakOrVagueSections || [];
@@ -209,6 +219,27 @@ ${riskMitigationMatrix
 
 ### 4. 3 Điều Bắt Buộc Phải Sửa Ngay
 ${mustFix.map((item, i) => `${i + 1}. ${item}`).join('\n')}
+
+---
+
+## TÍNH NĂNG 4: CẨM NANG PHỎNG VẤN THỰC CHIẾN (CHIẾN LƯỢC STAR)
+
+> **Chiến lược tổng quan:** ${feature4Data.interviewPrepSummary}
+
+${feature4Data.questions
+  .map(
+    (q, i) => `### ${i + 1}. ${q.question}
+- **Phân loại:** \`${q.category}\` | **Độ khó:** **${q.difficulty}**
+- **Căn cứ từ CV/JD:** ${q.sourceGapOrDoubt}
+- **Ý đồ ngầm của Nhà tuyển dụng:** ${q.interviewerIntent}
+- **Khung trả lời STAR gợi ý:**
+  * **S/T (Bối cảnh & Thách thức):** ${q.starAnswerGuide.situationTask}
+  * **A (Hành động & Kỹ thuật):** ${q.starAnswerGuide.action}
+  * **R (Kết quả & Định lượng):** ${q.starAnswerGuide.result}
+- ⚠️ **Bẫy tuyệt đối cần tránh:** ${q.pitfallToAvoid}
+`
+  )
+  .join('\n')}
 
 ---
 *Báo cáo được tổng hợp bởi Trợ lý Senior HR & Talent Acquisition Lead AI Studio.*
