@@ -924,7 +924,7 @@ export default function App() {
               )}
 
               {activeTab === 'feature3' && analysis.feature3 && (
-                <RecruiterScanTab result={analysis.feature3} lang={lang} />
+                <RecruiterScanTab result={analysis.feature3} lang={lang} cvText={cvText} jdText={jdText} />
               )}
             </div>
           </div>
