@@ -9,9 +9,6 @@ import { HistorySidebar } from './components/HistorySidebar';
 import { CompleteCVAnalysisResponse, HistoryItem, SamplePreset, UpdatedCvResponse, ReEvaluationComparison } from './types';
 import { AnalysisProgressBar } from './components/AnalysisProgressBar';
 import { generateMarkdownReport } from './utils/exportMarkdown';
-import { UpdatedCvModal } from './components/UpdatedCvModal';
-import { QuickReEvaluateModal } from './components/QuickReEvaluateModal';
-import { ExportReportModal } from './components/ExportReportModal';
 import { buildReEvaluationComparison } from './utils/quickReEvaluateHelpers';
 import {
   fetchCloudCandidateHistory,
@@ -23,16 +20,21 @@ import {
   getUnsyncedHistoryItems,
 } from './utils/candidateHistoryHelpers';
 import { AuditorReport } from './components/AuditorReport';
-import { ErrorLogsModal } from './components/ErrorLogsModal';
-import { LoginModal } from './components/LoginModal';
-import { AdminDashboardModal } from './components/AdminDashboardModal';
-import { StandaloneLoginPage } from './components/StandaloneLoginPage';
 import { UserAccount } from './types';
 import { initGlobalErrorLogging, fetchAllLogs } from './utils/logger';
 import { Language, translations } from './utils/i18n';
-import { BatchProcessingTab } from './components/BatchProcessingTab';
-import { CandidateGuideDrawer } from './components/CandidateGuideDrawer';
 import { parseApiResponseSafely } from './utils/apiResponse';
+// Phase 4: Code-Splitting & Lazy Loading for Modals & Tabs
+const UpdatedCvModal = React.lazy(() => import('./components/UpdatedCvModal').then(m => ({ default: m.UpdatedCvModal })));
+const QuickReEvaluateModal = React.lazy(() => import('./components/QuickReEvaluateModal').then(m => ({ default: m.QuickReEvaluateModal })));
+const ExportReportModal = React.lazy(() => import('./components/ExportReportModal').then(m => ({ default: m.ExportReportModal })));
+const ErrorLogsModal = React.lazy(() => import('./components/ErrorLogsModal').then(m => ({ default: m.ErrorLogsModal })));
+const LoginModal = React.lazy(() => import('./components/LoginModal').then(m => ({ default: m.LoginModal })));
+const AdminDashboardModal = React.lazy(() => import('./components/AdminDashboardModal').then(m => ({ default: m.AdminDashboardModal })));
+const StandaloneLoginPage = React.lazy(() => import('./components/StandaloneLoginPage').then(m => ({ default: m.StandaloneLoginPage })));
+const CandidateGuideDrawer = React.lazy(() => import('./components/CandidateGuideDrawer').then(m => ({ default: m.CandidateGuideDrawer })));
+const BatchProcessingTab = React.lazy(() => import('./components/BatchProcessingTab').then(m => ({ default: m.BatchProcessingTab })));
+
 import {
   extractJobMetaFromJdText,
   formatCandidateHistoryTitle,
@@ -714,11 +716,13 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <StandaloneLoginPage
-        onLoginSuccess={handleLoginSuccess}
-        lang={lang}
-        onLangChange={setLang}
-      />
+      <React.Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 font-medium">Đang tải...</div>}>
+        <StandaloneLoginPage
+          onLoginSuccess={handleLoginSuccess}
+          lang={lang}
+          onLangChange={setLang}
+        />
+      </React.Suspense>
     );
   }
 
@@ -1109,15 +1113,18 @@ export default function App() {
         </div>
 
         <div className={appMode === 'batch' ? 'animate-fade-in' : 'hidden'}>
-          <BatchProcessingTab
+          <React.Suspense fallback={<div className="p-12 text-center text-slate-400">Đang tải giao diện Tuyển dụng...</div>}>
+            <BatchProcessingTab
             lang={lang}
             token={token}
             onAddHistoryItems={handleSaveBatchHistoryItems}
             onOpenFullAnalysis={handleSelectHistoryItem}
             onRequireLogin={() => setIsLoginModalOpen(true)}
           />
+          </React.Suspense>
         </div>
 
+        <React.Suspense fallback={null}>
         {/* Gemini Updated CV Modal */}
         <UpdatedCvModal
           isOpen={isUpdatedCvModalOpen}
@@ -1205,6 +1212,7 @@ export default function App() {
           onClose={() => setIsCandidateGuideOpen(false)}
           lang={lang}
         />
+        </React.Suspense>
 
       </main>
 

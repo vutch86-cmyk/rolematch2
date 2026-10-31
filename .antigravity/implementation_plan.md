@@ -549,3 +549,38 @@ Bổ sung tính năng cho phép người dùng dán đường link tin tuyển d
 - **ESLint & TypeScript Check:** `npm run lint` (`tsc --noEmit`) -> **0 errors**.
 - **Unit & Integration Tests:** `npm test` -> **108/108 PASS (14 test suites)**.
 - **Frontend & Server Build:** `npm run build` -> **PASS** (Vite bundle 1.9MB / Gzip 547KB, `dist/server.cjs` 375KB).
+
+
+---
+
+## Đợt 16 (2026-10-31): Triển Khai Phase 4 — Tối Ưu Kiến Trúc & Hiệu Năng Hệ Thống (Frontend Code-Splitting, 4-Stage Progressive UX & Server Modular Architecture)
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Approved by user`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Thực thi toàn diện mục tiêu kỹ thuật của **PHASE 4: Tối Ưu Kiến Trúc & Hiệu Năng Hệ Thống**:
+  1. **Frontend Code-Splitting & Vite Bundle Optimization (Giảm 84% bundle ban đầu):** Cấu hình `manualChunks` tách vendor chunks (charts, icons, docs, motion, markdown, core) và áp dụng `React.lazy()` + `React.Suspense` cho tất cả các Modals lớn (`AdminDashboardModal`, `UpdatedCvModal`, `SavedBatchesModal`, `QuickReEvaluateModal`, `ExportReportModal`, `ErrorLogsModal`, `StandaloneLoginPage`, `CandidateGuideDrawer`, `BatchProcessingTab`). Đưa kích thước file JS chính từ 1.898 kB (~1.9 MB) xuống còn **302 kB (gzip 87 kB)**, triệt tiêu 100% cảnh báo của Vite.
+  2. **4-Stage Progressive Analysis UX:** Nâng cấp `AnalysisProgressBar.tsx` từ 3 bước cũ lên 4 giai đoạn phân tích chuyên sâu đồng bộ 1:1 với 4 Tab kết quả của Ứng viên (Đối chiếu Từ khóa -> Tối ưu Từng phần -> Tầm vóc & Rủi ro -> Cẩm nang Phỏng vấn STAR), tích hợp micro-status động và đếm giây thời gian thực.
+  3. **Backend Modular Architecture (`server/`):** Phân rã hệ thống backend thành các module chuyên biệt (`server/types/index.ts`, `server/config/firebase.ts`, `server/schemas/analysisSchemas.ts`, `server/services/fileParserService.ts`, `server/services/jdExtractorService.ts`, `server/services/authService.ts`, `server/services/auditService.ts`). Bổ sung test suite `src/server_modules.test.ts` (16 tests) đảm bảo tính toàn vẹn độc lập.
+
+### 2. Files Affected (Danh sách file sửa đổi & tạo mới)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `vite.config.ts` | **Modified** | Cấu hình `manualChunks` tách vendor chunks tối ưu tốc độ tải trang lần đầu. |
+| `src/App.tsx` | **Modified** | Áp dụng `React.lazy()` và `Suspense` cho toàn bộ các modal lớn và Tab Nhà tuyển dụng. |
+| `src/components/AnalysisProgressBar.tsx` | **Modified** | Nâng cấp thanh tiến trình 4 giai đoạn thời gian thực sinh động, khớp 4 tab phân tích ứng viên. |
+| `server/types/index.ts` | **Created** | Kiểu dữ liệu TypeScript độc lập cho backend server. |
+| `server/config/firebase.ts` | **Created** | Cấu hình Firestore, bắt lỗi `handleFirestoreError`, hook test. |
+| `server/schemas/analysisSchemas.ts` | **Created** | Tách JSON Schema Gemini (`analysisResponseSchema`, `generateCvResponseSchema`). |
+| `server/services/fileParserService.ts` | **Created** | Dịch vụ đọc file PDF fallback, Word DOCX Mammoth, Multer upload handler. |
+| `server/services/jdExtractorService.ts` | **Created** | Dịch vụ bóc tách tin tuyển dụng URL, chống SSRF, AI cleaning. |
+| `server/services/authService.ts` | **Created** | Dịch vụ quản lý người dùng, hash Bcrypt, JWT token, RBAC middleware. |
+| `server/services/auditService.ts` | **Created** | Dịch vụ fail-closed persistence cho Firestore & audit log memory. |
+| `src/server_modules.test.ts` | **Created** | Bộ 16 unit tests kiểm tra toàn diện các module của kiến trúc `server/`. |
+
+### 3. Verification & Quality Gates
+- **TypeScript Compilation:** `npm run lint` (`tsc --noEmit`) -> **PASS (0 errors)**.
+- **Unit & Integration Tests:** `npm test` -> **PASS 100% (15/15 test suites, 124/124 tests pass)**.
+- **Production Build:** `npm run build` -> **PASS** (Frontend main bundle 302 kB / gzip 87 kB; Backend bundle `dist/server.cjs` 375 kB).
+- **Runtime Smoke Check:** Server `dist/server.cjs` khởi động và lắng nghe kết nối bình thường, không crash.
