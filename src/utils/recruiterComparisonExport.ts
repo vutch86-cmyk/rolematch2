@@ -73,35 +73,6 @@ export const generateRecruiterComparisonMarkdown = (
 
   md += `---\n\n`;
 
-  // 3. HR Interview Verification Kit
-  md += `## 3. ${isEn ? 'HR Interview & Verification Question Kit' : 'Bộ Kịch Bản Phỏng Vấn Thẩm Định Dành Riêng Cho HR'}\n\n`;
-  candidates.forEach((c, idx) => {
-    md += `### 🎯 ${isEn ? 'Interview Kit for' : 'Kịch bản thẩm định cho'}: ${c.candidateName}\n\n`;
-
-    const f4Questions = c.fullAnalysis?.feature4?.interviewQuestions;
-    if (Array.isArray(f4Questions) && f4Questions.length > 0) {
-      f4Questions.slice(0, 3).forEach((q: any, qIdx: number) => {
-        md += `#### ${isEn ? 'Question' : 'Câu hỏi'} ${qIdx + 1}: "${q.question}"\n`;
-        md += `- **${isEn ? 'Recruiter Intent' : 'Ý đồ ẩn sau câu hỏi'}:** ${q.interviewerIntent || (isEn ? 'Verify depth of experience' : 'Thẩm định độ sâu kinh nghiệm')}\n`;
-        if (q.starAnswerGuide) {
-          md += `- **${isEn ? 'What HR Should Listen For (STAR)' : 'Điều HR cần lắng nghe (STAR)'}:** ${q.starAnswerGuide.action || q.starAnswerGuide.situationTask || ''}\n`;
-        }
-        if (q.pitfallToAvoid) {
-          md += `- **🚨 ${isEn ? 'Red Flags to Watch Out For' : 'Cờ đỏ Red Flags cần cảnh giác'}:** ${q.pitfallToAvoid}\n`;
-        }
-        md += `\n`;
-      });
-    } else {
-      // Fallback questions based on keyGaps
-      const gaps = c.keyGaps && c.keyGaps.length > 0 ? c.keyGaps : ['kinh nghiệm thực tế với hệ thống quy mô lớn'];
-      gaps.slice(0, 2).forEach((gap, gIdx) => {
-        md += `#### ${isEn ? 'Question' : 'Câu hỏi'} ${gIdx + 1}: ${isEn ? `Can you describe your hands-on experience handling "${gap}" in production?` : `Bạn có thể chia sẻ tình huống thực tế khi xử lý "${gap}" trong dự án gần nhất?`}\n`;
-        md += `- **${isEn ? 'What to listen for' : 'Điều HR cần nghe'}:** ${isEn ? 'Concrete metrics, technical trade-offs, and personal ownership.' : 'Số liệu định lượng, bài toán đánh đổi kỹ thuật và vai trò thực tế của ứng viên.'}\n`;
-        md += `- **🚨 ${isEn ? 'Red Flag' : 'Cờ đỏ Red Flag'}:** ${isEn ? 'Vague generalizations or claiming team achievements as personal.' : 'Nói chung chung lý thuyết, né tránh câu hỏi đào sâu hoặc nhận vơ công việc của cả nhóm.'}\n\n`;
-      });
-    }
-  });
-
   return md;
 };
 

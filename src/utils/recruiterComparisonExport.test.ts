@@ -38,7 +38,7 @@ describe('Recruiter Comparison Export', () => {
     expect(md).toContain('Candidate Beta');
     expect(md).toContain('Điểm Trọng Số');
     expect(md).toContain('Cảnh báo Loại sàn');
-    expect(md).toContain('Bộ Kịch Bản Phỏng Vấn Thẩm Định Dành Riêng Cho HR');
+    expect(md).toContain('Đối Chiếu Trực Diện Từng Chiều Sâu');
   });
 
   it('generates english report when lang is en', () => {

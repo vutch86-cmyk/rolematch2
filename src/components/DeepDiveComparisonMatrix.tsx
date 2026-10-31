@@ -5,13 +5,10 @@ import {
   Download,
   Copy,
   Check,
-  Sparkles,
   HelpCircle,
   AlertTriangle,
   ShieldAlert,
   Star,
-  ChevronDown,
-  ChevronUp,
   FileText
 } from 'lucide-react';
 import {
@@ -47,7 +44,6 @@ export const DeepDiveComparisonMatrix: React.FC<DeepDiveComparisonMatrixProps> =
   comparisonColors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
 }) => {
   const [hasCopiedReport, setHasCopiedReport] = useState<boolean>(false);
-  const [isInterviewKitExpanded, setIsInterviewKitExpanded] = useState<boolean>(true);
 
   if (candidates.length === 0) return null;
 
@@ -109,8 +105,8 @@ export const DeepDiveComparisonMatrix: React.FC<DeepDiveComparisonMatrixProps> =
           </div>
           <p className="text-xs text-slate-600 mt-1">
             {isEn
-              ? 'Multi-dimensional evaluation: weighted score, seniority fit, key edge vs critical flaw, and tailored HR interview kit.'
-              : 'Đối chiếu đa chiều: Điểm trọng số, tầm vóc cấp bậc, lợi thế vượt trội vs lỗ hổng chí mạng kèm bộ câu hỏi thẩm định cho HR.'}
+              ? 'Multi-dimensional evaluation: weighted score, seniority fit, key edge vs critical flaw, and candidate gaps.'
+              : 'Đối chiếu đa chiều: Điểm trọng số, tầm vóc cấp bậc, lợi thế vượt trội và mối e ngại lớn nhất của từng ứng viên.'}
           </p>
         </div>
 
@@ -359,97 +355,6 @@ export const DeepDiveComparisonMatrix: React.FC<DeepDiveComparisonMatrixProps> =
         </div>
       </div>
 
-      {/* HR Interview & Verification Kit Section */}
-      <div className="bg-white rounded-2xl border border-indigo-100 overflow-hidden shadow-xs">
-        <button
-          type="button"
-          onClick={() => setIsInterviewKitExpanded(!isInterviewKitExpanded)}
-          className="w-full p-4 sm:p-5 flex items-center justify-between text-left hover:bg-slate-50/60 transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg">
-              <Sparkles className="w-4 h-4" />
-            </span>
-            <div>
-              <h5 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider">
-                {isEn ? 'HR Interview & Verification Question Kit' : 'Bộ Kịch Bản Phỏng Vấn Thẩm Định Dành Riêng Cho HR'}
-              </h5>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {isEn
-                  ? 'Targeted interview questions generated per candidate with "What to listen for" & "Red Flags".'
-                  : 'Câu hỏi xoáy sâu vào lỗ hổng thực tế của từng ứng viên kèm checklist điều HR cần nghe và cờ đỏ Red Flags.'}
-              </p>
-            </div>
-          </div>
-          {isInterviewKitExpanded ? (
-            <ChevronUp className="w-4 h-4 text-slate-400" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          )}
-        </button>
-
-        {isInterviewKitExpanded && (
-          <div className="p-4 sm:p-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {candidates.map((cand, idx) => {
-              const f4Questions = cand.fullAnalysis?.feature4?.interviewQuestions;
-              const displayQuestions = Array.isArray(f4Questions) && f4Questions.length > 0
-                ? f4Questions.slice(0, 2)
-                : null;
-
-              return (
-                <div
-                  key={cand.filename}
-                  className="bg-slate-50/80 rounded-xl p-4 border border-slate-200/90 space-y-3"
-                >
-                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: comparisonColors[idx % comparisonColors.length] }}
-                    />
-                    <h6 className="text-xs font-black text-slate-900 truncate">
-                      {getCandidateDisplayName(cand, idx + 1)}
-                    </h6>
-                  </div>
-
-                  {displayQuestions ? (
-                    displayQuestions.map((q: any, qIdx: number) => (
-                      <div key={qIdx} className="space-y-1.5 text-xs bg-white p-3 rounded-lg border border-slate-200 shadow-xs">
-                        <p className="font-bold text-slate-900 leading-snug">
-                          {qIdx + 1}. "{q.question}"
-                        </p>
-                        <p className="text-[11px] text-slate-600">
-                          <strong className="text-indigo-700">{isEn ? 'Listen for: ' : 'Cần nghe: '}</strong>
-                          {q.starAnswerGuide?.action || q.interviewerIntent}
-                        </p>
-                        {q.pitfallToAvoid && (
-                          <p className="text-[10px] text-rose-600 bg-rose-50 p-1.5 rounded font-medium">
-                            <strong>🚨 Red Flag: </strong>
-                            {q.pitfallToAvoid}
-                          </p>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="space-y-2 text-xs bg-white p-3 rounded-lg border border-slate-200 shadow-xs">
-                      <p className="font-bold text-slate-900 leading-snug">
-                        1. "{isEn ? `Can you demonstrate your hands-on mastery in ${cand.keyGaps?.[0] || 'core technologies'}?` : `Bạn có thể chia sẻ tình huống thực tế khi triển khai ${cand.keyGaps?.[0] || 'công nghệ trọng yếu'}?`}"
-                      </p>
-                      <p className="text-[11px] text-slate-600">
-                        <strong className="text-indigo-700">{isEn ? 'Listen for: ' : 'Cần nghe: '}</strong>
-                        {isEn ? 'Specific metrics, technical ownership, and architectural trade-offs.' : 'Số liệu định lượng, vai trò chịu trách nhiệm và bài toán kỹ thuật thực tế.'}
-                      </p>
-                      <p className="text-[10px] text-rose-600 bg-rose-50 p-1.5 rounded font-medium">
-                        <strong>🚨 Red Flag: </strong>
-                        {isEn ? 'Vague generalizations or theoretical recitations.' : 'Nói lý thuyết chung chung, không nắm rõ kiến trúc thực tế.'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
-    </div>
   );
 };

@@ -538,7 +538,9 @@ Bổ sung tính năng cho phép người dùng dán đường link tin tuyển d
 | File | Hành động | Mô tả chi tiết |
 | :--- | :--- | :--- |
 | `src/components/BatchProcessingTab.tsx` | **Modified** | Ẩn nút chuyển đổi chế độ xem Leaderboard / Kanban; ẩn bộ lọc trạng thái Pipeline; loại bỏ view Kanban khỏi luồng render để luôn hiển thị Bảng xếp hạng; dọn dẹp các hook và biến trạng thái không dùng. |
-| `src/components/DeepDiveComparisonMatrix.tsx` | **Modified** | Ẩn hàng "Pipeline Stage & Rating" (Trạng Thái & Đánh Giá) khỏi bảng so sánh đối chiếu ứng viên. |
+| `src/components/DeepDiveComparisonMatrix.tsx` | **Modified** | Ẩn hàng "Pipeline Stage & Rating" và loại bỏ hoàn toàn phần "Bộ kịch bản phỏng vấn thẩm định" để tránh trùng lặp thông tin với Mục F trong chi tiết ứng viên, tối ưu Ma trận So sánh trực diện. |
+| `src/utils/recruiterComparisonExport.ts` | **Modified** | Loại bỏ mục "HR Interview Kit" khỏi báo cáo Markdown xuất file để đồng bộ 100% với giao diện Ma trận So sánh. |
+| `src/utils/recruiterComparisonExport.test.ts` | **Modified** | Cập nhật kiểm thử tự động cho định dạng xuất Markdown của Ma trận So sánh. |
 | `src/utils/jdUrlExtractorHelpers.test.ts` | **Modified** | Chuẩn hóa ký tự xuống dòng (CRLF / LF) đảm bảo bộ test hợp đồng giao diện chạy ổn định xuyên nền tảng (Windows & Linux CI). |
 | `docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md` | **Modified** | Cập nhật mục 4 sang trạng thái "Kế Hoạch Tương Lai", thêm thông báo lưu ý tính năng đang được tạm ẩn trên frontend để tối ưu trải nghiệm người dùng. |
 | `docs/RECRUITER_USER_GUIDE_EN.md` | **Modified** | Đồng bộ bản tiếng Anh cho tài liệu hướng dẫn nhà tuyển dụng hiển thị trong giao diện drawer. |
