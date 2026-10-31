@@ -521,3 +521,29 @@ Bổ sung tính năng cho phép người dùng dán đường link tin tuyển d
 | `src/components/InputSection.tsx` | **Modified** | Tích hợp tính năng **Dán Link JD / Import Link** vào khu vực nhập JD trên giao diện **Ứng viên (Candidate)**. |
 | `src/components/BatchProcessingTab.tsx` | **Modified** | Tích hợp tính năng **Dán Link JD / Import Link** vào khu vực nhập JD trên giao diện **Nhà tuyển dụng (Recruiter)**. |
 | `docs/*.md` | **Modified** | Cập nhật tài liệu hướng dẫn sử dụng cho Nhà tuyển dụng và Ứng viên (Tiếng Việt & Tiếng Anh). |
+
+---
+
+## Đợt 15 (2026-10-31): Tạm Ẩn Tính Năng Quản Lý Pipeline, Bảng Kanban & Ghi Chú Nội Bộ Trên Frontend
+- **Trạng thái:** `HOÀN THÀNH (COMPLETED) — Ready for user review / commit`
+- **Nhánh (Branch):** `staging`
+
+### 1. Objective (Mục tiêu)
+- Theo yêu cầu người dùng, tạm ẩn toàn bộ các thành phần hiển thị liên quan đến **Quản lý Pipeline Tuyển Dụng**, **Bảng Kanban** và **Ghi chú nội bộ / Đánh giá sao** trên giao diện người dùng (Frontend) trong giai đoạn hiện tại.
+- Giữ nguyên vẹn toàn bộ kiến trúc lõi, backend API (`PUT /api/recruiter/batches/:id`), schemas và helpers tính toán để sẵn sàng kích hoạt lại khi có nhu cầu trong các phiên bản sau mà không làm phát sinh breaking changes.
+- Đảm bảo giao diện người dùng tập trung trọn vẹn vào **Bảng Xếp Hạng (Leaderboard)**, **Trọng số Chấm điểm & Knock-out Rules (Scoring Weights & Knock-out)** và **Ma trận So sánh Chuyên sâu Top 5 (Deep-Dive Comparison Matrix)**.
+
+### 2. Files Affected (Danh sách file sửa đổi)
+
+| File | Hành động | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| `src/components/BatchProcessingTab.tsx` | **Modified** | Ẩn nút chuyển đổi chế độ xem Leaderboard / Kanban; ẩn bộ lọc trạng thái Pipeline; loại bỏ view Kanban khỏi luồng render để luôn hiển thị Bảng xếp hạng; dọn dẹp các hook và biến trạng thái không dùng. |
+| `src/components/DeepDiveComparisonMatrix.tsx` | **Modified** | Ẩn hàng "Pipeline Stage & Rating" (Trạng Thái & Đánh Giá) khỏi bảng so sánh đối chiếu ứng viên. |
+| `src/utils/jdUrlExtractorHelpers.test.ts` | **Modified** | Chuẩn hóa ký tự xuống dòng (CRLF / LF) đảm bảo bộ test hợp đồng giao diện chạy ổn định xuyên nền tảng (Windows & Linux CI). |
+| `docs/HUONG_DAN_SU_DUNG_CHO_NHA_TUYEN_DUNG.md` | **Modified** | Cập nhật mục 4 sang trạng thái "Kế Hoạch Tương Lai", thêm thông báo lưu ý tính năng đang được tạm ẩn trên frontend để tối ưu trải nghiệm người dùng. |
+| `docs/RECRUITER_USER_GUIDE_EN.md` | **Modified** | Đồng bộ bản tiếng Anh cho tài liệu hướng dẫn nhà tuyển dụng hiển thị trong giao diện drawer. |
+
+### 3. Verification & Quality Gates
+- **ESLint & TypeScript Check:** `npm run lint` (`tsc --noEmit`) -> **0 errors**.
+- **Unit & Integration Tests:** `npm test` -> **108/108 PASS (14 test suites)**.
+- **Frontend & Server Build:** `npm run build` -> **PASS** (Vite bundle 1.9MB / Gzip 547KB, `dist/server.cjs` 375KB).

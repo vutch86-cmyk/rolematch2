@@ -246,7 +246,7 @@ test('5. cleanJdTextHeuristically cleans messy Ctrl+A/Ctrl+C popup clipboard tex
 
 test('6. UI & Server integration contract check across JdUrlExtractor, BatchProcessingTab, InputSection, and server.ts', () => {
   const rootDir = process.cwd();
-  const extractorCode = fs.readFileSync(path.join(rootDir, 'src/components/JdUrlExtractor.tsx'), 'utf-8');
+  const extractorCode = fs.readFileSync(path.join(rootDir, 'src/components/JdUrlExtractor.tsx'), 'utf-8').replace(/\r\n/g, '\n');
   const recruiterCode = fs.readFileSync(path.join(rootDir, 'src/components/BatchProcessingTab.tsx'), 'utf-8');
   const candidateCode = fs.readFileSync(path.join(rootDir, 'src/components/InputSection.tsx'), 'utf-8');
   const serverCode = fs.readFileSync(path.join(rootDir, 'server.ts'), 'utf-8');

@@ -24,7 +24,6 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { PIPELINE_STAGES } from '../utils/recruiterPipelineHelpers';
 import {
   generateRecruiterComparisonMarkdown,
   downloadTextFile
@@ -279,29 +278,6 @@ export const DeepDiveComparisonMatrix: React.FC<DeepDiveComparisonMatrixProps> =
                     )}
                   </td>
                 ))}
-              </tr>
-
-              {/* Row 3: Pipeline Stage & Rating */}
-              <tr>
-                <td className="p-3.5 font-bold text-slate-500 bg-slate-50/50">
-                  {isEn ? 'Pipeline & Rating' : 'Trạng Thái & Đánh Giá'}
-                </td>
-                {candidates.map((c) => {
-                  const stage = (c.pipelineStage || 'INBOX') as keyof typeof PIPELINE_STAGES;
-                  const cfg = PIPELINE_STAGES[stage] || PIPELINE_STAGES.INBOX;
-                  return (
-                    <td key={c.filename} className="p-3.5 space-y-1">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${cfg.badgeClass}`}>
-                        {isEn ? cfg.labelEn : cfg.labelVi}
-                      </span>
-                      {typeof c.rating === 'number' && c.rating > 0 && (
-                        <div className="flex items-center gap-0.5 text-amber-400">
-                          {'★'.repeat(c.rating)}
-                        </div>
-                      )}
-                    </td>
-                  );
-                })}
               </tr>
 
               {/* Row 4: Seniority & Scope Fit */}

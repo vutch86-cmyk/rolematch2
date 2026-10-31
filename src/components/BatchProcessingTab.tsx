@@ -45,7 +45,6 @@ import {
   Sliders,
   Star,
   Tag,
-  Kanban,
   LayoutList
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -72,17 +71,7 @@ import {
   recalculateLeaderboard,
   ScoringPresetKey
 } from '../utils/recruiterScoringHelpers';
-import {
-  PIPELINE_STAGES,
-  ORDERED_PIPELINE_STAGES,
-  getPipelineStageStats,
-  updateCandidateStage,
-  updateCandidateNotes,
-  updateCandidateRating
-} from '../utils/recruiterPipelineHelpers';
 import { ScoringWeightsKnockoutPanel } from './ScoringWeightsKnockoutPanel';
-import { CandidateNotesModal } from './CandidateNotesModal';
-import { RecruiterKanbanBoard } from './RecruiterKanbanBoard';
 import { DeepDiveComparisonMatrix } from './DeepDiveComparisonMatrix';
 import { SaveBatchModal } from './SaveBatchModal';
 import { SavedBatchesModal } from './SavedBatchesModal';
@@ -318,9 +307,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
   const [activePreset, setActivePreset] = useState<ScoringPresetKey>('balanced');
   const [knockoutCriteria, setKnockoutCriteria] = useState<KnockoutCriteria>(DEFAULT_KNOCKOUT_CRITERIA);
   const [isScoringConfigOpen, setIsScoringConfigOpen] = useState<boolean>(false);
-  const [pipelineFilter, setPipelineFilter] = useState<PipelineStage | 'ALL'>('ALL');
-  const [recruiterViewMode, setRecruiterViewMode] = useState<'leaderboard' | 'kanban'>('leaderboard');
-  const [notesModalCandidate, setNotesModalCandidate] = useState<CandidateResult | null>(null);
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
@@ -840,39 +827,6 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     }
   };
 
-  const handleChangeCandidateStage = (idOrFilename: string, newStage: PipelineStage) => {
-    setResults((prev: CandidateResult[]) => {
-      const updated: CandidateResult[] = updateCandidateStage<CandidateResult>(prev, idOrFilename, newStage);
-      handleUpdateBatchSnapshot(updated);
-      return updated;
-    });
-  };
-
-  const handleChangeCandidateRating = (idOrFilename: string, rating: number) => {
-    setResults((prev: CandidateResult[]) => {
-      const updated: CandidateResult[] = updateCandidateRating<CandidateResult>(prev, idOrFilename, rating);
-      handleUpdateBatchSnapshot(updated);
-      return updated;
-    });
-  };
-
-  const handleSaveCandidateNotes = (payload: { notes: string; rating: number; stage: PipelineStage; tags: string[] }) => {
-    if (!notesModalCandidate) return;
-    const targetKey = notesModalCandidate.id || notesModalCandidate.filename;
-    setResults((prev: CandidateResult[]) => {
-      let updated: CandidateResult[] = updateCandidateNotes<CandidateResult>(prev, targetKey, payload.notes);
-      updated = updateCandidateRating<CandidateResult>(updated, targetKey, payload.rating);
-      updated = updateCandidateStage<CandidateResult>(updated, targetKey, payload.stage);
-      updated = updated.map(c => {
-        if (c.id === targetKey || c.filename === targetKey) {
-          return { ...c, tags: payload.tags };
-        }
-        return c;
-      });
-      handleUpdateBatchSnapshot(updated);
-      return updated;
-    });
-  };
 
   // --- Robust Candidate Name Sanitizer ---
   const getCandidateDisplayName = (candidate?: CandidateResult | null, fallbackIndex?: number): string => {
@@ -935,9 +889,6 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     return recalculateLeaderboard(results, weights, knockoutCriteria, lang);
   }, [results, weights, knockoutCriteria, lang]);
 
-  const pipelineStats = React.useMemo(() => {
-    return getPipelineStageStats(evaluatedResults);
-  }, [evaluatedResults]);
 
   // Ranking list of valid candidates with finite numeric scores
   const validRankedCandidates = evaluatedResults
@@ -971,8 +922,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
     const matchesLevel = filterLevel === 'All' || candidate.matchLevel === filterLevel;
     const recType = getCandidateRecType(candidate);
     const matchesRec = filterRecommendation === 'All' || recType === filterRecommendation;
-    const matchesPipeline = pipelineFilter === 'ALL' || (candidate.pipelineStage || 'INBOX') === pipelineFilter;
-    return matchesSearch && matchesLevel && matchesRec && matchesPipeline;
+    return matchesSearch && matchesLevel && matchesRec;
   });
 
   const group1 = filterCandidates.filter(c => c.success !== false && !c.errorMessage && typeof (c.weightedScore ?? c.overallScore) === 'number' && !c.isKnockedOut);
@@ -2221,62 +2171,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
                 <span>{isEn ? 'Scoring Weights & Knock-out Rules' : '⚙️ Trọng Số & Tiêu Chí Knock-out'}</span>
               </button>
 
-              {/* View Mode Toggle: Leaderboard vs Kanban */}
-              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setRecruiterViewMode('leaderboard')}
-                  className={'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ' + (
-                    recruiterViewMode === 'leaderboard'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  )}
-                >
-                  <Award className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>{isEn ? 'Leaderboard' : 'Bảng Xếp Hạng'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRecruiterViewMode('kanban')}
-                  className={'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ' + (
-                    recruiterViewMode === 'kanban'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  )}
-                >
-                  <Kanban className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>{isEn ? 'Kanban Pipeline' : 'Kanban Tuyển Dụng'}</span>
-                </button>
               </div>
-            </div>
-
-            {/* Pipeline Stage Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              {(['ALL', ...ORDERED_PIPELINE_STAGES] as (PipelineStage | 'ALL')[]).map((stg) => {
-                const isAll = stg === 'ALL';
-                const count = isAll ? pipelineStats.ALL : pipelineStats[stg];
-                const label = isAll ? (isEn ? 'All' : 'Tất cả') : (isEn ? PIPELINE_STAGES[stg].labelEn : PIPELINE_STAGES[stg].labelVi);
-                const isSelected = pipelineFilter === stg;
-
-                return (
-                  <button
-                    key={stg}
-                    type="button"
-                    onClick={() => setPipelineFilter(stg)}
-                    className={'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ' + (
-                      isSelected
-                        ? 'bg-slate-900 text-white shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                    )}
-                  >
-                    <span>{label}</span>
-                    <span className={'text-[10px] px-1.5 py-0.2 rounded-full ' + (isSelected ? 'bg-slate-700 text-white' : 'bg-white text-slate-600')}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
 
           {/* Expandable Scoring Weights & Knockout Panel */}
@@ -2703,29 +2598,7 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </span>
           </div>
 
-          {/* View Toggle Mode: Kanban vs Leaderboard */}
-          {recruiterViewMode === 'kanban' ? (
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
-                    <Kanban className="w-4 h-4 text-indigo-600" />
-                    <span>{isEn ? 'Recruiter Kanban Pipeline (5 Stages)' : 'Bảng Kanban Quản Lý Tuyển Dụng (5 Giai Đoạn)'}</span>
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {isEn ? 'Manage applicant progression, internal notes, ratings, and tags.' : 'Chuyển đổi giai đoạn tuyển dụng, ghi chú bảo mật và chấm điểm sao cho từng ứng viên.'}
-                  </p>
-                </div>
-              </div>
-              <RecruiterKanbanBoard
-                candidates={filteredResults}
-                onSelectCandidate={(c) => setSelectedCandidate(c as CandidateResult)}
-                onChangeStage={handleChangeCandidateStage}
-                onOpenNotes={(c) => setNotesModalCandidate(c as CandidateResult)}
-                isEn={isEn}
-              />
-            </div>
-          ) : (
+          {/* Candidates List / Detail Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Left Hand: Leaders List Grid */}
@@ -3553,8 +3426,6 @@ export const BatchProcessingTab: React.FC<BatchProcessingTabProps> = ({ lang, to
             </div>
 
           </div>
-          )}
-
         </div>
       )}
 
