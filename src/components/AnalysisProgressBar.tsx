@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, CheckCircle2, Loader2, FileSearch, Wand2, FileCheck, Clock, Cpu } from 'lucide-react';
+import { Sparkles, CheckCircle2, Loader2, FileSearch, Wand2, ShieldAlert, BookOpen, Clock, Cpu } from 'lucide-react';
 
 interface AnalysisProgressBarProps {
   isLoading: boolean;
@@ -32,13 +32,14 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         // Asymptotic curve: fast initially, then slows down smoothly towards ~98% over 60-120s
-        if (prev < 30) return prev + Math.floor(Math.random() * 3) + 1; // 0 - 30%
-        if (prev < 65) return prev + Math.floor(Math.random() * 2) + 1; // 30 - 65%
-        if (prev < 88) return prev + (Math.random() > 0.4 ? 1 : 0); // 65 - 88%
-        if (prev < 98) return prev + (Math.random() > 0.7 ? 1 : 0); // 88 - 98% smoothly
+        if (prev < 25) return prev + Math.floor(Math.random() * 3) + 2; // 0 - 25% (Stage 1)
+        if (prev < 50) return prev + Math.floor(Math.random() * 2) + 1; // 25 - 50% (Stage 2)
+        if (prev < 75) return prev + Math.floor(Math.random() * 2) + 1; // 50 - 75% (Stage 3)
+        if (prev < 90) return prev + (Math.random() > 0.3 ? 1 : 0);      // 75 - 90% (Stage 4)
+        if (prev < 98) return prev + (Math.random() > 0.7 ? 1 : 0);      // 90 - 98% smoothly
         return prev;
       });
-    }, 600);
+    }, 500);
 
     return () => {
       clearInterval(timerInterval);
@@ -48,51 +49,60 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
 
   if (!isLoading) return null;
 
-  // Determine active step based on time & progress
-  const activeStep = elapsedSeconds < 10 ? 1 : elapsedSeconds < 25 ? 2 : 3;
+  // Determine active step based on progress (4 stages)
+  const activeStep = progress < 25 ? 1 : progress < 50 ? 2 : progress < 75 ? 3 : 4;
 
-  // Real-time status sub-message based on elapsed time
+  // Real-time status sub-message based on elapsed time & step
   const getSubStatusMessage = () => {
     if (lang === 'vi') {
-      if (elapsedSeconds < 10) return 'Trích xuất từ khóa JD, bóc tách yêu cầu bắt buộc & cấu trúc CV...';
-      if (elapsedSeconds < 25) return 'Đối chiếu kinh nghiệm, tối ưu các bullet point theo công thức Action + Outcome...';
-      if (elapsedSeconds < 41) return 'Mô phỏng đánh giá 10s từ Nhà tuyển dụng & chấm điểm độ khớp ATS...';
-      return 'Tổng hợp báo cáo phân tích chuyên sâu & tạo các gợi ý nâng cấp...';
+      if (progress < 25) return 'Bước 1/4: Bóc tách từ khóa JD, phân loại Tiêu chí Bắt buộc vs Điểm cộng...';
+      if (progress < 50) return 'Bước 2/4: Đánh giá cấu trúc từng phần CV, tinh chỉnh bullet STAR & viết tóm tắt định vị...';
+      if (progress < 75) return 'Bước 3/4: Đánh giá tầm vóc cấp bậc (Seniority Fit) & nhận diện điểm nghi ngại tuyển dụng...';
+      return 'Bước 4/4: Thiết lập Cẩm nang Phỏng vấn thực chiến 5-10 câu hỏi STAR & hoàn tất báo cáo...';
     } else {
-      if (elapsedSeconds < 10) return 'Extracting JD keywords, essential qualifications & CV structure...';
-      if (elapsedSeconds < 25) return 'Matching experience, optimizing bullet points using Action + Outcome formula...';
-      if (elapsedSeconds < 41) return 'Simulating 10s Recruiter screening & calculating ATS compatibility score...';
-      return 'Synthesizing comprehensive analysis report & custom enhancement recommendations...';
+      if (progress < 25) return 'Stage 1/4: Extracting JD keywords, separating Must-Have vs Nice-to-Have criteria...';
+      if (progress < 50) return 'Stage 2/4: Auditing CV sections, tailoring bullet points (STAR) & executive summary...';
+      if (progress < 75) return 'Stage 3/4: Evaluating Seniority & Scope Fit, mapping recruiter doubt mitigation plan...';
+      return 'Stage 4/4: Formulating 5-10 deep-dive STAR interview questions & synthesizing report...';
     }
   };
 
   const steps = [
     {
       id: 1,
-      title: lang === 'vi' ? 'Trích xuất & Đối chiếu' : 'Extract & Match',
+      title: lang === 'vi' ? 'Đối chiếu Từ khóa' : 'Match Keywords',
       subtitle:
         lang === 'vi'
-          ? 'Phân tích JD, bóc tách kỹ năng chuyên môn & yêu cầu bắt buộc'
-          : 'Analyzing JD & isolating essential skills and requirements',
+          ? 'Bóc tách từ khóa & tiêu chí bắt buộc'
+          : 'Extracting keywords & must-have requirements',
       icon: FileSearch,
     },
     {
       id: 2,
-      title: lang === 'vi' ? 'Tối ưu nội dung CV' : 'Optimize CV Content',
+      title: lang === 'vi' ? 'Tối ưu Từng phần' : 'Audit & Polish',
       subtitle:
         lang === 'vi'
-          ? 'Chỉnh sửa bullet point theo chuẩn Action + Tool + Outcome'
-          : 'Rewriting bullet points with Action + Tool + Outcome standard',
+          ? 'Cấu trúc từng mục & bullet STAR'
+          : 'Section review & STAR bullet tailoring',
       icon: Wand2,
     },
     {
       id: 3,
-      title: lang === 'vi' ? 'Đánh giá & Hoàn tất' : 'Evaluate & Finalize',
+      title: lang === 'vi' ? 'Tầm vóc & Rủi ro' : 'Seniority & Risk',
       subtitle:
         lang === 'vi'
-          ? 'Tính điểm khớp vai trò & mô phỏng đánh giá 10s từ Recruiter'
-          : 'Computing role match score & simulating 10s Recruiter screening',
-      icon: FileCheck,
+          ? 'Đánh giá cấp bậc & điểm nghi ngại'
+          : 'Scope alignment & mitigation strategy',
+      icon: ShieldAlert,
+    },
+    {
+      id: 4,
+      title: lang === 'vi' ? 'Cẩm nang Phỏng vấn' : 'STAR Interview',
+      subtitle:
+        lang === 'vi'
+          ? '5-10 câu hỏi xoáy sâu & khung trả lời'
+          : '5-10 deep questions & STAR frameworks',
+      icon: BookOpen,
     },
   ];
 
@@ -107,16 +117,16 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 flex-wrap">
-              <span>{lang === 'vi' ? 'Đang phân tích & tối ưu CV' : 'Analyzing & Optimizing CV'}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200/60 flex items-center gap-1">
+              <span>{lang === 'vi' ? 'Đang phân tích chuyên sâu 4 giai đoạn' : 'Executing 4-Stage Deep Analysis'}</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200/60 flex items-center gap-1">
                 <Cpu className="w-3 h-3" />
-                <span>AI Pipeline</span>
+                <span>AI Pipeline 2.0</span>
               </span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               {lang === 'vi'
-                ? 'Hệ thống AI đang xử lý đối chiếu và phân tích chuyên sâu'
-                : 'AI engine executing multi-stage extraction, matching, and critique'}
+                ? 'Hệ thống AI xử lý tuần tự từ đối chiếu từ khóa, tối ưu CV đến cẩm nang phỏng vấn thực chiến'
+                : 'AI engine sequentially auditing keywords, tailoring CV, and generating STAR interview playbook'}
             </p>
           </div>
         </div>
@@ -155,13 +165,13 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
             <span className="truncate text-indigo-950 font-semibold">{getSubStatusMessage()}</span>
           </div>
           <span className="text-[11px] text-slate-400 shrink-0 ml-2 hidden md:inline">
-            {lang === 'vi' ? 'Thời gian xử lý trung bình trong 1-2 phút' : 'Avg response time 1-2 minutes'}
+            {lang === 'vi' ? 'Thời gian xử lý trung bình: 15–30 giây' : 'Avg processing time: 15–30 seconds'}
           </span>
         </div>
       </div>
 
-      {/* Steps List Visual Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+      {/* Steps List Visual Cards (4 Stages) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
         {steps.map((step) => {
           const isDone = activeStep > step.id;
           const isCurrent = activeStep === step.id;
@@ -170,7 +180,7 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
           return (
             <div
               key={step.id}
-              className={`p-3.5 rounded-xl border transition-all duration-300 flex items-start gap-3 ${
+              className={`p-3 rounded-xl border transition-all duration-300 flex items-start gap-2.5 ${
                 isDone
                   ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
                   : isCurrent
@@ -179,7 +189,7 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
               }`}
             >
               <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold transition-colors ${
+                className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold transition-colors ${
                   isDone
                     ? 'bg-emerald-500 text-white'
                     : isCurrent
@@ -188,9 +198,9 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
                 }`}
               >
                 {isDone ? (
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 ) : isCurrent ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   step.id
                 )}
@@ -220,7 +230,7 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
                   </h4>
                 </div>
                 <p
-                  className={`text-[11px] mt-1 leading-snug line-clamp-2 ${
+                  className={`text-[10px] mt-0.5 leading-tight line-clamp-2 ${
                     isDone
                       ? 'text-emerald-700/80'
                       : isCurrent
@@ -238,4 +248,3 @@ export const AnalysisProgressBar: React.FC<AnalysisProgressBarProps> = ({
     </div>
   );
 };
-
