@@ -11,7 +11,6 @@ RoleMatch hỗ trợ nhà tuyển dụng và bộ phận thu hút nhân tài (Ta
 - **Phân tích hàng loạt CV theo cùng một JD:** Tải lên tối đa 15 CV hoặc tệp nén ZIP để đối chiếu công bằng, nhất quán theo cùng tiêu chuẩn tuyển dụng.
 - **Tùy biến Trọng số Chấm điểm & Xếp hạng Động (Custom Scoring Weights):** Tự do phân bổ tỷ trọng phần trăm giữa Từ khóa, Kỹ năng và Kinh nghiệm (hoặc dùng các preset mẫu) để tính điểm có trọng số (`weightedScore`) và tái sắp xếp bảng xếp hạng.
 - **Bộ lọc Loại trực tiếp (Knock-out Criteria):** Thiết lập ngưỡng điểm sàn tối thiểu và tự động loại các hồ sơ thiếu kỹ năng bắt buộc cốt lõi (`Must-Have`), kèm lý do vi phạm minh bạch.
-- **Quản lý Pipeline Tuyển dụng & Đánh giá Nội bộ:** Phân loại ứng viên theo 5 giai đoạn (`Mới nạp`, `Sơ tuyển`, `Phỏng vấn`, `Offer`, `Từ chối`), chấm điểm sao (1–5 sao), ghi chú nội bộ và gắn nhãn (tags).
 - **Đánh giá tầm vóc 4 trục (Seniority Fit) & Ma trận rủi ro hồ sơ:** Đánh giá cấp bậc, độ phức tạp dự án, mức độ tự chủ/lãnh đạo, độ khớp ngành nghề và các điểm nghi ngại (Red Flags) của từng ứng viên.
 - **Cẩm nang phỏng vấn thực chiến (5–10 câu hỏi STAR):** Trang bị sẵn bộ câu hỏi đào sâu bám sát khoảng trống thực tế của từng hồ sơ, giải mã ý đồ phỏng vấn và cạm bẫy ứng viên để chuẩn bị vòng phỏng vấn chuyên nghiệp.
 - **Lưu trữ và mở lại báo cáo ngoại tuyến:** Lưu đợt tuyển dụng vào hệ thống để mở lại và xem chi tiết bất kỳ lúc nào mà không cần tốn thêm lượt phân tích AI.
@@ -27,7 +26,7 @@ RoleMatch hỗ trợ nhà tuyển dụng và bộ phận thu hút nhân tài (Ta
 flowchart LR
     A["1. Nhập JD & Tải CVs/ZIP<br/>(File / URL / Drag-Drop)"] --> B["2. Phân Tích Batch<br/>(AI Assistant Pool)"]
     B --> C["3. Tùy Chỉnh Trọng Số & Knock-out<br/>(Recruiter 2.0 Scoring)"]
-    C --> D["4. Bảng Xếp Hạng & Pipeline<br/>(Inbox -> Shortlist -> Offer)"]
+    C --> D["4. Bảng Xếp Hạng Tuyển Dụng<br/>(Leaderboard & Trọng Số)"]
     D --> E["5. Đọc Chi Tiết & Phỏng Vấn<br/>(4 Trục Tầm Vóc & STAR)"]
     E --> F["6. Lưu Batch & Đồng Bộ Đám Mây<br/>(Firestore / Export Markdown)"]
 ```
@@ -37,7 +36,6 @@ flowchart LR
 3. Tải lên danh sách CV cần phân tích (tối đa 15 tệp riêng lẻ hoặc 1 tệp `.zip`).
 4. Bấm **Bắt Đầu Phân Tích / Start Analysis**.
 5. **Cấu hình Trọng số & Tiêu chí Knock-out:** Chọn preset phân bổ điểm phù hợp với vị trí tuyển dụng hoặc điều chỉnh tỷ trọng và ngưỡng điểm sàn.
-6. **Điều phối Pipeline Tuyển dụng:** Cập nhật trạng thái vòng tuyển dụng, xếp hạng sao, thêm ghi chú phỏng vấn và gắn nhãn cho ứng viên sáng giá.
 7. Mở chi tiết từng ứng viên để kiểm tra bằng chứng, khoảng trống Must-Have, đánh giá tầm vóc 4 trục và ma trận rủi ro hồ sơ.
 8. Mở **Cẩm nang phỏng vấn thực chiến (5–10 câu STAR)** để chuẩn bị kịch bản phỏng vấn chuyên sâu.
 9. Bấm **Lưu đợt này** để lưu toàn bộ dữ liệu (bao gồm cả trọng số, knock-out và pipeline) lên hệ thống.
@@ -68,37 +66,10 @@ Khi bật các điều kiện loại trực tiếp, ứng viên không đáp ứ
 
 ---
 
-## 4. Quản Lý Pipeline Tuyển Dụng & Ghi Chú Đánh Giá (Phase 3)
+## 4. Quản Lý Pipeline Tuyển Dụng & Ghi Chú Đánh Giá (Kế Hoạch Tương Lai)
 
-RoleMatch tích hợp quy trình theo dõi ứng viên (Candidate Pipeline Management) trực tiếp trong mỗi đợt tuyển dụng:
-
-### 4.1. 5 Giai Đoạn Tuyển Dụng Chuẩn Hóa
-
-```mermaid
-stateDiagram-v2
-    [*] --> INBOX: Mới nạp (Mặc định)
-    INBOX --> SHORTLIST: Duyệt vòng sơ tuyển
-    SHORTLIST --> INTERVIEW: Mời phỏng vấn
-    INTERVIEW --> OFFER: Đề nghị tuyển dụng (Offer)
-    INBOX --> REJECTED: Không phù hợp
-    SHORTLIST --> REJECTED: Không phù hợp
-    INTERVIEW --> REJECTED: Không phù hợp
-```
-
-- **Mới nạp (`INBOX`):** Hồ sơ vừa phân tích xong, đang chờ HR đọc lướt.
-- **Duyệt vòng sơ tuyển (`SHORTLIST`):** Hồ sơ đạt chuẩn, chuyển cho Hiring Manager xem xét.
-- **Mời phỏng vấn (`INTERVIEW`):** Ứng viên được chọn để tiến hành phỏng vấn trực tiếp.
-- **Đề nghị tuyển dụng (`OFFER`):** Ứng viên vượt qua các vòng phỏng vấn, chuẩn bị nhận offer.
-- **Không phù hợp (`REJECTED`):** Hồ sơ bị từ chối hoặc không đạt yêu cầu.
-
-### 4.2. Công Cụ Đánh Giá Nội Bộ Của Tuyển Dụng
-
-- **Đánh giá sao (Rating 1–5):** Đánh giá nhanh chất lượng hồ sơ theo cảm nhận của người sàng lọc.
-- **Ghi chú nội bộ (Internal Notes):** Lưu lại thông tin lương kỳ vọng, thời gian có thể nhận việc hoặc ấn tượng khi gọi điện sơ tuyển.
-- **Gắn nhãn (Candidate Tags):** Gắn các nhãn nhanh như `Top Candidate`, `Tech Lead`, `Culture Fit`, `Urgent Hire`, `High Salary Expectation`.
-- **Giao diện Kanban Trực Quan (5 Cột Tuyển Dụng):** Hỗ trợ chuyển đổi 1-click giữa Bảng Xếp Hạng truyền thống và Bảng Kanban 5 cột tuyển dụng, giúp quản lý tiến độ ứng viên trực quan và thuận tiện.
-
-Mọi thay đổi về Pipeline, Trọng số, Ghi chú và Đánh giá đều được cập nhật và lưu trữ qua endpoint `PUT /api/recruiter/batches/:id`.
+> [!NOTE]
+> Giao diện Bảng Kanban, Bộ lọc Pipeline và Ghi chú nội bộ hiện đang được tạm ẩn trên giao diện người dùng (frontend) để tập trung trải nghiệm vào bảng xếp hạng đối chiếu và ma trận so sánh ứng viên chuyên sâu. Nền tảng dữ liệu và backend API đã sẵn sàng và sẽ được kích hoạt lại khi có nhu cầu mở rộng quy trình tuyển dụng.
 
 ---
 
@@ -202,7 +173,5 @@ Mỗi câu hỏi cung cấp:
 - [ ] JD đã phân tách rõ tiêu chí Bắt buộc (Must-Have) và Điểm cộng (Nice-to-Have).
 - [ ] Đã lựa chọn preset Trọng số chấm điểm phù hợp với cấp bậc và tính chất công việc.
 - [ ] Đã rà soát danh sách ứng viên bị loại bởi tiêu chí Knock-out để tránh bỏ sót nhân tài đặc biệt.
-- [ ] Đã phân loại ứng viên vào các giai đoạn Pipeline (`SHORTLIST`, `INTERVIEW`).
 - [ ] Đã đọc kỹ Đánh giá tầm vóc 4 trục và Ma trận rủi ro của Top ứng viên sáng giá.
 - [ ] Đã chọn lọc 3–5 câu hỏi phỏng vấn trọng tâm từ Cẩm nang Phỏng vấn STAR để đưa vào kịch bản phỏng vấn.
-- [ ] Đã ghi nhận nhận xét đánh giá, rating và lý do lựa chọn cuối cùng vào phần Ghi chú nội bộ.

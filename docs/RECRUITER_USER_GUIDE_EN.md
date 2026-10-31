@@ -11,7 +11,6 @@ RoleMatch equips recruitment and talent acquisition teams with:
 - **Batch Processing of Multiple Resumes against a Single JD:** Upload up to 15 CVs or a compressed ZIP archive for consistent, objective evaluation against unified criteria.
 - **Customizable Scoring Weights & Dynamic Re-ranking (Phase 3):** Allocate percentage weights across Keywords, Skills, and Experience (or choose pre-configured presets) to calculate weighted scores (`weightedScore`) and dynamically reorder the leaderboard.
 - **Hard Knockout Filtering (Phase 3):** Establish minimum score floors and disqualify candidates lacking critical Must-Have qualifications, complete with explicit, audit-ready disqualification rationales.
-- **Candidate Pipeline Tracking & Internal Reviews (Phase 3):** Move candidates through 5 standardized hiring stages (`Inbox`, `Shortlist`, `Interview`, `Offer`, `Rejected`), record star ratings (1–5), internal evaluation notes, and customized tags.
 - **4-Dimension Seniority Fit & Risk Mitigation Matrix:** Assess rank, project complexity, leadership autonomy, and domain fit, highlighting candidate red flags with clear interview talking points.
 - **Practical Interview Battle Guide (5–10 STAR Questions):** Access candidate-specific deep-dive questions targeting genuine CV gaps, revealing interviewer intent, structured STAR response guides, and common candidate pitfalls.
 - **Offline Batch Storage & Cloud Sync:** Persist batches securely in Firestore to review, update, or export candidate evaluations without consuming additional AI quota units.
@@ -27,7 +26,7 @@ RoleMatch equips recruitment and talent acquisition teams with:
 flowchart LR
     A["1. Input JD & Upload CVs/ZIP<br/>(File / URL / Drag-Drop)"] --> B["2. Batch AI Analysis<br/>(AI Assistant Pool)"]
     B --> C["3. Configure Weights & Knockout<br/>(Recruiter 2.0 Scoring)"]
-    D --> E["4. Manage Leaderboard & Pipeline<br/>(Inbox -> Shortlist -> Offer)"]
+    D --> E["4. Manage Leaderboard & Rankings<br/>(Leaderboard & Scoring Weights)"]
     E --> F["5. Deep-Dive & Interview<br/>(4 Seniority Axes & STAR)"]
     F --> G["6. Save Batch & Sync<br/>(Firestore / Markdown Export)"]
 ```
@@ -37,7 +36,6 @@ flowchart LR
 3. Upload candidate CVs (up to 15 separate files or a single `.zip` archive).
 4. Click **Start Analysis**.
 5. **Configure Scoring Weights & Knockout Criteria:** Select a preset weight distribution tailored to the seniority tier or customize percentages and score thresholds.
-6. **Manage Candidate Pipeline:** Update recruitment stages, assign star ratings, add internal interview notes, and apply tags to promising candidates.
 7. Open individual candidate cards to examine match evidence, Must-Have requirements, 4-dimension seniority fit, and the risk mitigation matrix.
 8. Open the candidate's **Interview Battle Guide (5–10 Qs)** to prepare structured interview questions using the STAR framework.
 9. Click **Save Current Batch** to persist all evaluations, weights, knockout criteria, and pipeline states to the cloud database.
@@ -68,37 +66,10 @@ When knockout rules are active, non-compliant candidates are flagged as **Knocke
 
 ---
 
-## 4. Candidate Pipeline Management & Internal Reviews (Phase 3)
+## 4. Candidate Pipeline Management & Internal Reviews (Future Roadmap)
 
-RoleMatch provides an integrated candidate tracking pipeline directly within each recruitment batch:
-
-### 4.1. Five Standardized Pipeline Stages
-
-```mermaid
-stateDiagram-v2
-    [*] --> INBOX: Inbox (Default)
-    INBOX --> SHORTLIST: Shortlisted
-    SHORTLIST --> INTERVIEW: Interviewing
-    INTERVIEW --> OFFER: Offer Extended
-    INBOX --> REJECTED: Rejected
-    SHORTLIST --> REJECTED: Rejected
-    INTERVIEW --> REJECTED: Rejected
-```
-
-- **Inbox (`INBOX`):** Freshly analyzed candidate profiles awaiting review.
-- **Shortlisted (`SHORTLIST`):** Qualified profiles advanced for hiring manager screening.
-- **Interviewing (`INTERVIEW`):** Selected candidates scheduled for structured interviews.
-- **Offer Extended (`OFFER`):** Finalists undergoing offer negotiations.
-- **Rejected (`REJECTED`):** Profiles that do not meet core requirements.
-
-### 4.2. Internal Review & Tagging Toolkits
-
-- **Star Ratings (1–5 Stars):** Quick quality indicator assigned by screening teams.
-- **Internal Review Notes:** Record compensation expectations, notice periods, or initial phone screening impressions.
-- **Candidate Tags:** Apply quick tags such as `Top Candidate`, `Tech Lead`, `Culture Fit`, `Urgent Hire`, `High Salary Expectation`.
-- **Interactive Kanban Pipeline View:** Seamless 1-click toggle between standard Leaderboard and visual 5-column Kanban board, tracking applicant progression with drag-and-drop ease.
-
-All updates to pipeline stages, notes, ratings, and weights are persisted via the `PUT /api/recruiter/batches/:id` API endpoint.
+> [!NOTE]
+> The interactive Kanban board, Pipeline stage filters, and internal candidate review notes are currently hidden from the frontend user interface to keep the user experience focused on deep comparative ranking and multidimensional matching. The underlying data schemas and backend APIs remain in place and can be reactivated in future iterations.
 
 ---
 
