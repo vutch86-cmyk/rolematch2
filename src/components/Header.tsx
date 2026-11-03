@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, FileSearch, Sparkles, RefreshCw, Globe, History, ShieldCheck, Terminal, LogIn, LogOut, User, Users } from 'lucide-react';
+import { FileSearch, Sparkles, RefreshCw, Globe, History, ShieldCheck, LogOut, User, Users, Layers } from 'lucide-react';
 import { Language, translations } from '../utils/i18n';
 import { UserAccount } from '../types';
 
@@ -16,6 +16,8 @@ interface HeaderProps {
   onOpenLogin: () => void;
   onLogout: () => void;
   onOpenAdminPanel?: () => void;
+  appMode?: 'single' | 'batch';
+  onAppModeChange?: (mode: 'single' | 'batch') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,47 +33,79 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLogin,
   onLogout,
   onOpenAdminPanel,
+  appMode = 'single',
+  onAppModeChange,
 }) => {
   const t = translations[lang].header;
   const tHistory = translations[lang].history;
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-30 shadow-md">
-      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-emerald-500 p-0.5 shadow-lg shadow-indigo-500/20 shrink-0">
-            <div className="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-              <FileSearch className="w-5 h-5 text-indigo-400" />
+    <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 text-slate-900 sticky top-0 z-30 shadow-xs">
+      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 h-16 flex items-center justify-between gap-4">
+        {/* Brand / Logo */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-xs shadow-blue-500/20 shrink-0">
+            <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+              <FileSearch className="w-5 h-5 text-blue-600" />
             </div>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-bold text-lg text-slate-100 tracking-tight">
+              <h1 className="font-bold text-base sm:text-lg text-slate-900 tracking-tight">
                 {t.title}
               </h1>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                <Sparkles className="w-3 h-3 text-indigo-400" />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                <Sparkles className="w-3 h-3 text-blue-600" />
                 {t.badge}
               </span>
             </div>
-            <p className="text-xs text-slate-400 hidden sm:block">
+            <p className="text-xs text-slate-500 hidden lg:block">
               {t.subtitle}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Center Pill Switch: Candidate vs Recruiter */}
+        {onAppModeChange && (
+          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center text-xs shadow-inner">
+            <button
+              onClick={() => onAppModeChange('single')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                appMode === 'single'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>{lang === 'vi' ? 'Ứng viên' : 'Candidate'}</span>
+            </button>
+            <button
+              onClick={() => onAppModeChange('batch')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                appMode === 'batch'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>{lang === 'vi' ? 'Nhà tuyển dụng' : 'Recruiter'}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Right Navigation & User Menu */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           {/* History Drawer Trigger Button */}
           {onOpenHistory && (
             <button
               onClick={onOpenHistory}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition-all cursor-pointer relative"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-all cursor-pointer relative"
               title={tHistory.openHistory}
             >
-              <History className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden xs:inline">{tHistory.buttonLabel}</span>
+              <History className="w-4 h-4 text-slate-600" />
+              <span className="hidden md:inline">{tHistory.buttonLabel}</span>
               {historyCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-indigo-600 text-white">
+                <span className="px-1.5 py-0.2 rounded-full text-xs font-extrabold bg-blue-600 text-white">
                   {historyCount}
                 </span>
               )}
@@ -79,16 +113,16 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Language Switcher Toggle */}
-          <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700/80 shadow-inner">
-            <div className="px-2 text-slate-400 flex items-center gap-1 text-xs font-medium hidden xs:flex">
-              <Globe className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+            <div className="px-1.5 text-slate-400 flex items-center gap-1 text-xs font-medium hidden sm:flex">
+              <Globe className="w-3.5 h-3.5 text-slate-500" />
             </div>
             <button
               onClick={() => onLangChange('vi')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 lang === 'vi'
-                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
               title="Tiếng Việt"
             >
@@ -96,10 +130,10 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => onLangChange('en')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 lang === 'en'
-                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
               title="English"
             >
@@ -110,26 +144,26 @@ export const Header: React.FC<HeaderProps> = ({
           {hasData && onReset && (
             <button
               onClick={onReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-all cursor-pointer"
               title={t.reanalyze}
             >
-              <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden md:inline">{t.reanalyze}</span>
+              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+              <span className="hidden xl:inline">{t.reanalyze}</span>
             </button>
           )}
 
-          {/* USER AUTH STATUS / LOGIN BUTTON - MOVED TO FAR RIGHT */}
+          {/* USER AUTH STATUS / LOGIN BUTTON */}
           {currentUser ? (
-            <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 p-1 pl-2 rounded-xl text-xs shadow-xs">
+            <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 p-1 pl-2.5 rounded-xl text-xs shadow-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold shrink-0">
                   <User className="w-3.5 h-3.5" />
                 </div>
-                <span className="font-bold text-slate-100 text-xs max-w-[120px] sm:max-w-[160px] truncate" title={currentUser.fullName || currentUser.username}>
+                <span className="font-bold text-slate-900 text-xs max-w-[100px] sm:max-w-[140px] truncate" title={currentUser.fullName || currentUser.username}>
                   {currentUser.fullName || currentUser.username}
                 </span>
                 {currentUser.role === 'admin' && (
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
                     ADMIN
                   </span>
                 )}
@@ -139,17 +173,17 @@ export const Header: React.FC<HeaderProps> = ({
               {currentUser.role === 'admin' && onOpenAdminPanel && (
                 <button
                   onClick={onOpenAdminPanel}
-                  className="px-2 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 rounded-lg font-bold text-[11px] border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer shadow-sm shadow-amber-500/10 ml-1"
+                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg font-bold text-xs border border-amber-200 transition-all flex items-center gap-1 cursor-pointer shadow-xs ml-1"
                   title={lang === 'vi' ? 'Mở Bảng Quản Trị Admin Dashboard' : 'Open Admin Dashboard'}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
                   <span className="hidden md:inline">Admin</span>
                 </button>
               )}
 
               <button
                 onClick={onLogout}
-                className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer ml-1"
+                className="p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer ml-1"
                 title={lang === 'vi' ? 'Đăng xuất' : 'Log Out'}
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -158,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               onClick={onOpenLogin}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#1a73e8] hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer"
             >
               <User className="w-3.5 h-3.5" />
               <span>{lang === 'vi' ? 'Đăng Nhập' : 'Log In'}</span>
@@ -169,6 +203,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-
-
-

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { InputSection } from './components/InputSection';
+import { CompactContextBar } from './components/CompactContextBar';
 import { KeywordMatchTab } from './components/KeywordMatchTab';
 import { BulletPointRewriteTab } from './components/BulletPointRewriteTab';
 import { RecruiterScanTab } from './components/RecruiterScanTab';
@@ -52,6 +53,7 @@ import {
   Copy,
   Check,
   AlertCircle,
+  AlertTriangle,
   RefreshCw,
   Printer,
   FileCheck,
@@ -341,6 +343,11 @@ export default function App() {
   const [copiedReport, setCopiedReport] = useState<boolean>(false);
   const [currentRoleTitle, setCurrentRoleTitle] = useState<string>('');
   const [jdSourceLabel, setJdSourceLabel] = useState<string | null>(null);
+  const [cvFileName, setCvFileName] = useState<string | null>(null);
+  const [isInputCollapsed, setIsInputCollapsed] = useState<boolean>(false);
+  const [analyzedCvText, setAnalyzedCvText] = useState<string>('');
+  const [analyzedJdText, setAnalyzedJdText] = useState<string>('');
+  const isInputDirty = Boolean(analysis && (cvText !== analyzedCvText || jdText !== analyzedJdText));
 
   // Gemini Updated CV state
   const [isUpdatedCvModalOpen, setIsUpdatedCvModalOpen] = useState<boolean>(false);
@@ -425,6 +432,9 @@ export default function App() {
       const data = await parseApiResponseSafely<CompleteCVAnalysisResponse>(res, lang as 'vi' | 'en', requestId);
 
       setAnalysis(data as any);
+      setAnalyzedCvText(cvText);
+      setAnalyzedJdText(jdText);
+      setIsInputCollapsed(true);
       setCheckedActions([false, false, false, false, false]);
 
       if (!clarifyingAnswers) {
@@ -487,6 +497,7 @@ export default function App() {
       }).catch((err) => console.warn('Failed to push history item to cloud:', err));
     } catch (err: any) {
       console.error('Error analyzing CV:', err);
+      setIsInputCollapsed(false);
       if (err?.code === 'AUTH_REQUIRED') {
         setIsLoginModalOpen(true);
       }
@@ -504,6 +515,10 @@ export default function App() {
     setJdText(migrated.jdText);
     setAnalysis(migrated.analysis);
     setCurrentRoleTitle(migrated.title);
+    setAnalyzedCvText(migrated.cvText);
+    setAnalyzedJdText(migrated.jdText);
+    setIsInputCollapsed(true);
+    setError(null);
     setCurrentActiveHistoryId(migrated.id);
     setCheckedActions([false, false, false, false, false]);
     setActiveTab('feature3');
@@ -653,6 +668,11 @@ export default function App() {
     setAnalysis(null);
     setError(null);
     setCurrentRoleTitle('');
+    setCvFileName(null);
+    setJdSourceLabel(null);
+    setAnalyzedCvText('');
+    setAnalyzedJdText('');
+    setIsInputCollapsed(false);
     setCurrentActiveHistoryId(undefined);
     setCheckedActions([false, false, false, false, false]);
   };
@@ -784,43 +804,34 @@ export default function App() {
         onOpenLogin={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
         onOpenAdminPanel={() => setIsAdminModalOpen(true)}
+        appMode={appMode}
+        onAppModeChange={setAppMode}
       />
 
 
       {/* Main Container */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8 space-y-8">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 space-y-6">
 
-        {/* Mode Switcher Tabs */}
-        <div className="bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-4 max-w-2xl mx-auto">
-          <button
-            onClick={() => setAppMode('single')}
-            className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              appMode === 'single'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>{lang === 'vi' ? 'Ứng viên' : 'Candidate'}</span>
-          </button>
-          <button
-            onClick={() => setAppMode('batch')}
-            className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              appMode === 'batch'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span className="relative">
-              {lang === 'vi' ? 'Nhà tuyển dụng' : 'Recruiter'}
-              <span className="absolute -top-1 -right-2.5 w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-            </span>
-          </button>
-        </div>
+        {/* Compact Context Bar (Shown when analysis is available) */}
+        {analysis && (
+          <CompactContextBar
+            jdTitle={analysis.jobTitle || currentRoleTitle}
+            jdSourceLabel={jdSourceLabel}
+            cvFileName={cvFileName}
+            cvTextLength={cvText.length}
+            overallScore={analysis.feature1?.scores?.overallRoleScore}
+            isInputCollapsed={isInputCollapsed}
+            onToggleCollapse={() => setIsInputCollapsed((prev) => !prev)}
+            isInputDirty={isInputDirty}
+            onReAnalyze={() => handleAnalyze()}
+            isLoading={isLoading}
+            lang={lang}
+          />
+        )}
 
-        <div className={appMode === 'single' ? 'space-y-8 animate-fade-in' : 'hidden'}>
+<div className={appMode === 'single' ? 'space-y-8 animate-fade-in' : 'hidden'}>
             {/* Top welcome banner / intro */}
+            {!analysis && (
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-indigo-900 pointer-events-none hidden md:block">
                 <Users className="w-56 h-56" />
@@ -859,25 +870,56 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
 
-        {/* Input Form Section */}
-        <InputSection
-          cvText={cvText}
-          setCvText={setCvText}
-          jdText={jdText}
-          setJdText={(val) => {
+        {/* Input Form Section (Preserved in DOM to prevent state/file loss) */}
+          <div className={isInputCollapsed ? 'hidden' : 'space-y-4 animate-in fade-in'}>
+            <InputSection
+              cvText={cvText}
+              setCvText={setCvText}
+              jdText={jdText}
+              setJdText={(val) => {
             if (val !== jdText) {
               setCurrentRoleTitle('');
             }
-            setJdText(val);
-          }}
-          onAnalyze={() => handleAnalyze()}
-          isLoading={isLoading}
-          onSelectPreset={handleSelectPreset}
-          lang={lang}
-          currentUser={currentUser}
-          onJdSourceChange={setJdSourceLabel}
-        />
+                setJdText(val);
+              }}
+              onAnalyze={() => handleAnalyze()}
+              isLoading={isLoading}
+              onSelectPreset={handleSelectPreset}
+              lang={lang}
+              currentUser={currentUser}
+              onJdSourceChange={setJdSourceLabel}
+              onCvSourceChange={setCvFileName}
+            />
+          </div>
+
+          {/* Stale Input Warning Banner */}
+          {isInputDirty && analysis && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <div>
+                  <strong className="font-bold text-sm sm:text-base text-amber-900">
+                    {lang === 'vi' ? 'Kết quả bên dưới thuộc về nội dung trước khi chỉnh sửa' : 'Analysis reflects input prior to latest edits'}
+                  </strong>
+                  <p className="text-xs text-amber-800 mt-0.5 font-medium">
+                    {lang === 'vi'
+                      ? 'Bạn đã sửa đổi CV hoặc JD. Bấm "Chấm điểm lại" để AI tính toán lại độ khớp và các đề xuất mới nhất.'
+                      : 'You updated CV or JD. Click "Re-analyze" to compute updated match scores and recommendations.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleAnalyze()}
+                disabled={isLoading}
+                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer flex items-center gap-2 shrink-0"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>{lang === 'vi' ? 'Chấm điểm lại' : 'Re-analyze'}</span>
+              </button>
+            </div>
+          )}
 
         {/* Error message card if any */}
         {error && (
