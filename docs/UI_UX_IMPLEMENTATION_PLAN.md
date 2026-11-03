@@ -1,203 +1,192 @@
 # RoleMatch 2 — Kế Hoạch Triển Khai Cải Tiến UI/UX (Google Design Mindset)
 
 > **Tài liệu tham chiếu:** `docs/UI_UX_IMPLEMENTATION_PLAN.md`  
-> **Phiên bản:** 1.0 (Tháng 11/2026)  
-> **Mục tiêu:** Tinh giản hóa giao diện, loại bỏ bão hòa văn bản (text-heavy), nâng cao tính chuyên nghiệp, trực quan và đưa trải nghiệm người dùng về đúng chuẩn tư duy thiết kế của **Google (Material Design 3, Google Workspace, NotebookLM & Gemini UX)**.
+> **Phiên bản:** 1.1 (Tháng 11/2026 — Đã tích hợp phản biện & thống nhất kiến trúc giữa **Antigravity & ChatGPT**)  
+> **Mục tiêu:** Tinh giản hóa giao diện, giải quyết triệt để vấn đề quá tải chữ (text-heavy), loại bỏ rủi ro chèn dữ kiện ảo, và xây dựng trải nghiệm trực quan, có căn cứ vững chắc theo tư duy thiết kế của **Google (Material Design 3, Google Workspace, NotebookLM & Gemini UX)**.
 
 ---
 
 ## 1. Bối Cảnh & UX Audit (Hiện Trạng vs. Điểm Nghẽn)
 
-### 1.1. Các vấn đề người dùng đang gặp phải
+### 1.1. Các vấn đề cốt lõi của giao diện hiện tại
 1. **Quá tải nhận thức (Cognitive Overload) — "Bức tường chữ":**
-   - Sau khi bấm phân tích, hàng loạt khối thông tin nặng chữ xuất hiện cùng lúc: Phân tích 10s của Recruiter, Ma trận rủi ro 4 chiều, Bảng đối chiếu từ khóa với hàng chục dòng, Đề xuất viết lại câu, Câu hỏi phỏng vấn...
-   - Người dùng không có điểm neo thị giác (visual anchor) để biết mình cần xem cái gì trước, dẫn đến việc bỏ qua thông tin quan trọng.
+   - Sau khi bấm phân tích, hàng loạt khối thông tin nặng chữ xuất hiện đồng thời: Nhận xét 10 giây của HR, Ma trận rủi ro 4 chiều, Bảng đối chiếu từ khóa với hàng chục dòng, Đề xuất viết lại câu, Câu hỏi phỏng vấn...
+   - Người dùng bị ngợp, không có điểm neo thị giác để nhận biết ngay mình đạt hay trượt và việc cần làm tiếp theo là gì.
 2. **Thiếu tính năng Phân tầng thông tin (Progressive Disclosure):**
-   - Mọi chi tiết sâu đều được mở toang (fully expanded) mặc định thay vì chỉ hiển thị tóm lược cấp cao và cho phép người dùng click mở rộng khi có nhu cầu.
+   - Chi tiết sâu đều mở toang mặc định thay vì tóm lược ở cấp cao và mở rộng theo nhu cầu người dùng.
 3. **Mật độ thị giác quá dày & Phân mảnh màu sắc:**
-   - Sử dụng quá nhiều viền xám đậm (`border-slate-800`, `border-slate-300`), dải gradient màu nóng (amber, rose, emerald, indigo) làm mất đi sự yên tĩnh của không gian thị giác.
-   - Header tối màu (`bg-slate-900`) tương phản gắt với thân trang sáng màu, tạo cảm giác đứt gãy giao diện.
-4. **Khu vực nhập liệu (Input Section) bị rối loạn ưu tiên:**
-   - Người dùng vừa vào trang đã thấy hàng loạt nút phụ trợ: Nút kiểm tra API OpenRouter, Nút Preview/Raw, Chọn preset mẫu, Dropzone, File tag... làm luồng thao tác chính (*Dán/Tải CV $\rightarrow$ Dán/Tải JD $\rightarrow$ Phân tích*) bị phân tâm.
+   - Sử dụng quá nhiều viền xám đậm (`border-slate-800`), gradient màu nóng xen kẽ, thanh header tối màu tương phản gắt với nền sáng.
+4. **Vòng lặp Input Section chưa tối ưu:**
+   - Khi đã có kết quả phân tích, hai ô nhập liệu lớn vẫn chiếm trọn màn hình, buộc người dùng phải cuộn sâu xuống dưới mới xem được dữ liệu.
 
 ---
 
-## 2. Triết Lý Thiết Kế Của Google (Google Design Mindset) Áp Dụng Cho RoleMatch
+## 2. Bốn Trụ Cột Thiết Kế Đã Thống Nhất (Antigravity & ChatGPT Consensus)
 
 ```mermaid
 flowchart TD
-    G["TRIẾT LÝ GOOGLE CHO ROLEMATCH"] --> G1["1. Glanceability<br/>(Quét nhanh trong 3 giây)"]
-    G --> G2["2. Radical Simplicity<br/>(Đơn giản hóa triệt để)"]
-    G --> G3["3. Progressive Disclosure<br/>(Tiết lộ thông tin 3 tầng)"]
-    G --> G4["4. Copilot & 1-Click Action<br/>(Hành động thay vì đọc lý thuyết)"]
+    G["TRIẾT LÝ GOOGLE CHO ROLEMATCH (v1.1)"] --> G1["1. Glanceability<br/>(Bằng chứng trước, điểm số sau)"]
+    G --> G2["2. Radical Simplicity<br/>(Dual Canvas & Context Bar)"]
+    G --> G3["3. Progressive Disclosure<br/>(Bản đồ Bằng chứng 3 cấp)"]
+    G --> G4["4. Action-Oriented Assist<br/>(Sidebar Suggestion & Chống dữ liệu ảo)"]
 
-    G1 --> R1["Hero Score Card: 1 vòng tròn điểm + 1 câu nhận định AI dứt khoát"]
-    G2 --> R2["Google Clean Canvas: Input dạng 2 cột song song như Google Translate"]
-    G3 --> R3["Level 1: Executive Summary & 3 Quick Wins<br/>Level 2: Skill Heatmap & Interactive Chips<br/>Level 3: Deep-dive Breakdown"]
-    G4 --> R4["1-Click: 'Tự động sửa CV', 'Áp dụng đề xuất', 'Luyện phỏng vấn'"]
+    G1 --> R1["Executive Hero Card:<br/>1 Kết luận có căn cứ + Tỷ lệ đáp ứng (7/9) + 3 Quick Wins"]
+    G2 --> R2["Thu gọn Input thành Context Bar mảnh mai khi đã có kết quả"]
+    G3 --> R3["Phân 5 nhóm năng lực + Thanh phân đoạn:<br/>Đủ bằng chứng / Một phần / Chưa thấy"]
+    G4 --> R4["Google Docs Style Sidebar:<br/>Chặn chèn placeholder [X%] nếu chưa có số liệu thật"]
 ```
 
-### 4 Trụ cột cốt lõi:
-1. **Focus on the user and all else will follow:**
-   - Ứng viên chỉ muốn biết 2 điều đầu tiên: *CV của tôi được bao nhiêu điểm?* và *3 điều quan trọng nhất tôi phải sửa ngay là gì?*.
-   - Nhà tuyển dụng chỉ muốn biết: *Ứng viên này có Pass vòng lọc không (Yes/No/Maybe)?* và *Rủi ro lớn nhất là gì?*.
-2. **Glanceability (Hiểu kết quả trong 3 giây):**
-   - Thay các đoạn văn bản dài bằng các thẻ chỉ số trực quan (Metric Chips), thanh tiến trình ngắn gọn và màu sắc ngữ nghĩa rõ ràng.
-3. **Progressive Disclosure (Phân tầng 3 cấp):**
-   - Giảm 65–70% lượng văn bản hiển thị ban đầu. Chi tiết chỉ xuất hiện khi người dùng chủ động bấm xem thêm (`Read more`, `Expand accordion`, `View breakdown`).
-4. **Action-Oriented AI Assist (Trợ lý thông minh hướng hành động):**
-   - Chuyển từ việc "đưa ra lời khuyên thụ động bắt người dùng tự sửa" sang **"Trợ lý đề xuất thay đổi sẵn, người dùng chỉ cần duyệt bằng 1 click"**.
+### Chi tiết 4 trụ cột:
+1. **Glanceability (Kết luận có căn cứ trước, điểm số bổ trợ sau):**
+   - Không để vòng tròn điểm số chiếm trọn sự chú ý.
+   - Nhấn mạnh vào câu kết luận thực tế: *"Hồ sơ phù hợp, đáp ứng 7/9 yêu cầu bắt buộc, cần làm rõ kinh nghiệm quản lý ngân sách."*
+   - Phân biệt rõ ràng: **"Chưa có bằng chứng trong CV"** khác với **"Ứng viên không có kỹ năng"**.
+2. **Radical Simplicity (Dual Canvas $\rightarrow$ Compact Context Bar):**
+   - Giai đoạn nhập liệu: 2 cột phẳng sạch sẽ đối xứng (JD bên trái, CV bên phải).
+   - Giai đoạn đã có kết quả: Tự động thu gọn thành thanh **Context Bar** mảnh mai `[ JD: Senior Frontend • CV: LeVanA_CV.pdf • ✏️ Chỉnh sửa ]`, nhường 100% không gian cho bảng điều khiển kết quả.
+3. **Progressive Disclosure (Bản Đồ Bằng Chứng thay vì "Rừng Chips"):**
+   - Không thay bảng văn bản bằng một đám chips hỗn loạn (dễ che lấp quan hệ *Yêu cầu $\rightarrow$ Bằng chứng $\rightarrow$ Mức độ quan trọng*).
+   - Tổ chức theo **5 nhóm năng lực cốt lõi** với thanh ngang phân đoạn (Segmented Evidence Bar):
+     - `Đủ bằng chứng (Xanh)` | `Một phần (Vàng)` | `Chưa thấy trong CV (Đỏ)`.
+   - Chips chỉ đóng vai trò là **bộ lọc nhanh** (`Chưa có bằng chứng`, `Tiêu chí bắt buộc`). Bảng đối chiếu chi tiết được giữ nguyên khi bấm mở rộng.
+4. **Action-Oriented Assist (Google Docs Sidebar Suggestions & Chống dữ kiện ảo):**
+   - Bố cục 1 cột tài liệu sạch. Nhấp vào Quick Win sẽ tự động cuộn đến đúng đoạn trong CV và mở thẻ gợi ý bên lề.
+   - **Chống bịa đặt dữ liệu (Anti-Hallucination):** Tuyệt đối không cho phép tự động áp dụng câu có chứa placeholder giả định (như `[X]%`, `[Doanh thu]`). Hệ thống bắt buộc hiển thị nút `[ ✏️ Nhập số liệu thực tế ]` để người dùng xác nhận số liệu thật trước khi đưa vào CV.
 
 ---
 
 ## 3. Kiến Trúc Redesign & Đặc Tả Giao Diện Mới
 
 ### 3.1. Header & Navigation (Chuẩn Google Workspace)
-- **Phong cách:** Nền trắng/sáng (`bg-white/90 backdrop-blur-md`), viền phân cách mỏng nhẹ (`border-b border-slate-200/60`).
-- **Logo & Tiêu đề:** Biểu tượng tối giản kèm tên thương hiệu `RoleMatch` gọn gàng.
-- **Segmented Switch (Chuyển chế độ):**
-  - Thanh chuyển đổi dạng viên thuốc (Pill Switch): `[ 👤 Ứng viên ]` | `[ 🏢 Nhà tuyển dụng ]`.
-- **Góc phải:**
-  - Nút `Lịch sử` (History Drawer).
-  - Bộ chọn ngôn ngữ tối giản `[ VI | EN ]`.
-  - Icon Trợ giúp / Hướng dẫn (`Help circle`) mở Guide Drawer.
-  - Avatar tài khoản dạng tròn (Google Account Style), ẩn các nút quản trị kỹ thuật (Error logs, Admin) vào menu thả xuống của Avatar.
+- **Phong cách:** Nền trắng/sáng (`bg-white/95 backdrop-blur-md`), viền phân cách mỏng nhẹ (`border-b border-slate-200/60`).
+- **Logo & Thương hiệu:** Logo phẳng tối giản kèm nhãn sản phẩm `RoleMatch`.
+- **Chuyển chế độ người dùng:** Pill Switch dạng viên thuốc tinh gọn: `[ 👤 Ứng viên ]` | `[ 🏢 Nhà tuyển dụng ]`.
+- **Góc phải:** Nút Lịch sử, Bộ chọn ngôn ngữ tối giản `[ VI | EN ]`, Icon Trợ giúp (`Help circle`) mở Drawer, Avatar người dùng tích hợp menu thả xuống (ẩn các nút kỹ thuật như Error Logs, Admin Console).
 
 ---
 
-### 3.2. Khu Vực Nhập Liệu (Input Dual Canvas — Chuẩn Google Translate / NotebookLM)
-- **Bố cục 2 cột đối xứng sạch sẽ:**
-  - **Cột trái — Mô tả Công Việc (JD):**
-    - Tab chuyển đổi tinh giản: `Dán văn bản` hoặc `Nhập link JD / Tải file`.
-    - Ô nhập liệu phẳng, viền xám sáng mờ, chỉ hiện border xanh Google khi `focus`.
-  - **Cột phải — Hồ Sơ Của Bạn (CV):**
-    - Khu vực kéo thả file trực quan (Drag & Drop zone) hiển thị biểu tượng tài liệu và gợi ý dạng file (`PDF, DOCX, TXT`).
-    - Khi đã chọn file: Hiển thị 1 Chip gọn gàng `📄 NguyenVanA_CV.pdf (245 KB)` kèm icon xóa `✕`.
-- **Nút CTA chính (Primary Action):**
-  - Đặt chính giữa bên dưới 2 cột: Nút lớn bo tròn mềm mại `rounded-full`, màu Google Blue (`#1a73e8` hoặc Indigo-600) với nhãn:
-    `✨ Bắt đầu phân tích hồ sơ`
-- **Tùy chọn phụ (Presets mẫu & Nâng cao):**
-  - Thu gọn vào nút dạng text link hoặc dropdown kín đáo: `[ Dùng thử dữ liệu mẫu ▾ ]` để không chiếm dụng diện tích thị giác.
+### 3.2. Khu Vực Nhập Liệu (Input Dual Canvas & Compact Context Bar)
+- **Khi chưa phân tích:**
+  - **Cột trái (JD):** Dán văn bản hoặc Nhập đường dẫn URL / Tải tệp.
+  - **Cột phải (CV):** Kéo thả tệp (`PDF, DOCX`) hoặc dán văn bản. Hiển thị trạng thái trích xuất rõ ràng kèm nút "Kiểm tra nội dung đã trích xuất".
+  - **Nút CTA chính:** `[ ✨ Phân tích độ phù hợp ]` (Đặt chính giữa, phong cách Google Blue).
+- **Khi đã có kết quả:**
+  - Thu gọn thành **Compact Context Bar**: Chiều cao 48px, hiển thị tóm tắt vị trí JD và tệp CV đang chọn kèm nút `[ Thay đổi nội dung ]`.
+  - Nếu người dùng sửa CV/JD sau khi đã phân tích, hệ thống gắn cờ cảnh báo: *"Dữ liệu đầu vào đã thay đổi — Vui lòng bấm Chấm điểm lại"*.
 
 ---
 
-### 3.3. Trang Kết Quả Phân Tích (Analysis Results Dashboard)
+### 3.3. Executive Hero Card (Tổng Quan Bên Ngoài Các Tab)
 
-Cấu trúc lại toàn bộ thành **3 Tầng trực quan**:
+Nằm độc lập phía trên thanh Tabs, cho phép người dùng nắm bắt bản chất kết quả trong **3–5 giây**:
 
-#### Tầng 1: Executive Summary & Hero Scorecard (Xem trong 3 giây)
-- **Khối Điểm Số Trung Tâm (Match Score Circle):**
-  - Vòng tròn tiến trình SVG mượt mà hiển thị số điểm (VD: `78/100`).
-  - Huy hiệu trạng thái dứt khoát: `Rất phù hợp (Strong Match)` / `Cần cải thiện (Needs Work)`.
-  - 1 câu đúc kết từ AI (Bold insight summary) nêu bật bản chất hồ sơ.
-- **3 Thẻ Chỉ Số Cốt Lõi (Glanceable Metric Cards):**
-  1. *Khớp Từ Khóa JD (Keyword Fit)*: `75%` (Thanh bar mini).
-  2. *Độ Phù Hợp Kỹ Năng (Skill Match)*: `82%` (Thanh bar mini).
-  3. *Trải Nghiệm & Thành Tựu (Outcome Score)*: `70%` (Thanh bar mini).
-- **Hộp "Top 3 Hành Động Cần Làm Ngay" (3 Quick Wins):**
-  - Không liệt kê cả trang lỗi, chỉ rút gọn 3 việc có tác động lớn nhất (VD: *"Bổ sung từ khóa Docker & Kubernetes"*, *"Định lượng kết quả tại vị trí Tech Lead"*).
-  - Kèm nút hành động nhanh `Sửa ngay ➔`.
-
-#### Tầng 2: Interactive Visual Matrix (Trực quan hóa thay thế văn bản)
-- **Từ khóa & Kỹ năng (Interactive Chips):**
-  - Loại bỏ các bảng HTML nặng chữ.
-  - Chuyển thành hệ thống **Thẻ từ khóa tương tác (Interactive Chips)**:
-    - `Xanh (Đã khớp)`: Bấm vào xem vị trí được tìm thấy trong CV.
-    - `Đỏ/Cam (Còn thiếu)`: Bấm vào hiện popover gợi ý câu văn mẫu để ứng viên đưa vào CV.
-    - `Vàng (Cần nhấn mạnh thêm)`: Từ khóa có xuất hiện nhưng chưa làm nổi bật kết quả định lượng.
-- **Biểu đồ Radar / Spider Chart (Recruiter Fit):**
-  - Trực quan hóa 4 trục: *Thâm niên (Seniority)*, *Quy mô (Scale)*, *Trách nhiệm (Ownership)*, *Chuyên môn (Domain)*.
-
-#### Tầng 3: Action Studio (Cập nhật CV & Phỏng vấn)
-- **Before / After CV Diff Studio (Chuẩn Google Docs Suggestion Mode):**
-  - Giao diện so sánh 2 cột song song:
-    - Bên trái: Câu gốc trong CV (highlight đoạn thiếu số liệu).
-    - Bên phải: Câu AI đã viết lại theo công thức **Google XYZ Formula** (`Đạt được [X], đo lường bằng [Y], thông qua việc làm [Z]`).
-    - Nút 1-Click: `[ ✅ Áp dụng vào CV ]` hoặc `[ 📋 Sao chép ]`.
-- **Trợ lý Phỏng Vấn (Interactive Interview Flashcards):**
-  - Thay vì danh sách câu hỏi dài dòng, chuyển thành dạng **Thẻ câu hỏi lật (Flashcards)** hoặc chế độ **Hỏi - Đáp mô phỏng**:
-    - Mặt trước: Câu hỏi tình huống tuyển dụng sẽ hỏi.
-    - Mặt sau: Gợi ý trả lời theo khung STAR + Điều HR muốn nghe.
+```
++-----------------------------------------------------------------------------------------+
+|  ✨ KẾT LUẬN CỦA HỆ THỐNG:                                                              |
+|  "Hồ sơ rất phù hợp với vị trí Senior Frontend. Đã có bằng chứng cho 7/9 yêu cầu        |
+|   bắt buộc; còn 2 yêu cầu về Cloud Architecture chưa được thể hiện rõ trong CV."        |
+|                                                                                         |
+|  [ Điểm phù hợp: 78/100 ]     [ Đáp ứng Yêu cầu Bắt buộc: 7/9 ]    [ ATS Pass: Rất cao ]|
+|  =====================================================================================  |
+|  ⚡ 3 HÀNH ĐỘNG CẦN LÀM NGAY ĐỂ TĂNG CƠ HỘI PHỎNG VẤN:                                  |
+|  1. Bổ sung từ khóa AWS/GCP vào phần Dự án gần nhất             --> [ Xem vị trí & sửa ]|
+|  2. Định lượng kết quả giảm thời gian tải trang tại Công ty A   --> [ Bổ sung số liệu ] |
+|  3. Làm rõ phạm vi quản lý nhóm (Lead 5 engineers)             --> [ Xem gợi ý mẫu ]   |
++-----------------------------------------------------------------------------------------+
+```
 
 ---
 
-## 4. Hệ Thống Thiết Kế (Design System & Material You Tokens)
+### 3.4. Bốn Phân Hệ Chuyên Sâu (Deep-Dive Workspaces)
 
-### 4.1. Bảng Màu (Color Palette)
-| Nhóm màu | Mã Hex / Tailwind | Mục đích sử dụng |
+Bên dưới Hero Card là 4 tab chuyên sâu, mỗi tab tập trung vào 1 nhiệm vụ duy nhất:
+
+#### Tab 1: Bản Đồ Bằng Chứng (Evidence Map — Thay cho Keyword Match cũ)
+- **Tầng 1 (Bộ lọc nhanh):** Các chip đếm số lượng: `Tất cả (15)`, `Bắt buộc (9)`, `Chưa có bằng chứng (2)`, `Có đề xuất sửa (4)`.
+- **Tầng 2 (5 Nhóm năng lực):**
+  - Chuyên môn kỹ thuật | Công cụ & quy trình | Kinh nghiệm thực tế | Kết quả đầu ra | Văn hóa làm việc.
+  - Mỗi nhóm có thanh ngang tiến độ: `% Đủ bằng chứng` (Xanh lá) - `% Một phần` (Vàng) - `% Chưa thấy` (Đỏ).
+- **Tầng 3 (Bảng đối chiếu chi tiết):**
+  - Mở rộng để xem cụ thể: *Yêu cầu JD $\rightarrow$ Trích đoạn trong CV $\rightarrow$ Khoảng trống cần làm rõ $\rightarrow$ Câu văn mẫu gợi ý*.
+
+#### Tab 2: CV Diff Studio (Biên Tập Bản Nháp & Đề Xuất Bên Lề)
+- **Bố cục:** 1 cột tài liệu hiển thị nội dung CV sạch sẽ.
+- **Tương tác:**
+  - Khi click vào bất kỳ Quick Win hoặc đề xuất nào từ Tab 1, giao diện tự động cuộn đến đúng đoạn trong CV và viền sáng nhẹ đoạn đó.
+  - Thẻ đề xuất mở ở lề phải (Sidebar) hiển thị:
+    - Vấn đề của câu cũ.
+    - Câu viết lại đề xuất (theo công thức Google XYZ).
+    - Các nút hành động: `[ Chấp nhận ]`, `[ Bổ sung số liệu ]`, `[ Tự chỉnh sửa ]`, `[ Bỏ qua ]`.
+- **Cơ chế An toàn & Hoàn tác:**
+  - Hỗ trợ lưu bản nháp tạm thời (`cvDraft`).
+  - Hỗ trợ nút `Hoàn tác (Undo)` mọi thay đổi.
+  - Phân định rạch ròi giữa việc "Chỉnh sửa bản nháp" và "Chạy AI chấm điểm lại" (có thông báo rõ ràng về quota).
+
+#### Tab 3: Thẩm Định Góc Nhìn Nhà Tuyển Dụng (Recruiter Scan Deep-Dive)
+- **Đánh giá Tầm vóc (Seniority 4 trục):**
+  - Trình bày dạng 4 hàng thẻ so sánh: *Cấp bậc & Thâm niên*, *Quy mô dự án*, *Phạm vi trách nhiệm*, *Chuyên môn ngành*.
+  - Mỗi hàng hiển thị rõ 2 cột: `Kỳ vọng JD` vs `Thực tế thể hiện trong CV`, kèm nhãn đánh giá: `Đúng tầm (Sweet Spot)` / `Chưa tới tầm` / `Vượt tầm`.
+- **Ma trận Hóa giải Rủi ro (Risk Mitigation Matrix):**
+  - Liệt kê các mối e ngại của HR (khoảng trống thời gian, thiếu số liệu...) kèm kịch bản giải thích khi phỏng vấn.
+
+#### Tab 4: Cẩm Nang Phỏng Vấn (Interview Prep Kit)
+- **Hai chế độ xem linh hoạt:**
+  - **Chế độ Danh Sách (Quick Scan View):** Dành cho người muốn đọc lướt toàn bộ câu hỏi và gợi ý khung STAR.
+  - **Chế độ Luyện Tập Từng Câu (Focus Mode):** Hiển thị từng câu hỏi dạng thẻ lớn, cho phép ứng viên bấm xem gợi ý trả lời và điều HR muốn nghe.
+
+---
+
+## 4. Hệ Thống Design Tokens & Material You Specifications
+
+### 4.1. Bảng Màu (Color Tokens)
+| Token Name | Giá trị Hex / Tailwind | Ý nghĩa & Vùng áp dụng |
 | :--- | :--- | :--- |
-| **Surface (Nền chính)** | `#F8FAFC` (`bg-slate-50`) | Nền tổng thể toàn bộ trang, tạo cảm giác nhẹ nhàng, dễ chịu cho mắt. |
-| **Card Surface (Nền thẻ)** | `#FFFFFF` (`bg-white`) | Nền của các thẻ chức năng, phẳng, không bóng gắt. |
-| **Primary (Chủ đạo)** | `#2563EB` hoặc `#4F46E5` | Màu thương hiệu cho nút CTA chính, active tabs, thanh tiến trình điểm cao. |
-| **Success (Khớp tốt)** | `#10B981` (`emerald-500`) | Điểm số cao, từ khóa đã có, quyết định tuyển dụng `INVITE YES`. |
-| **Warning (Cảnh báo)** | `#F59E0B` (`amber-500`) | Cần lưu ý, từ khóa xuất hiện ít, quyết định `MAYBE`. |
-| **Danger (Thiếu sót)** | `#EF4444` (`rose-500`) | Từ khóa còn thiếu, rủi ro lớn, tiêu chí loại trừ Knock-out. |
-| **Text Primary** | `#0F172A` (`text-slate-900`) | Tiêu đề, số liệu chính, đảm bảo tương phản chuẩn WCAG AAA. |
-| **Text Secondary** | `#475569` (`text-slate-600`) | Nội dung diễn giải, văn bản mô tả, không gây chói mắt. |
+| **`surface-canvas`** | `#F8FAFC` (`bg-slate-50`) | Nền tổng thể toàn trang |
+| **`surface-card`** | `#FFFFFF` (`bg-white`) | Thẻ chức năng, viền siêu mỏng `slate-200/60` |
+| **`primary-brand`** | `#2563EB` (`indigo-600` / Google Blue) | Nút hành động chính, trạng thái active |
+| **`status-matched`** | `#16A34A` (`emerald-600`) | Có đủ bằng chứng, tiêu chí đạt, Quyết định YES |
+| **`status-partial`** | `#D97706` (`amber-600`) | Bằng chứng một phần, cần bổ sung, Quyết định MAYBE |
+| **`status-gap`** | `#DC2626` (`rose-600`) | Chưa có bằng chứng trong CV, tiêu chí loại trừ (Knock-out) |
+| **`text-headline`** | `#0F172A` (`text-slate-900`) | Tiêu đề chính, số liệu lớn (tương phản WCAG AAA) |
+| **`text-body`** | `#334155` (`text-slate-700`) | Văn bản nội dung, nhận định (tương phản WCAG AA) |
+| **`text-muted`** | `#64748B` (`text-slate-500`) | Nhãn phụ, gợi ý, số đếm |
 
-### 4.2. Typography & Khoảng Thở (Spacing & Layout)
+### 4.2. Typography & Layout Rules
 - **Font:** Google Sans / Inter / Plus Jakarta Sans.
-- **Line Height:** Tăng khoảng cách dòng (`leading-relaxed` / `leading-normal`) để mắt người đọc không bị mỏi khi quét qua các đoạn phân tích.
-- **Bo góc (Border Radius):** Bo tròn mềm mại đặc trưng của Google (`rounded-2xl` cho card, `rounded-full` cho buttons/chips).
-- **Đổ bóng (Elevation):** Sử dụng bóng siêu nhẹ (`shadow-xs` hoặc `shadow-sm`), loại bỏ viền đen/xám dày cộp.
+- **Line-height:** `leading-relaxed` (tối thiểu 1.5) cho tất cả đoạn văn bản phân tích để bảo vệ mắt.
+- **Bo góc (Border Radius):** `rounded-2xl` cho Cards (16px), `rounded-full` cho Badges và Primary Buttons.
+- **Elevation:** Sử dụng bóng đổ nhẹ tự nhiên (`shadow-xs` / `shadow-sm`), loại bỏ hoàn toàn viền xám đậm cứng nhắc.
 
 ---
 
-## 5. Lộ Trình Triển Khai Chi Tiết (Phased Roadmap)
+## 5. Lộ Trình Triển Khai Thực Tế (Phased Roadmap)
 
 ```mermaid
 gantt
-    title LỘ TRÌNH TRIỂN KHAI CẢI TIẾN UI/UX
+    title LỘ TRÌNH TRIỂN KHAI CẢI TIẾN UI/UX v1.1
     dateFormat  YYYY-MM-DD
-    section Giai Đoạn 1: Input & Header
-    Làm sạch Header & Tinh giản Navigation     :p1_1, 2026-11-04, 2d
-    Tái cấu trúc Dual Canvas Input Section    :p1_2, after p1_1, 3d
-    section Giai Đoạn 2: Hero Dashboard & Chips
-    Xây dựng Glanceable Hero Scorecard        :p2_1, after p1_2, 3d
-    Chuyển đổi bảng từ khóa sang Interactive Chips :p2_2, after p2_1, 3d
-    section Giai Đoạn 3: Action Studio & Interview
-    Giao diện Before/After CV Diff Studio     :p3_1, after p2_2, 4d
-    Flashcard phỏng vấn & Tối ưu hóa Recruiter:p3_2, after p3_1, 3d
+    section Đợt 0: Thử Nghiệm Sandbox
+    Dựng Preview Sandbox với Preset mẫu        :p0, 2026-11-04, 2d
+    section Đợt 1: Header & Input Context Bar
+    Header sáng sạch chuẩn Google Workspace    :p1_1, after p0, 2d
+    Dual Canvas & Compact Context Bar          :p1_2, after p1_1, 2d
+    section Đợt 2: Executive Hero & Evidence Map
+    Overarching Executive Hero Card            :p2_1, after p1_2, 3d
+    Bản đồ Bằng chứng 5 nhóm năng lực          :p2_2, after p2_1, 3d
+    section Đợt 3: CV Diff Studio & Interview Kit
+    CV Diff Studio dạng Google Docs Sidebar    :p3_1, after p2_2, 4d
+    Luyện phỏng vấn 2 chế độ & Tối ưu Recruiter:p3_2, after p3_1, 2d
 ```
-
-### Chi tiết các bước thực hiện:
-
-#### 🔹 Giai đoạn 1: Header Tinh Gọn & Dual-Canvas Input Section
-- **File tác động:**
-  - `src/components/Header.tsx`: Chuyển sang Light Theme chuẩn Google Workspace, gom các nút Admin/Logs vào Menu tiện ích, làm gọn Switch Ứng viên/Nhà tuyển dụng.
-  - `src/components/InputSection.tsx`: Thiết kế lại bố cục 2 cột song song chuẩn Google Translate, ẩn nút debug API, tinh gọn quy trình kéo thả file CV và lấy JD từ URL.
-- **Chỉ số đo lường (KPI):**
-  - Giảm 50% số lượng nút bấm hiển thị ở màn hình ban đầu.
-  - Người dùng có thể hoàn thành việc nhập CV + JD trong vòng 2 cú click.
-
-#### 🔹 Giai đoạn 2: Glanceable Executive Dashboard & Interactive Chips
-- **File tác động:**
-  - `src/components/AnalysisProgressBar.tsx`: Animation thanh tiến trình nhẹ nhàng hơn.
-  - `src/components/KeywordMatchTab.tsx`:
-    - Thay thế bảng text HTML bằng hệ thống **Interactive Chips** có màu sắc phân loại.
-    - Tạo khối **Hero Scorecard** với 3 thanh điểm trực quan và **Top 3 Quick Wins**.
-  - `src/components/RecruiterScanTab.tsx`: Rút gọn nhận định 10 giây của HR thành thẻ tóm tắt trực quan, có nút mở rộng chi tiết.
-- **Chỉ số đo lường (KPI):**
-  - Thời gian để người dùng nắm được điểm tổng quát và 3 điểm cần sửa giảm từ 2 phút xuống dưới 5 giây.
-  - Giảm 65% số dòng văn bản hiển thị mặc định trên màn hình kết quả.
-
-#### 🔹 Giai đoạn 3: Before/After Action Studio & Interactive Interview Kit
-- **File tác động:**
-  - `src/components/BulletPointRewriteTab.tsx`: Thiết kế lại bảng so sánh Before vs After chuẩn Google Docs Version History với nút 1-Click Apply.
-  - `src/components/InterviewPrepTab.tsx`: Chuyển danh sách câu hỏi thành dạng Flashcard hoặc Chatbot luyện tập tương tác.
-  - `src/components/BatchProcessingTab.tsx`: Tối ưu hóa các bảng Kanban và Leaderboard của Nhà tuyển dụng cho thoáng mắt, chuyên nghiệp.
 
 ---
 
-## 6. Tiêu Chí Nghiệm Thu (Acceptance Criteria & Verification)
+## 6. Tiêu Chí Nghiệm Thu Định Lượng (Quantitative Acceptance Criteria)
 
-1. **Về Thẩm Mỹ & Trải Nghiệm:**
-   - [ ] Giao diện đồng nhất ngôn ngữ thiết kế Material You (sạch sẽ, nền sáng, khoảng thở rộng rãi).
-   - [ ] Loại bỏ hoàn toàn cảm giác "ngợp text"; mọi khối thông tin lớn đều có tóm tắt cấp cao và cơ chế Progressive Disclosure (Xem thêm / Ẩn bớt).
-2. **Về Tính Năng & Tương Tác:**
-   - [ ] Các tính năng cốt lõi (Phân tích, Chấm điểm lại, Viết lại đạn CV, Xuất file) hoạt động ổn định 100%.
-   - [ ] Người dùng có thể sao chép hoặc áp dụng đề xuất AI chỉ với 1 click.
-3. **Về Hiệu Năng & Khả Năng Truy Cập (Accessibility):**
-   - [ ] Đáp ứng chuẩn màu tương phản WCAG 2.1 AA/AAA cho văn bản và các nút bấm.
-   - [ ] Mượt mà trên cả máy tính bàn, máy tính bảng và điện thoại di động (100% responsive).
-   - [ ] Toàn bộ unit tests hiện có (`npm run test`) tiếp tục pass 100%.
+| Tiêu chí | Trước cải tạo | Sau cải tạo (Mục tiêu nghiệm thu) | Phương pháp kiểm chứng |
+| :--- | :---: | :---: | :--- |
+| **Thời gian nhận biết kết quả cốt lõi** | ~90 giây cuộn trang | **< 5 giây** | Thử nghiệm với người dùng mới: nêu đúng kết luận và 2 lỗ hổng lớn nhất |
+| **Thao tác tìm kiếm khoảng trống** | 4 click + cuộn trang | **1 click** | Click trực tiếp vào filter chip `Chưa có bằng chứng` |
+| **Mật độ chữ nhìn thấy ban đầu** | Bão hòa chữ (100%) | **Giảm 65–70%** | Đo diện tích văn bản hiển thị trên First Viewport |
+| **Độ an toàn dữ liệu CV** | Có nguy cơ chèn `[X%]` | **0% placeholder lọt vào CV** | Unit test chặn chèn văn bản chứa thẻ chưa điền |
+| **Chuẩn tương phản màu sắc** | Phân mảnh | **100% đạt WCAG 2.1 AA** | Kiểm tra bằng công cụ tự động aXe / Lighthouse Accessibility |
+| **Độ ổn định hệ thống** | Pass hiện tại | **100% tests tiếp tục pass** | Chạy `npm run test` trước và sau mỗi PR |
