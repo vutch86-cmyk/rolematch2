@@ -191,6 +191,15 @@ export function applySuggestion(
     return { state, success: false, error: 'Không tìm thấy đề xuất.' };
   }
 
+  // Chặn áp dụng lại nếu đề xuất đã được áp dụng
+  if (suggestion.status === 'applied') {
+    return {
+      state,
+      success: false,
+      error: 'Đề xuất này đã được áp dụng vào bản nháp. Không thể áp dụng lặp lại.',
+    };
+  }
+
   const targetBlockIndex = state.blocks.findIndex((b) => b.id === suggestion.sourceBlockId && !b.isDeleted);
   if (targetBlockIndex === -1) {
     // Đoạn nguồn đã bị xóa
@@ -285,6 +294,15 @@ export function applyQualitativeFallback(
   const suggestion = state.suggestions[suggestionId];
   if (!suggestion) {
     return { state, success: false, error: 'Không tìm thấy đề xuất.' };
+  }
+
+  // Chặn áp dụng lại nếu đề xuất đã được áp dụng
+  if (suggestion.status === 'applied') {
+    return {
+      state,
+      success: false,
+      error: 'Đề xuất này đã được áp dụng vào bản nháp. Không thể áp dụng lặp lại.',
+    };
   }
 
   const targetBlockIndex = state.blocks.findIndex((b) => b.id === suggestion.sourceBlockId && !b.isDeleted);
@@ -493,4 +511,64 @@ export function canExportFinalCv(state: SandboxEngineState): { canExport: boolea
     };
   }
   return { canExport: true };
+}
+
+export interface DetailedPlaceholderLocation {
+  placeholder: string;
+  blockId: string;
+  sectionTitle: string;
+  snippet: string;
+}
+
+export function getDetailedUnresolvedPlaceholders(state: SandboxEngineState): DetailedPlaceholderLocation[] {
+  const registeredPlaceholders = new Set<string>();
+  Object.values(state.suggestions).forEach((sug) => {
+    sug.placeholders.forEach((ph) => registeredPlaceholders.add(ph));
+  });
+
+  const list: DetailedPlaceholderLocation[] = [];
+  const activeBlocks = state.blocks.filter((b) => !b.isDeleted);
+
+  for (const block of activeBlocks) {
+    for (const ph of registeredPlaceholders) {
+      if (block.content.includes(ph)) {
+        list.push({
+          placeholder: ph,
+          blockId: block.id,
+          sectionTitle: block.sectionTitle,
+          snippet: block.content.length > 90 ? block.content.slice(0, 90) + '...' : block.content,
+        });
+      }
+    }
+  }
+
+  return list;
+}
+
+const STORAGE_KEY = 'rolematch_sandbox_draft_v0';
+
+export function saveSandboxStateToSession(state: SandboxEngineState): void {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+  } catch {}
+}
+
+export function loadSandboxStateFromSession(): SandboxEngineState | null {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    }
+  } catch {}
+  return null;
+}
+
+export function clearSandboxSession(): void {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  } catch {}
 }

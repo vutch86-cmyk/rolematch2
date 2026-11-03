@@ -9,6 +9,10 @@ import {
   redo,
   checkUnresolvedPlaceholdersInDraft,
   canExportFinalCv,
+  getDetailedUnresolvedPlaceholders,
+  saveSandboxStateToSession,
+  loadSandboxStateFromSession,
+  clearSandboxSession,
   CvBlock,
   Suggestion,
   SandboxEngineState,
@@ -40,7 +44,9 @@ interface PrototypeGoogleUxSandboxProps {
 }
 
 export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> = ({ onExit }) => {
-  const [engineState, setEngineState] = useState<SandboxEngineState>(() => createInitialSandboxState());
+  const [engineState, setEngineState] = useState<SandboxEngineState>(() => {
+    return loadSandboxStateFromSession() || createInitialSandboxState();
+  });
   const [activeSuggestionId, setActiveSuggestionId] = useState<string>('sug-duplicate-job1');
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [metricInputs, setMetricInputs] = useState<Record<string, string>>({ '[X%]': '40%', '[Y%]': '15%' });
@@ -66,6 +72,10 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
 
   const exportStatus = useMemo(() => {
     return canExportFinalCv(engineState);
+  }, [engineState]);
+
+  const detailedPlaceholders = useMemo(() => {
+    return getDetailedUnresolvedPlaceholders(engineState);
   }, [engineState]);
 
   // Luồng Quick Win: Tính toán dynamic scroll offset
@@ -152,10 +162,15 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
   };
 
   const handleReset = () => {
+    clearSandboxSession();
     setEngineState(createInitialSandboxState());
     setActiveSuggestionId('sug-duplicate-job1');
-    setNotification({ type: 'info' as any, message: 'Đã khôi phục trạng thái Sandbox về ban đầu.' });
+    setNotification({ type: 'info' as any, message: 'Đã khôi phục trạng thái Sandbox về ban đầu (Xóa phiên lưu tạm).' });
   };
+
+  useEffect(() => {
+    saveSandboxStateToSession(engineState);
+  }, [engineState]);
 
   // Keyboard shortcut Ctrl+Z / Ctrl+Y
   useEffect(() => {
@@ -744,23 +759,44 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
 
                     {/* Action Buttons */}
                     <div className="space-y-2 pt-2 border-t border-slate-100">
-                      <button
-                        onClick={handleApplyWithMetrics}
-                        disabled={activeSuggestion.status === 'needs_review'}
-                        className="w-full py-2 bg-[#1a73e8] hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
-                      >
-                        ✅ Chèn câu hoàn chỉnh vào CV
-                      </button>
+                      {activeSuggestion.status === 'applied' ? (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 text-xs">
+                          <div className="flex items-center gap-2 font-bold text-emerald-800">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>Đề xuất này đã được áp dụng vào bản nháp.</span>
+                          </div>
+                          <p className="text-[11px] text-emerald-700">
+                            Hệ thống tự động khóa nút để không chèn lặp câu. Bạn có thể hoàn tác nếu muốn quay về câu cũ.
+                          </p>
+                          <button
+                            onClick={handleUndo}
+                            className="w-full py-1.5 bg-white hover:bg-emerald-100/60 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Hoàn tác (Undo) đề xuất này</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            onClick={handleApplyWithMetrics}
+                            disabled={activeSuggestion.status === 'needs_review'}
+                            className="w-full py-2 bg-[#1a73e8] hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                          >
+                            ✅ Chèn câu hoàn chỉnh vào CV
+                          </button>
 
-                      {/* Qualitative fallback button (Không có số liệu) */}
-                      {activeSuggestion.placeholders.length > 0 && (
-                        <button
-                          onClick={handleApplyQualitative}
-                          disabled={activeSuggestion.status === 'needs_review'}
-                          className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 rounded-xl text-xs font-semibold transition-all cursor-pointer border border-slate-200"
-                        >
-                          🛡️ Tôi không có số liệu (Dùng câu định tính)
-                        </button>
+                          {/* Qualitative fallback button (Không có số liệu) */}
+                          {activeSuggestion.placeholders.length > 0 && (
+                            <button
+                              onClick={handleApplyQualitative}
+                              disabled={activeSuggestion.status === 'needs_review'}
+                              className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 rounded-xl text-xs font-semibold transition-all cursor-pointer border border-slate-200"
+                            >
+                              🛡️ Tôi không có số liệu (Dùng câu định tính)
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -859,12 +895,44 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                   </p>
                 </div>
               ) : (
-                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-2">
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-3">
                   <div className="flex items-center gap-2 font-bold text-rose-800">
                     <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
                     <span>Phát hiện placeholder chưa xử lý!</span>
                   </div>
-                  <p>{exportStatus.reason}</p>
+                  <p className="text-[11px] text-rose-700">{exportStatus.reason}</p>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
+                    <div className="text-[11px] font-bold text-slate-700">Vị trí cụ thể trong bản nháp:</div>
+                    {detailedPlaceholders.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-2.5 bg-white rounded-lg border border-rose-200 text-xs flex items-center justify-between gap-2 shadow-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-rose-800">
+                            Chưa điền: <span className="font-mono bg-rose-100 px-1 rounded">{item.placeholder}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-600 font-medium">{item.sectionTitle}</div>
+                          <div className="text-[10px] text-slate-400 font-mono italic">"{item.snippet}"</div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setShowExportModal(false);
+                            const targetEl = blockRefs.current[item.blockId];
+                            if (targetEl) {
+                              targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              targetEl.classList.add('ring-4', 'ring-rose-400');
+                              setTimeout(() => targetEl.classList.remove('ring-4', 'ring-rose-400'), 2500);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shrink-0 cursor-pointer shadow-xs"
+                        >
+                          Đến sửa ➔
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
