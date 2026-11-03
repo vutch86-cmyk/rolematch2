@@ -220,29 +220,29 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
           ========================================================================= */}
       <header
         ref={headerRef}
-        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3 shadow-xs"
+        className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 py-3.5 shadow-xs"
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#1a73e8] text-white flex items-center justify-center font-black text-sm shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-[#1a73e8] text-white flex items-center justify-center font-black text-base shadow-xs">
               G
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-900 text-sm sm:text-base">RoleMatch • Prototype Sandbox</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">
+                <span className="font-bold text-slate-900 text-base sm:text-lg">RoleMatch • Prototype Sandbox</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
                   Đợt 0: Client State
                 </span>
               </div>
-              <p className="text-xs text-slate-500 hidden sm:block">
-                Thử nghiệm tương tác: Hero → Quick Win → Đoạn CV → Card Đề xuất → Undo/Redo
+              <p className="text-sm text-slate-600 hidden sm:block">
+                Thử nghiệm tương tác Desktop: Hero → Quick Win → Đoạn CV → Card Đề xuất → Undo/Redo
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {/* Toggle View Mode: Desktop vs Mobile */}
-            <div className="bg-slate-100 p-0.5 rounded-xl border border-slate-200 flex items-center text-xs">
+            <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center text-xs">
               <button
                 onClick={() => {
                   setViewMode('desktop');
@@ -252,8 +252,8 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                   viewMode === 'desktop' ? 'bg-white text-[#1a73e8] shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Monitor className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">Desktop</span>
+                <Monitor className="w-4 h-4" />
+                <span>Desktop (Ưu tiên)</span>
               </button>
               <button
                 onClick={() => setViewMode('mobile')}
@@ -261,36 +261,36 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                   viewMode === 'mobile' ? 'bg-white text-[#1a73e8] shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">Mobile (375px)</span>
+                <Smartphone className="w-4 h-4" />
+                <span>Mobile (Xem thử)</span>
               </button>
             </div>
 
             {/* Undo / Redo controls */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
               <button
                 onClick={handleUndo}
                 disabled={engineState.historyPast.length === 0}
                 className="p-1.5 rounded-lg text-slate-700 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
                 title={`Hoàn tác (${engineState.historyPast.length}) [Ctrl+Z]`}
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-4 h-4" />
               </button>
-              <span className="text-[11px] font-mono text-slate-400 px-1">{engineState.historyPast.length}</span>
+              <span className="text-xs font-mono font-bold text-slate-600 px-1.5">{engineState.historyPast.length}</span>
               <button
                 onClick={handleRedo}
                 disabled={engineState.historyFuture.length === 0}
                 className="p-1.5 rounded-lg text-slate-700 hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
                 title={`Làm lại (${engineState.historyFuture.length}) [Ctrl+Y]`}
               >
-                <RotateCw className="w-3.5 h-3.5" />
+                <RotateCw className="w-4 h-4" />
               </button>
             </div>
 
             {/* Reset */}
             <button
               onClick={handleReset}
-              className="px-2.5 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
               title="Khôi phục trạng thái ban đầu"
             >
               Reset
@@ -299,7 +299,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
             {onExit && (
               <button
                 onClick={onExit}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow-xs"
               >
                 Đóng Sandbox
               </button>
@@ -313,23 +313,23 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
           ========================================================================= */}
       <div
         ref={contextBarRef}
-        className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-2 sticky top-[57px] z-30 shadow-xs"
+        className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-2.5 sticky top-[61px] z-30 shadow-xs"
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs flex-wrap">
-          <div className="flex items-center gap-2 text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="font-semibold text-slate-900">JD: Senior Frontend Engineer • FinTech</span>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-sm flex-wrap">
+          <div className="flex items-center gap-2.5 text-slate-700">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="font-bold text-slate-900">JD: Senior Frontend Engineer • FinTech</span>
             <span className="text-slate-300">|</span>
-            <span>CV: NguyenVanA_Senior_FE.pdf</span>
+            <span className="font-medium text-slate-600">CV: NguyenVanA_Senior_FE.pdf</span>
           </div>
 
           {/* Pegged Score Indicator */}
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+          <div className="flex items-center gap-2.5">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200">
               Điểm gốc: <strong className="text-[#1a73e8]">78/100</strong> (Gắn với bản v1.0)
             </span>
             {engineState.historyPast.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300">
                 Bản nháp v1.{engineState.historyPast.length} (Chưa chấm lại)
               </span>
             )}
@@ -363,84 +363,84 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
           MAIN WRAPPER (Responsive Container)
           ========================================================================= */}
       <main
-        className={`flex-1 mx-auto py-6 px-4 space-y-6 transition-all ${
-          viewMode === 'mobile' ? 'max-w-[400px] border-x border-slate-200 bg-white shadow-md' : 'max-w-7xl'
+        className={`flex-1 mx-auto py-7 px-4 sm:px-6 space-y-7 transition-all ${
+          viewMode === 'mobile' ? 'max-w-[420px] border-x border-slate-200 bg-white shadow-md' : 'max-w-7xl'
         }`}
       >
         {/* =========================================================================
             1. EXECUTIVE HERO CARD (Overarching Summary)
             ========================================================================= */}
-        <section className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
+        <section className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-xs space-y-6">
           {/* Verdict Statement */}
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#1a73e8]/10 text-[#1a73e8]">
-              <Sparkles className="w-3.5 h-3.5" />
+          <div className="space-y-2.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#1a73e8]/10 text-[#1a73e8]">
+              <Sparkles className="w-4 h-4" />
               <span>KẾT LUẬN ĐÁNH GIÁ CHÍNH XÁC</span>
             </div>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-              Hồ sơ <span className="text-emerald-700 font-extrabold">RẤT PHÙ HỢP</span> với vị trí Senior Frontend.
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 leading-relaxed">
+              Hồ sơ <span className="text-emerald-700 font-black">RẤT PHÙ HỢP</span> với vị trí Senior Frontend.
               Đã tìm thấy bằng chứng cho 7/9 yêu cầu bắt buộc; còn 2 yêu cầu về Cloud Architecture chưa được thể hiện rõ trong CV.
             </h2>
           </div>
 
           {/* Metric Segmented Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-1">
-              <div className="text-[11px] font-semibold text-slate-500">ĐIỂM ĐÁNH GIÁ CV GỐC</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2">
+            <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-1.5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-600">ĐIỂM ĐÁNH GIÁ CV GỐC</div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900">78</span>
-                <span className="text-xs text-slate-500">/ 100</span>
-                <span className="text-[10px] text-slate-400 font-mono">(v1.0 cố định)</span>
+                <span className="text-3xl font-black text-slate-900">78</span>
+                <span className="text-sm font-semibold text-slate-600">/ 100</span>
+                <span className="text-xs text-slate-500 font-mono">(v1.0 cố định)</span>
               </div>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+            <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-600">
                 <span>TIÊU CHÍ BẮT BUỘC (MUST-HAVE)</span>
-                <span className="font-bold text-slate-800">7 / 9 Đạt</span>
+                <span className="font-extrabold text-slate-900">7 / 9 Đạt</span>
               </div>
-              <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden flex">
+              <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
                 <div className="bg-emerald-500 h-full w-[78%]" title="7 Đủ bằng chứng"></div>
                 <div className="bg-rose-500 h-full w-[22%]" title="2 Chưa có bằng chứng"></div>
               </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium">
-                <span className="text-emerald-700 font-semibold">● 7 Đủ bằng chứng</span>
-                <span className="text-rose-600 font-semibold">● 2 Cần bổ sung</span>
+              <div className="flex items-center justify-between text-xs text-slate-700 font-semibold">
+                <span className="text-emerald-700 font-bold">● 7 Đủ bằng chứng</span>
+                <span className="text-rose-600 font-bold">● 2 Cần bổ sung</span>
               </div>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-1">
-              <div className="text-[11px] font-semibold text-slate-500">ĐỘ VƯỢT QUA LỌC TỰ ĐỘNG (ATS)</div>
+            <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 space-y-1.5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-600">ĐỘ VƯỢT QUA LỌC TỰ ĐỘNG (ATS)</div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-emerald-600">Cao</span>
-                <span className="text-xs text-slate-500">(Top 15% hồ sơ ứng tuyển)</span>
+                <span className="text-3xl font-black text-emerald-600">Cao</span>
+                <span className="text-sm font-semibold text-slate-600">(Top 15% hồ sơ ứng tuyển)</span>
               </div>
             </div>
           </div>
 
           {/* Top 3 Quick Wins with 1-click smooth jump */}
-          <div className="border-t border-slate-100 pt-4 space-y-2.5">
-            <div className="text-xs font-bold text-slate-900 flex items-center justify-between">
+          <div className="border-t border-slate-100 pt-5 space-y-3">
+            <div className="text-sm font-bold text-slate-900 flex items-center justify-between">
               <span>⚡ 3 HÀNH ĐỘNG ƯU TIÊN HÀNG ĐẦU (QUICK WINS):</span>
-              <span className="text-[11px] text-slate-400 font-normal">Bấm để nhảy đến đúng đoạn CV</span>
+              <span className="text-xs text-slate-500 font-medium">Bấm để nhảy đến đúng đoạn CV</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {(Object.values(engineState.suggestions) as Suggestion[]).map((sug, idx) => (
                 <button
                   key={sug.id}
                   onClick={() => handleSelectQuickWin(sug.id)}
-                  className={`text-left p-3 rounded-xl border text-xs transition-all cursor-pointer flex flex-col justify-between gap-2 ${
+                  className={`text-left p-4 rounded-xl border text-xs transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
                     activeSuggestionId === sug.id
-                      ? 'border-[#1a73e8] bg-[#1a73e8]/5 shadow-xs'
+                      ? 'border-[#1a73e8] bg-[#1a73e8]/5 shadow-xs ring-2 ring-[#1a73e8]/20'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-[#1a73e8]">#{idx + 1}</span>
+                      <span className="font-extrabold text-[#1a73e8] text-sm">#{idx + 1}</span>
                       <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        className={`px-2 py-0.5 rounded-md text-xs font-bold ${
                           sug.status === 'applied'
                             ? 'bg-emerald-100 text-emerald-800'
                             : sug.status === 'needs_review'
@@ -455,11 +455,11 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                           : 'Chờ duyệt'}
                       </span>
                     </div>
-                    <div className="font-bold text-slate-900">{sug.title}</div>
+                    <div className="font-bold text-sm text-slate-900 leading-snug">{sug.title}</div>
                   </div>
-                  <div className="flex items-center gap-1 text-[11px] text-[#1a73e8] font-bold">
+                  <div className="flex items-center gap-1.5 text-xs text-[#1a73e8] font-bold pt-1 border-t border-slate-100">
                     <span>Sửa đoạn này</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </div>
                 </button>
               ))}
@@ -470,38 +470,38 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
         {/* =========================================================================
             2. EVIDENCE MAP (BẢN ĐỒ BẰNG CHỨNG)
             ========================================================================= */}
-        <section className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-xs space-y-4">
+        <section className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-5">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <h3 className="font-bold text-sm text-slate-900">Bản Đồ Bằng Chứng Năng Lực (Evidence Map)</h3>
-              <p className="text-xs text-slate-500">Phân 5 nhóm năng lực cốt lõi theo tiêu chí JD</p>
+              <h3 className="font-bold text-base text-slate-900">Bản Đồ Bằng Chứng Năng Lực (Evidence Map)</h3>
+              <p className="text-sm text-slate-600">Phân 5 nhóm năng lực cốt lõi theo tiêu chí JD</p>
             </div>
 
             {/* Quick Filter Chips */}
-            <div className="flex items-center gap-1.5 text-xs">
+            <div className="flex items-center gap-2 text-xs">
               <button
                 onClick={() => setCompetencyFilter('all')}
-                className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                   competencyFilter === 'all'
                     ? 'bg-slate-800 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
                 Tất cả (18)
               </button>
               <button
                 onClick={() => setCompetencyFilter('must_have')}
-                className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                   competencyFilter === 'must_have'
                     ? 'bg-slate-800 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
                 Bắt buộc (9)
               </button>
               <button
                 onClick={() => setCompetencyFilter('gap')}
-                className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                   competencyFilter === 'gap'
                     ? 'bg-rose-600 text-white'
                     : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
@@ -513,7 +513,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
           </div>
 
           {/* 5 Competency Group Overview Rows */}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {[
               { id: 'tech', name: 'Kỹ Năng Chuyên Môn', total: 6, verified: 5, gap: 1 },
               { id: 'tools', name: 'Công Cụ & Phương Pháp', total: 4, verified: 4, gap: 0 },
@@ -524,21 +524,21 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
               <div
                 key={group.id}
                 onClick={() => setActiveCompetencyGroup(group.id)}
-                className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-4 transition-all cursor-pointer ${
+                className={`p-3.5 rounded-xl border text-sm flex items-center justify-between gap-4 transition-all cursor-pointer ${
                   activeCompetencyGroup === group.id
-                    ? 'border-[#1a73e8] bg-[#1a73e8]/5'
+                    ? 'border-[#1a73e8] bg-[#1a73e8]/5 shadow-xs'
                     : 'border-slate-100 hover:border-slate-200 bg-slate-50/50'
                 }`}
               >
-                <div className="flex items-center gap-2 font-bold text-slate-800">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1a73e8]"></span>
-                  <span>{group.name}</span>
-                  <span className="text-[11px] text-slate-400 font-normal">({group.total} tiêu chí)</span>
+                <div className="flex items-center gap-2.5 font-bold text-slate-800">
+                  <span className="w-2 h-2 rounded-full bg-[#1a73e8]"></span>
+                  <span className="text-sm font-bold text-slate-900">{group.name}</span>
+                  <span className="text-xs text-slate-500 font-medium">({group.total} tiêu chí)</span>
                 </div>
 
                 {/* Segmented bar for this group */}
-                <div className="flex items-center gap-3">
-                  <div className="w-24 sm:w-36 h-2 rounded-full bg-slate-200 overflow-hidden flex">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-28 sm:w-44 h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
                     <div
                       className="bg-emerald-500 h-full"
                       style={{ width: `${(group.verified / group.total) * 100}%` }}
@@ -548,7 +548,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                       style={{ width: `${(group.gap / group.total) * 100}%` }}
                     ></div>
                   </div>
-                  <span className="text-[11px] font-bold text-slate-700 min-w-[50px] text-right">
+                  <span className="text-xs font-bold text-slate-800 min-w-[60px] text-right">
                     {group.verified}/{group.total} Đạt
                   </span>
                 </div>
@@ -563,18 +563,18 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-sm text-slate-900">CV Studio • Bản Nháp Hiện Tại</h3>
-              <p className="text-xs text-slate-500">
-                1 Cột văn bản sạch sẽ. Thẻ đề xuất gắn neo theo từng đoạn bên lề phải.
+              <h3 className="font-bold text-base sm:text-lg text-slate-900">CV Studio • Bản Nháp Hiện Tại</h3>
+              <p className="text-sm text-slate-600">
+                1 Cột văn bản trực quan chuẩn desktop. Thẻ đề xuất gắn neo theo từng đoạn bên lề phải.
               </p>
             </div>
 
             {/* Export CV check */}
             <button
               onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a73e8] hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 bg-[#1a73e8] hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all shadow-xs cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-4 h-4" />
               <span>Xuất Bản CV Cuối</span>
             </button>
           </div>
@@ -582,7 +582,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
           {/* Grid Layout: Desktop 2 Columns / Mobile 1 Column */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Left: Document View (1 Column Clean Canvas) */}
-            <div className={`space-y-3 ${viewMode === 'mobile' ? 'lg:col-span-12' : 'lg:col-span-7'}`}>
+            <div className={`space-y-3.5 ${viewMode === 'mobile' ? 'lg:col-span-12' : 'lg:col-span-7'}`}>
               {engineState.blocks.map((block) => {
                 const isTargetOfActiveSuggestion = activeSuggestion?.sourceBlockId === block.id;
                 const isEditingThisBlock = editingBlockId === block.id;
@@ -591,12 +591,12 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                   return (
                     <div
                       key={block.id}
-                      className="p-3 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 text-xs text-rose-600 flex items-center justify-between"
+                      className="p-4 rounded-xl border border-dashed border-rose-300 bg-rose-50/60 text-sm text-rose-700 flex items-center justify-between"
                     >
-                      <span>Đoạn đã bị xóa: {block.sectionTitle}</span>
+                      <span className="font-medium">Đoạn đã bị xóa: {block.sectionTitle}</span>
                       <button
                         onClick={handleUndo}
-                        className="text-xs font-bold underline cursor-pointer"
+                        className="text-sm font-bold text-rose-800 underline cursor-pointer"
                       >
                         Khôi phục
                       </button>
@@ -608,36 +608,36 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                   <div
                     key={block.id}
                     ref={(el) => (blockRefs.current[block.id] = el)}
-                    className={`rounded-xl border p-4 transition-all relative ${
+                    className={`rounded-xl border p-5 transition-all relative ${
                       isTargetOfActiveSuggestion
-                        ? 'border-[#1a73e8] ring-2 ring-[#1a73e8]/20 bg-blue-50/20'
+                        ? 'border-[#1a73e8] ring-3 ring-[#1a73e8]/20 bg-blue-50/20 shadow-xs'
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
                     {/* Block Header */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-slate-400 font-mono">[{block.id}]</span>
-                        <span className="text-xs font-extrabold text-slate-700">{block.sectionTitle}</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xs font-bold text-slate-500 font-mono">[{block.id}]</span>
+                        <span className="text-sm font-bold text-slate-900">{block.sectionTitle}</span>
                         {block.revision > 0 && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                            Sửa {block.revision} lần
+                          <span className="px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                            Đã sửa {block.revision} lần
                           </span>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-xs">
                         {isEditingThisBlock ? (
                           <>
                             <button
                               onClick={() => handleSaveManualEdit(block.id)}
-                              className="px-2 py-0.5 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700"
+                              className="px-3 py-1 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 cursor-pointer shadow-xs"
                             >
                               Lưu
                             </button>
                             <button
                               onClick={() => setEditingBlockId(null)}
-                              className="px-2 py-0.5 bg-slate-200 text-slate-700 rounded font-semibold hover:bg-slate-300"
+                              className="px-3 py-1 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300 cursor-pointer"
                             >
                               Hủy
                             </button>
@@ -646,17 +646,17 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                           <>
                             <button
                               onClick={() => handleStartManualEdit(block)}
-                              className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 cursor-pointer"
+                              className="p-1.5 text-slate-400 hover:text-slate-800 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
                               title="Sửa tay trực tiếp đoạn này"
                             >
-                              <Edit3 className="w-3.5 h-3.5" />
+                              <Edit3 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteBlock(block.id)}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 cursor-pointer"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer transition-colors"
                               title="Xóa đoạn này để kiểm chứng needs_review"
                             >
-                              <X className="w-3.5 h-3.5" />
+                              <X className="w-4 h-4" />
                             </button>
                           </>
                         )}
@@ -669,19 +669,19 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                         value={manualTextBuffer}
                         onChange={(e) => setManualTextBuffer(e.target.value)}
                         rows={3}
-                        className="w-full text-xs font-mono p-2 border border-[#1a73e8] rounded-lg focus:outline-hidden"
+                        className="w-full text-sm sm:text-base font-mono p-3 border-2 border-[#1a73e8] rounded-xl focus:outline-hidden leading-relaxed"
                       />
                     ) : (
-                      <p className="text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+                      <p className="text-sm sm:text-base text-slate-800 leading-relaxed whitespace-pre-wrap font-normal">
                         {block.content}
                       </p>
                     )}
 
                     {/* Highlight notice if target */}
                     {isTargetOfActiveSuggestion && (
-                      <div className="mt-2.5 pt-2 border-t border-[#1a73e8]/20 flex items-center justify-between text-[11px] text-[#1a73e8] font-bold">
+                      <div className="mt-3 pt-2.5 border-t border-[#1a73e8]/20 flex items-center justify-between text-xs text-[#1a73e8] font-bold">
                         <span>Đang chọn cho đề xuất: "{activeSuggestion?.title}"</span>
-                        <span className="text-[10px] bg-blue-100/80 px-1.5 py-0.5 rounded">Target Block</span>
+                        <span className="text-xs bg-blue-100/90 text-blue-800 px-2 py-0.5 rounded font-extrabold">Đoạn Được Chọn</span>
                       </div>
                     )}
                   </div>
@@ -691,15 +691,15 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
 
             {/* Right: Suggestion Card (Desktop Sidebar) */}
             {viewMode === 'desktop' && (
-              <div className="lg:col-span-5 sticky top-32 space-y-4">
+              <div className="lg:col-span-5 sticky top-36 space-y-4">
                 {activeSuggestion ? (
-                  <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 space-y-4">
+                  <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 space-y-5">
                     <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1a73e8]/10 text-[#1a73e8]">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#1a73e8]/10 text-[#1a73e8]">
                         {activeSuggestion.quickWinTag}
                       </span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                           activeSuggestion.status === 'applied'
                             ? 'bg-emerald-100 text-emerald-800'
                             : activeSuggestion.status === 'needs_review'
@@ -716,25 +716,25 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-sm text-slate-900">{activeSuggestion.title}</h4>
-                      <p className="text-xs text-slate-500 mt-1">Trỏ vào block: [{activeSuggestion.sourceBlockId}]</p>
+                      <h4 className="font-bold text-base sm:text-lg text-slate-900 leading-snug">{activeSuggestion.title}</h4>
+                      <p className="text-xs font-medium text-slate-500 mt-1">Trỏ vào block: [{activeSuggestion.sourceBlockId}]</p>
                     </div>
 
                     {/* Needs Review Alert if manual edit broke it */}
                     {activeSuggestion.status === 'needs_review' && (
-                      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2.5">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl text-sm text-amber-950 space-y-3">
+                        <div className="flex items-start gap-2.5">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                           <div>
-                            <strong>Cảnh báo an toàn dữ liệu:</strong> {activeSuggestion.reviewReason}
+                            <strong className="font-bold text-amber-900">Cảnh báo an toàn dữ liệu:</strong> {activeSuggestion.reviewReason}
                           </div>
                         </div>
-                        <p className="text-[11px] text-amber-800">
+                        <p className="text-xs text-amber-900 leading-relaxed">
                           Hệ thống đã khóa nút tự động chèn để bảo vệ câu văn bạn vừa sửa. Nếu muốn đổi ý, bạn có thể đối chiếu lại với đề xuất AI.
                         </p>
                         <button
                           onClick={() => setIsReviewingOverride(true)}
-                          className="w-full py-1.5 bg-white hover:bg-amber-100/60 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                          className="w-full py-2 bg-white hover:bg-amber-100/70 text-amber-950 border border-amber-300 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
                         >
                           <span>🔍 Xem lại đề xuất AI</span>
                         </button>
@@ -743,41 +743,41 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
 
                     {/* Side-by-side comparison modal/box if user clicked "Xem lại đề xuất AI" */}
                     {activeSuggestion.status === 'needs_review' && isReviewingOverride && (
-                      <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-3 animate-in fade-in">
-                        <div className="font-bold text-blue-950 flex items-center justify-between">
+                      <div className="p-4 bg-blue-50/80 border border-blue-200 rounded-xl text-sm space-y-3.5 animate-in fade-in">
+                        <div className="font-bold text-xs uppercase tracking-wider text-blue-950 flex items-center justify-between">
                           <span>ĐỐI CHIẾU TRƯỚC KHI QUYẾT ĐỊNH THAY THẾ:</span>
                           <button
                             onClick={() => setIsReviewingOverride(false)}
-                            className="text-slate-400 hover:text-slate-600 text-[11px]"
+                            className="text-slate-500 hover:text-slate-700 text-xs font-semibold cursor-pointer"
                           >
                             Đóng
                           </button>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-bold text-slate-500">1. BẢN HIỆN TẠI BẠN ĐÃ SỬA:</div>
-                          <div className="p-2 bg-white rounded border border-slate-200 text-slate-800 font-medium">
+                        <div className="space-y-1.5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-slate-600">1. BẢN HIỆN TẠI BẠN ĐÃ SỬA:</div>
+                          <div className="p-3 bg-white rounded-lg border border-slate-200 text-slate-900 font-medium leading-relaxed">
                             {engineState.blocks.find(b => b.id === activeSuggestion.sourceBlockId)?.content || '(Đoạn đã bị xóa)'}
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-bold text-emerald-700">2. BẢN ĐỀ XUẤT TỪ AI SẼ THAY THẾ:</div>
-                          <div className="p-2 bg-emerald-50/80 rounded border border-emerald-200 text-emerald-950">
+                        <div className="space-y-1.5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">2. BẢN ĐỀ XUẤT TỪ AI SẼ THAY THẾ:</div>
+                          <div className="p-3 bg-emerald-50/90 rounded-lg border border-emerald-300 text-emerald-950 leading-relaxed font-medium">
                             {activeSuggestion.rewrittenText}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center gap-2.5 pt-1.5">
                           <button
                             onClick={() => handleOverrideWithAi(false)}
-                            className="flex-1 py-2 bg-[#1a73e8] hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+                            className="flex-1 py-2.5 bg-[#1a73e8] hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-xs cursor-pointer transition-all"
                           >
                             Thay đoạn này
                           </button>
                           <button
                             onClick={() => setIsReviewingOverride(false)}
-                            className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold cursor-pointer"
+                            className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-sm font-semibold cursor-pointer transition-all"
                           >
                             Giữ bản của tôi
                           </button>
@@ -786,32 +786,32 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                     )}
 
                     {/* Expected original sentence */}
-                    <div className="space-y-1">
-                      <div className="text-[11px] font-bold text-slate-500">CÂU GỐC TRONG CV:</div>
-                      <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200/60 line-through">
+                    <div className="space-y-1.5">
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-600">CÂU GỐC TRONG CV:</div>
+                      <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 line-through leading-relaxed">
                         {activeSuggestion.expectedOriginalText}
                       </div>
                     </div>
 
                     {/* Rewritten (Google XYZ formula) */}
-                    <div className="space-y-1">
-                      <div className="text-[11px] font-bold text-slate-700">ĐỀ XUẤT VIẾT LẠI (GOOGLE XYZ):</div>
-                      <div className="text-xs text-slate-900 bg-emerald-50/60 p-2.5 rounded-lg border border-emerald-200/80 leading-relaxed">
+                    <div className="space-y-1.5">
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-700">ĐỀ XUẤT VIẾT LẠI (GOOGLE XYZ):</div>
+                      <div className="text-sm sm:text-base text-slate-900 bg-emerald-50/80 p-4 rounded-xl border border-emerald-300 leading-relaxed font-medium shadow-xs">
                         {activeSuggestion.rewrittenText}
                       </div>
                     </div>
 
                     {/* In-Card Form for Metrics if placeholders exist */}
                     {activeSuggestion.placeholders.length > 0 && (
-                      <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2.5">
-                        <div className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
-                          <HelpCircle className="w-3.5 h-3.5 text-[#1a73e8]" />
+                      <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-3">
+                        <div className="text-xs font-bold uppercase tracking-wider text-blue-950 flex items-center gap-2">
+                          <HelpCircle className="w-4 h-4 text-[#1a73e8]" />
                           <span>CẦN SỐ LIỆU THỰC TẾ CỦA BẠN:</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2.5">
                           {activeSuggestion.placeholders.map((ph) => (
                             <div key={ph} className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-600">{ph}</label>
+                              <label className="text-xs font-bold text-slate-700">{ph}</label>
                               <input
                                 type="text"
                                 value={metricInputs[ph] || ''}
@@ -819,7 +819,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                                   setMetricInputs((prev) => ({ ...prev, [ph]: e.target.value }))
                                 }
                                 placeholder="VD: 35%"
-                                className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded focus:ring-1 focus:ring-[#1a73e8] focus:outline-hidden"
+                                className="w-full text-sm p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#1a73e8] focus:outline-hidden"
                               />
                             </div>
                           ))}
@@ -828,21 +828,21 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                     )}
 
                     {/* Action Buttons */}
-                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <div className="space-y-2.5 pt-2.5 border-t border-slate-100">
                       {activeSuggestion.status === 'applied' ? (
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 text-xs">
-                          <div className="flex items-center gap-2 font-bold text-emerald-800">
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2.5 text-sm">
+                          <div className="flex items-center gap-2 font-bold text-emerald-900 text-sm">
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                             <span>Đề xuất này đã được áp dụng vào bản nháp.</span>
                           </div>
-                          <p className="text-[11px] text-emerald-700">
+                          <p className="text-xs text-emerald-800 leading-relaxed">
                             Hệ thống tự động khóa nút để không chèn lặp câu. Bạn có thể hoàn tác nếu muốn quay về câu cũ.
                           </p>
                           <button
                             onClick={handleUndo}
-                            className="w-full py-1.5 bg-white hover:bg-emerald-100/60 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            className="w-full py-2.5 bg-white hover:bg-emerald-100/60 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
                           >
-                            <RotateCcw className="w-3.5 h-3.5" />
+                            <RotateCcw className="w-4 h-4" />
                             <span>Hoàn tác (Undo) đề xuất này</span>
                           </button>
                         </div>
@@ -851,7 +851,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                           <button
                             onClick={handleApplyWithMetrics}
                             disabled={activeSuggestion.status === 'needs_review'}
-                            className="w-full py-2 bg-[#1a73e8] hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                            className="w-full py-3 bg-[#1a73e8] hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-sm font-bold transition-all cursor-pointer shadow-xs"
                           >
                             ✅ Chèn câu hoàn chỉnh vào CV
                           </button>
@@ -861,7 +861,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                             <button
                               onClick={handleApplyQualitative}
                               disabled={activeSuggestion.status === 'needs_review'}
-                              className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 rounded-xl text-xs font-semibold transition-all cursor-pointer border border-slate-200"
+                              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
                             >
                               🛡️ Tôi không có số liệu (Dùng câu định tính)
                             </button>
@@ -871,7 +871,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                     </div>
                   </div>
                 ) : (
-                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500">
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center text-sm text-slate-500 font-medium">
                     Chọn một đoạn văn bản hoặc Quick Win để xem đề xuất.
                   </div>
                 )}
@@ -887,63 +887,63 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end justify-center">
             <div className="bg-white rounded-t-2xl w-full max-w-[400px] max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom">
               {/* ZONE 1: TIÊU ĐỀ CỐ ĐỊNH */}
-              <div className="shrink-0 px-4 py-3 border-b flex items-center justify-between bg-slate-50/80 rounded-t-2xl">
+              <div className="shrink-0 px-4 py-3.5 border-b flex items-center justify-between bg-slate-50/90 rounded-t-2xl">
                 <div>
-                  <span className="font-bold text-sm text-slate-900">{activeSuggestion.title}</span>
-                  <span className="block text-[10px] text-slate-500">[{activeSuggestion.sourceBlockId}]</span>
+                  <span className="font-bold text-base text-slate-900">{activeSuggestion.title}</span>
+                  <span className="block text-xs text-slate-500 font-mono">[{activeSuggestion.sourceBlockId}]</span>
                 </div>
                 <button
                   onClick={() => setIsMobileSheetOpen(false)}
                   className="p-1 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* ZONE 2: NỘI DUNG CUỘN ĐỘC LẬP (Overscroll Contain) */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 overscroll-contain">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
                 {activeSuggestion.status === 'needs_review' && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2">
-                    <div className="flex items-start gap-1.5 font-bold">
+                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-sm text-amber-950 space-y-2">
+                    <div className="flex items-start gap-2 font-bold">
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                       <span>{activeSuggestion.reviewReason}</span>
                     </div>
-                    <p className="text-[11px] text-amber-800">
+                    <p className="text-xs text-amber-900 leading-relaxed">
                       Hệ thống đã khóa nút tự động chèn để bảo vệ câu văn bạn vừa sửa tay.
                     </p>
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold text-slate-500">CÂU GỐC TRONG CV:</div>
-                  <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200 line-through">
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-600">CÂU GỐC TRONG CV:</div>
+                  <div className="text-sm text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 line-through leading-relaxed">
                     {activeSuggestion.expectedOriginalText}
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold text-emerald-700">ĐỀ XUẤT VIẾT LẠI (GOOGLE XYZ):</div>
-                  <div className="text-xs text-slate-900 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200 leading-relaxed font-medium">
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">ĐỀ XUẤT VIẾT LẠI (GOOGLE XYZ):</div>
+                  <div className="text-sm text-slate-900 bg-emerald-50/80 p-3 rounded-lg border border-emerald-300 leading-relaxed font-medium">
                     {activeSuggestion.rewrittenText}
                   </div>
                 </div>
 
                 {activeSuggestion.placeholders.length > 0 && activeSuggestion.status !== 'applied' && (
-                  <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
-                    <div className="text-[11px] font-bold text-blue-950 flex items-center gap-1">
-                      <HelpCircle className="w-3.5 h-3.5 text-[#1a73e8]" />
+                  <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2.5">
+                    <div className="text-xs font-bold uppercase tracking-wider text-blue-950 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4 text-[#1a73e8]" />
                       <span>ĐIỀN SỐ LIỆU THỰC TẾ:</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2.5">
                       {activeSuggestion.placeholders.map((ph) => (
-                        <div key={ph} className="space-y-0.5">
-                          <label className="text-[10px] font-bold text-slate-600">{ph}</label>
+                        <div key={ph} className="space-y-1">
+                          <label className="text-xs font-bold text-slate-700">{ph}</label>
                           <input
                             type="text"
                             value={metricInputs[ph] || ''}
                             onChange={(e) => setMetricInputs((prev) => ({ ...prev, [ph]: e.target.value }))}
                             placeholder={ph}
-                            className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded focus:ring-1 focus:ring-[#1a73e8]"
+                            className="w-full text-sm p-2 bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#1a73e8]"
                           />
                         </div>
                       ))}
@@ -1010,21 +1010,21 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
             ========================================================================= */}
         {showExportModal && (
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-7 shadow-2xl space-y-5">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-slate-900 text-base">Kiểm tra trước khi xuất bản CV</h4>
+                <h4 className="font-bold text-slate-900 text-lg sm:text-xl">Kiểm tra trước khi xuất bản CV</h4>
                 <button
                   onClick={() => setShowExportModal(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 rounded cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer transition-colors"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
               {exportStatus.canExport ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-emerald-800">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-950 space-y-2.5 leading-relaxed">
+                  <div className="flex items-center gap-2.5 font-bold text-emerald-900 text-base">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     <span>CV hợp lệ 100% — Không còn placeholder nào!</span>
                   </div>
                   <p>
@@ -1032,26 +1032,26 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                   </p>
                 </div>
               ) : (
-                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-3">
-                  <div className="flex items-center gap-2 font-bold text-rose-800">
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-950 space-y-3.5 leading-relaxed">
+                  <div className="flex items-center gap-2.5 font-bold text-rose-900 text-base">
+                    <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
                     <span>Phát hiện placeholder chưa xử lý!</span>
                   </div>
-                  <p className="text-[11px] text-rose-700">{exportStatus.reason}</p>
+                  <p className="text-xs text-rose-800 leading-relaxed">{exportStatus.reason}</p>
 
-                  <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
-                    <div className="text-[11px] font-bold text-slate-700">Vị trí cụ thể trong bản nháp:</div>
+                  <div className="space-y-2 max-h-56 overflow-y-auto pt-1">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-700">Vị trí cụ thể trong bản nháp:</div>
                     {detailedPlaceholders.map((item, idx) => (
                       <div
                         key={idx}
-                        className="p-2.5 bg-white rounded-lg border border-rose-200 text-xs flex items-center justify-between gap-2 shadow-xs"
+                        className="p-3 bg-white rounded-xl border border-rose-200 text-sm flex items-center justify-between gap-3 shadow-xs"
                       >
-                        <div className="space-y-0.5">
-                          <div className="font-bold text-rose-800">
-                            Chưa điền: <span className="font-mono bg-rose-100 px-1 rounded">{item.placeholder}</span>
+                        <div className="space-y-1">
+                          <div className="font-bold text-rose-900">
+                            Chưa điền: <span className="font-mono bg-rose-100 text-rose-900 px-1.5 py-0.5 rounded font-extrabold">{item.placeholder}</span>
                           </div>
-                          <div className="text-[11px] text-slate-600 font-medium">{item.sectionTitle}</div>
-                          <div className="text-[10px] text-slate-400 font-mono italic">"{item.snippet}"</div>
+                          <div className="text-xs text-slate-700 font-semibold">{item.sectionTitle}</div>
+                          <div className="text-xs text-slate-500 font-mono italic">"{item.snippet}"</div>
                         </div>
                         <button
                           onClick={() => {
@@ -1063,7 +1063,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                               setTimeout(() => targetEl.classList.remove('ring-4', 'ring-rose-400'), 2500);
                             }
                           }}
-                          className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shrink-0 cursor-pointer shadow-xs"
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shrink-0 cursor-pointer shadow-xs transition-colors"
                         >
                           Đến sửa ➔
                         </button>
@@ -1073,10 +1073,10 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   onClick={() => setShowExportModal(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
                 >
                   Đóng
                 </button>
@@ -1086,7 +1086,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
                     alert('Thành công! Đang tải file CV hoàn chỉnh...');
                     setShowExportModal(false);
                   }}
-                  className="px-4 py-1.5 bg-[#1a73e8] hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                  className="px-5 py-2.5 bg-[#1a73e8] hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-sm font-bold transition-all cursor-pointer shadow-xs"
                 >
                   Tải CV Hoàn Chỉnh (.docx)
                 </button>
