@@ -3,6 +3,7 @@ import {
   createInitialSandboxState,
   applySuggestion,
   applyQualitativeFallback,
+  overrideWithSuggestion,
   manualEditBlock,
   deleteBlock,
   undo,
@@ -64,6 +65,25 @@ describe('Sandbox Engine (Google UX Prototype Đợt 0)', () => {
 
     const result = applySuggestion(state, 'sug-cloud-skills');
     expect(result.success).toBe(false);
+  });
+
+  it('Kịch bản 2c: Xem lại đề xuất AI & Thay thế có chủ đích sau khi đã sửa tay', () => {
+    let state = createInitialSandboxState();
+
+    // 1. Người dùng sửa tay
+    state = manualEditBlock(state, 'block-exp-fintech-2', 'Câu tôi tự sửa tay.');
+    expect(state.suggestions['sug-perf-web'].status).toBe('needs_review');
+
+    // 2. Người dùng xem lại và chủ động thay thế bằng câu định tính
+    const overrideRes = overrideWithSuggestion(state, 'sug-perf-web', undefined, true);
+    expect(overrideRes.success).toBe(true);
+    expect(overrideRes.state.blocks[2].content).toContain('cải thiện rõ rệt tốc độ tải trang theo chỉ số Core Web Vitals');
+    expect(overrideRes.state.suggestions['sug-perf-web'].status).toBe('applied');
+
+    // 3. Hoàn tác (Undo) khôi phục lại câu người dùng vừa sửa tay trước đó!
+    state = undo(overrideRes.state);
+    expect(state.blocks[2].content).toBe('Câu tôi tự sửa tay.');
+    expect(state.suggestions['sug-perf-web'].status).toBe('needs_review');
   });
 
   it('Kịch bản 3: "Không có số liệu" — dùng câu định tính có căn cứ, không có placeholder', () => {

@@ -3,6 +3,7 @@ import {
   createInitialSandboxState,
   applySuggestion,
   applyQualitativeFallback,
+  overrideWithSuggestion,
   manualEditBlock,
   deleteBlock,
   undo,
@@ -56,6 +57,7 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
   const [activeCompetencyGroup, setActiveCompetencyGroup] = useState<string>('tech');
   const [competencyFilter, setCompetencyFilter] = useState<'all' | 'must_have' | 'gap'>('all');
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState<boolean>(false);
+  const [isReviewingOverride, setIsReviewingOverride] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'warn' | 'error'; message: string } | null>(null);
 
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -126,6 +128,19 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
       if (viewMode === 'mobile') setIsMobileSheetOpen(false);
     } else {
       setNotification({ type: 'error', message: res.error || 'Không thể áp dụng.' });
+    }
+  };
+
+  const handleOverrideWithAi = (useQualitative: boolean = false) => {
+    if (!activeSuggestion) return;
+    const res = overrideWithSuggestion(engineState, activeSuggestion.id, metricInputs, useQualitative);
+    if (res.success) {
+      setEngineState(res.state);
+      setIsReviewingOverride(false);
+      setNotification({ type: 'success', message: `Đã thay thế đoạn sửa tay bằng đề xuất AI cho "${activeSuggestion.title}".` });
+      if (viewMode === 'mobile') setIsMobileSheetOpen(false);
+    } else {
+      setNotification({ type: 'error', message: res.error || 'Không thể thay thế.' });
     }
   };
 
@@ -707,10 +722,65 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
 
                     {/* Needs Review Alert if manual edit broke it */}
                     {activeSuggestion.status === 'needs_review' && (
-                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <div>
-                          <strong>Cảnh báo an toàn dữ liệu:</strong> {activeSuggestion.reviewReason}
+                      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2.5">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <strong>Cảnh báo an toàn dữ liệu:</strong> {activeSuggestion.reviewReason}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-amber-800">
+                          Hệ thống đã khóa nút tự động chèn để bảo vệ câu văn bạn vừa sửa. Nếu muốn đổi ý, bạn có thể đối chiếu lại với đề xuất AI.
+                        </p>
+                        <button
+                          onClick={() => setIsReviewingOverride(true)}
+                          className="w-full py-1.5 bg-white hover:bg-amber-100/60 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                        >
+                          <span>🔍 Xem lại đề xuất AI</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Side-by-side comparison modal/box if user clicked "Xem lại đề xuất AI" */}
+                    {activeSuggestion.status === 'needs_review' && isReviewingOverride && (
+                      <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-3 animate-in fade-in">
+                        <div className="font-bold text-blue-950 flex items-center justify-between">
+                          <span>ĐỐI CHIẾU TRƯỚC KHI QUYẾT ĐỊNH THAY THẾ:</span>
+                          <button
+                            onClick={() => setIsReviewingOverride(false)}
+                            className="text-slate-400 hover:text-slate-600 text-[11px]"
+                          >
+                            Đóng
+                          </button>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-bold text-slate-500">1. BẢN HIỆN TẠI BẠN ĐÃ SỬA:</div>
+                          <div className="p-2 bg-white rounded border border-slate-200 text-slate-800 font-medium">
+                            {engineState.blocks.find(b => b.id === activeSuggestion.sourceBlockId)?.content || '(Đoạn đã bị xóa)'}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-bold text-emerald-700">2. BẢN ĐỀ XUẤT TỪ AI SẼ THAY THẾ:</div>
+                          <div className="p-2 bg-emerald-50/80 rounded border border-emerald-200 text-emerald-950">
+                            {activeSuggestion.rewrittenText}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => handleOverrideWithAi(false)}
+                            className="flex-1 py-2 bg-[#1a73e8] hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer"
+                          >
+                            Thay đoạn này
+                          </button>
+                          <button
+                            onClick={() => setIsReviewingOverride(false)}
+                            className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold cursor-pointer"
+                          >
+                            Giữ bản của tôi
+                          </button>
                         </div>
                       </div>
                     )}
@@ -811,57 +881,124 @@ export const PrototypeGoogleUxSandbox: React.FC<PrototypeGoogleUxSandboxProps> =
         </section>
 
         {/* =========================================================================
-            MOBILE BOTTOM SHEET (For Mobile View Mode)
+            MOBILE BOTTOM SHEET (For Mobile View Mode) — 3-ZONE LAYOUT
             ========================================================================= */}
         {viewMode === 'mobile' && isMobileSheetOpen && activeSuggestion && (
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end justify-center">
-            <div className="bg-white rounded-t-2xl w-full max-w-[400px] max-h-[80vh] overflow-y-auto p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom">
-              <div className="flex items-center justify-between border-b pb-2">
-                <span className="font-bold text-sm text-slate-900">{activeSuggestion.title}</span>
+            <div className="bg-white rounded-t-2xl w-full max-w-[400px] max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom">
+              {/* ZONE 1: TIÊU ĐỀ CỐ ĐỊNH */}
+              <div className="shrink-0 px-4 py-3 border-b flex items-center justify-between bg-slate-50/80 rounded-t-2xl">
+                <div>
+                  <span className="font-bold text-sm text-slate-900">{activeSuggestion.title}</span>
+                  <span className="block text-[10px] text-slate-500">[{activeSuggestion.sourceBlockId}]</span>
+                </div>
                 <button
                   onClick={() => setIsMobileSheetOpen(false)}
-                  className="p-1 rounded-full text-slate-400 hover:text-slate-700"
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="text-xs text-slate-700 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
-                {activeSuggestion.rewrittenText}
-              </div>
+              {/* ZONE 2: NỘI DUNG CUỘN ĐỘC LẬP (Overscroll Contain) */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 overscroll-contain">
+                {activeSuggestion.status === 'needs_review' && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2">
+                    <div className="flex items-start gap-1.5 font-bold">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <span>{activeSuggestion.reviewReason}</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800">
+                      Hệ thống đã khóa nút tự động chèn để bảo vệ câu văn bạn vừa sửa tay.
+                    </p>
+                  </div>
+                )}
 
-              {activeSuggestion.placeholders.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-[11px] font-bold text-slate-600">Nhập số liệu thực tế:</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {activeSuggestion.placeholders.map((ph) => (
-                      <input
-                        key={ph}
-                        type="text"
-                        value={metricInputs[ph] || ''}
-                        onChange={(e) => setMetricInputs((prev) => ({ ...prev, [ph]: e.target.value }))}
-                        placeholder={ph}
-                        className="text-xs p-2 border rounded"
-                      />
-                    ))}
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold text-slate-500">CÂU GỐC TRONG CV:</div>
+                  <div className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200 line-through">
+                    {activeSuggestion.expectedOriginalText}
                   </div>
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <button
-                  onClick={handleApplyWithMetrics}
-                  className="w-full py-2.5 bg-[#1a73e8] text-white rounded-xl text-xs font-bold"
-                >
-                  Áp dụng đề xuất
-                </button>
-                {activeSuggestion.placeholders.length > 0 && (
-                  <button
-                    onClick={handleApplyQualitative}
-                    className="w-full py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold"
-                  >
-                    Không có số liệu (Dùng câu định tính)
-                  </button>
+                <div className="space-y-1">
+                  <div className="text-[10px] font-bold text-emerald-700">ĐỀ XUẤT VIẾT LẠI (GOOGLE XYZ):</div>
+                  <div className="text-xs text-slate-900 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200 leading-relaxed font-medium">
+                    {activeSuggestion.rewrittenText}
+                  </div>
+                </div>
+
+                {activeSuggestion.placeholders.length > 0 && activeSuggestion.status !== 'applied' && (
+                  <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
+                    <div className="text-[11px] font-bold text-blue-950 flex items-center gap-1">
+                      <HelpCircle className="w-3.5 h-3.5 text-[#1a73e8]" />
+                      <span>ĐIỀN SỐ LIỆU THỰC TẾ:</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {activeSuggestion.placeholders.map((ph) => (
+                        <div key={ph} className="space-y-0.5">
+                          <label className="text-[10px] font-bold text-slate-600">{ph}</label>
+                          <input
+                            type="text"
+                            value={metricInputs[ph] || ''}
+                            onChange={(e) => setMetricInputs((prev) => ({ ...prev, [ph]: e.target.value }))}
+                            placeholder={ph}
+                            className="w-full text-xs p-1.5 bg-white border border-slate-300 rounded focus:ring-1 focus:ring-[#1a73e8]"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ZONE 3: THANH HÀNH ĐỘNG CỐ ĐỊNH Ở ĐÁY SHEET (Sticky Bottom + Safe Area) */}
+              <div className="shrink-0 p-3 bg-white border-t border-slate-200 shadow-lg space-y-2">
+                {activeSuggestion.status === 'applied' ? (
+                  <div className="space-y-1.5 text-center">
+                    <div className="text-xs font-bold text-emerald-800 flex items-center justify-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Đã áp dụng vào bản nháp</span>
+                    </div>
+                    <button
+                      onClick={handleUndo}
+                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
+                    >
+                      ↩️ Hoàn tác đề xuất này
+                    </button>
+                  </div>
+                ) : activeSuggestion.status === 'needs_review' ? (
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => handleOverrideWithAi(false)}
+                      className="w-full py-2.5 bg-[#1a73e8] hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                    >
+                      Thay đoạn này bằng câu AI
+                    </button>
+                    <button
+                      onClick={() => setIsMobileSheetOpen(false)}
+                      className="w-full py-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold cursor-pointer border border-slate-200"
+                    >
+                      Giữ bản tôi vừa sửa
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleApplyWithMetrics}
+                      className="w-full py-2.5 bg-[#1a73e8] hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                    >
+                      ✅ Áp dụng đề xuất này
+                    </button>
+                    {activeSuggestion.placeholders.length > 0 && (
+                      <button
+                        onClick={handleApplyQualitative}
+                        className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer border border-slate-200"
+                      >
+                        🛡️ Dùng câu định tính (Không có số liệu)
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>

@@ -285,6 +285,75 @@ export function applySuggestion(
 }
 
 /**
+ * Cho phép người dùng chủ động xem lại và thay thế block đã sửa tay bằng đề xuất AI sau khi đối chiếu
+ */
+export function overrideWithSuggestion(
+  state: SandboxEngineState,
+  suggestionId: string,
+  userValues?: Record<string, string>,
+  useQualitative: boolean = false
+): { state: SandboxEngineState; success: boolean; error?: string } {
+  const suggestion = state.suggestions[suggestionId];
+  if (!suggestion) {
+    return { state, success: false, error: 'Không tìm thấy đề xuất.' };
+  }
+
+  const targetBlockIndex = state.blocks.findIndex((b) => b.id === suggestion.sourceBlockId && !b.isDeleted);
+  if (targetBlockIndex === -1) {
+    return {
+      state,
+      success: false,
+      error: 'Đoạn nguồn đã bị xóa khỏi bản nháp. Không thể thay thế.',
+    };
+  }
+
+  const targetBlock = state.blocks[targetBlockIndex];
+
+  let finalSentence = useQualitative ? suggestion.qualitativeFallbackText : suggestion.rewrittenText;
+
+  if (!useQualitative && suggestion.placeholders.length > 0) {
+    if (!userValues) {
+      return { state, success: false, error: 'Đề xuất yêu cầu điền số liệu thực tế trước khi thay thế.' };
+    }
+    for (const ph of suggestion.placeholders) {
+      const val = userValues[ph]?.trim();
+      if (!val) {
+        return { state, success: false, error: `Vui lòng điền giá trị thực tế cho trường ${ph}.` };
+      }
+      finalSentence = finalSentence.replace(ph, val);
+    }
+  }
+
+  const stateWithHistory = recordHistory(state, `Thay thế đoạn đã sửa tay bằng đề xuất AI: "${suggestion.title}"`);
+
+  const updatedBlocks = [...stateWithHistory.blocks];
+  updatedBlocks[targetBlockIndex] = {
+    ...targetBlock,
+    content: finalSentence,
+    revision: targetBlock.revision + 1,
+  };
+
+  const updatedSuggestions = {
+    ...stateWithHistory.suggestions,
+    [suggestionId]: {
+      ...suggestion,
+      status: 'applied' as SuggestionStatus,
+      userValues: userValues || {},
+      reviewReason: undefined,
+    },
+  };
+
+  return {
+    state: {
+      ...stateWithHistory,
+      blocks: updatedBlocks,
+      suggestions: updatedSuggestions,
+    },
+    success: true,
+  };
+}
+
+/**
  * Áp dụng phương án "Không có số liệu": Sử dụng câu định tính trung thực
  */
 export function applyQualitativeFallback(
