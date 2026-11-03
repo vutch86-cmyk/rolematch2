@@ -34,6 +34,7 @@ const AdminDashboardModal = React.lazy(() => import('./components/AdminDashboard
 const StandaloneLoginPage = React.lazy(() => import('./components/StandaloneLoginPage').then(m => ({ default: m.StandaloneLoginPage })));
 const CandidateGuideDrawer = React.lazy(() => import('./components/CandidateGuideDrawer').then(m => ({ default: m.CandidateGuideDrawer })));
 const BatchProcessingTab = React.lazy(() => import('./components/BatchProcessingTab').then(m => ({ default: m.BatchProcessingTab })));
+const PrototypeGoogleUxSandbox = React.lazy(() => import('./components/PrototypeGoogleUxSandbox').then(m => ({ default: m.PrototypeGoogleUxSandbox })));
 
 import {
   extractJobMetaFromJdText,
@@ -144,6 +145,13 @@ export default function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isCandidateGuideOpen, setIsCandidateGuideOpen] = useState<boolean>(false);
+  const [isSandboxMode, setIsSandboxMode] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && window.location.search.includes('sandbox=google-ux');
+    } catch {
+      return false;
+    }
+  });
 
   const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -714,9 +722,43 @@ export default function App() {
     setCvText(newCvText);
   };
 
+  if (isSandboxMode) {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 font-medium">Đang tải Sandbox...</div>}>
+        <PrototypeGoogleUxSandbox
+          onExit={() => {
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('sandbox');
+              window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+            } catch {}
+            setIsSandboxMode(false);
+          }}
+        />
+      </React.Suspense>
+    );
+  }
+
   if (!currentUser) {
     return (
       <React.Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 font-medium">Đang tải...</div>}>
+        {/* Quick sandbox launch on login page */}
+        <div className="fixed bottom-4 left-4 z-40">
+          <button
+            onClick={() => {
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('sandbox', 'google-ux');
+                window.history.pushState({}, '', url.toString());
+              } catch {}
+              setIsSandboxMode(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 bg-slate-900/90 hover:bg-slate-900 text-white rounded-full text-xs font-bold shadow-lg border border-slate-700 backdrop-blur-sm cursor-pointer transition-all hover:scale-105"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Mở Sandbox UI (Đợt 0)</span>
+          </button>
+        </div>
         <StandaloneLoginPage
           onLoginSuccess={handleLoginSuccess}
           lang={lang}
