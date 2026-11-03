@@ -7,11 +7,11 @@ FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# Copy dependency definition
-COPY package.json ./
+# Copy dependency definitions
+COPY package.json package-lock.json* ./
 
 # Install all dependencies (including devDependencies required for Vite & esbuild)
-RUN npm install
+RUN npm ci || npm install
 
 # Copy all source files
 # Note: Vite imports Markdown guides from docs/ via `?raw`, so docs/ must be copied
@@ -32,8 +32,8 @@ ENV NODE_ENV=production
 ENV PORT=8080
 
 # Install production dependencies only to minimize image size and attack surface
-COPY package.json ./
-RUN npm install --omit=dev --ignore-scripts && npm cache clean --force
+COPY package.json package-lock.json* ./
+RUN (npm ci --omit=dev --ignore-scripts || npm install --omit=dev --ignore-scripts) && npm cache clean --force
 
 # Copy compiled frontend and backend bundle from builder stage
 COPY --from=builder /app/dist ./dist
