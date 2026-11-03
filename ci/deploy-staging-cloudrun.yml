@@ -1,0 +1,129 @@
+name: Deploy Staging to Google Cloud Run
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even without code changes'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'asia-southeast1' }}
+  ARTIFACT_REPO: ${{ vars.GCP_ARTIFACT_REPO || 'rolematch' }}
+  SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE_NAME || 'rolematch-staging' }}
+
+jobs:
+  deploy-staging:
+    name: Build & Deploy Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Service Account Key)
+        if: ${{ secrets.GCP_SA_KEY != '' }}
+        id: auth-key
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        if: ${{ secrets.GCP_SA_KEY == '' && secrets.WIF_PROVIDER != '' }}
+        id: auth-wif
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: '>= 480.0.0'
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker "${{ env.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Set up Image Tag
+        id: meta
+        run: |
+          IMAGE_BASE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REPO }}/${{ env.SERVICE_NAME }}"
+          IMAGE_SHA="${IMAGE_BASE}:${{ github.sha }}"
+          IMAGE_LATEST="${IMAGE_BASE}:latest"
+          echo "IMAGE_BASE=${IMAGE_BASE}" >> $GITHUB_OUTPUT
+          echo "IMAGE_SHA=${IMAGE_SHA}" >> $GITHUB_OUTPUT
+          echo "IMAGE_LATEST=${IMAGE_LATEST}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.IMAGE_SHA }}
+            ${{ steps.meta.outputs.IMAGE_LATEST }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy Revision to Google Cloud Run
+        id: deploy
+        run: |
+          # Build environment variable string
+          ENV_VARS="NODE_ENV=production,PORT=8080,ENABLE_TEST_USER_SEED=true"
+
+          # Deploy revision to Cloud Run
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --image "${{ steps.meta.outputs.IMAGE_SHA }}" \
+            --region "${{ env.GCP_REGION }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 1Gi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --timeout 300s \
+            --set-env-vars "${ENV_VARS}"
+
+          # Retrieve deployed URL
+          SERVICE_URL=$(gcloud run services describe "${{ env.SERVICE_NAME }}" \
+            --region "${{ env.GCP_REGION }}" \
+            --format="value(status.url)")
+          echo "SERVICE_URL=${SERVICE_URL}" >> $GITHUB_OUTPUT
+          echo "SANDBOX_URL=${SERVICE_URL}/?sandbox=google-ux" >> $GITHUB_OUTPUT
+
+      - name: Deployment Summary & Quick Links
+        run: |
+          echo "## 🚀 RoleMatch 2 Staging Deployed Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service Name:** \`${{ env.SERVICE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Region:** \`${{ env.GCP_REGION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ steps.meta.outputs.IMAGE_SHA }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Direct Access Links:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Staging Web App:** [${{ steps.deploy.outputs.SERVICE_URL }}](${{ steps.deploy.outputs.SERVICE_URL }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Phase 0 UX Sandbox:** [${{ steps.deploy.outputs.SANDBOX_URL }}](${{ steps.deploy.outputs.SANDBOX_URL }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> [!NOTE]" >> $GITHUB_STEP_SUMMARY
+          echo "> Sandbox can be evaluated without login directly at \`${{ steps.deploy.outputs.SANDBOX_URL }}\`." >> $GITHUB_STEP_SUMMARY
