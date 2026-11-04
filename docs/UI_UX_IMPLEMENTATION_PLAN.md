@@ -165,7 +165,7 @@ Bên dưới Hero Card là 4 tab chuyên sâu, mỗi tab tập trung vào 1 nhi�
 | :--- | :--- | :---: | :--- |
 | **Đợt 0 (Phase 0)** | Sandbox Prototype & Usability Guide | ✅ **Hoàn thành** | Preset mẫu độc lập, Test suite & Observation Protocol |
 | **Đợt 1 (Phase 1)** | Google Header & Compact Context Bar | ✅ **Hoàn thành** | Commit `b11f55d`, `50371fd` (Test suite 100% pass) |
-| **Đợt 2 (Phase 2)** | Executive Hero Card & Evidence Map Workspace | 🚀 **RFC / Brainstorming** | Xem chi tiết: [`docs/PHASE_2_PROPOSAL_RFC.md`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/PHASE_2_PROPOSAL_RFC.md) |
+| **Đợt 2 (Phase 2)** | Executive Hero Card & Evidence Map Workspace | 🎯 **RFC v1.1 Đã Phê Duyệt (Đang Triển Khai)** | Xem chi tiết: [`docs/PHASE_2_PROPOSAL_RFC.md`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/PHASE_2_PROPOSAL_RFC.md) |
 | **Đợt 3 (Phase 3)** | CV Diff Studio & Interview Kit | ⏳ Chờ triển khai | Dự kiến sau khi chốt P2 |
 
 ```mermaid
