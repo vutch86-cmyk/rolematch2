@@ -24,6 +24,8 @@ export const ExecutiveHeroCard: React.FC<ExecutiveHeroCardProps> = ({
     hero.mustHaveTotal > 0 ? (hero.mustHavePartial / hero.mustHaveTotal) * 100 : 0;
   const gapPct =
     hero.mustHaveTotal > 0 ? (hero.mustHaveGap / hero.mustHaveTotal) * 100 : 0;
+  const unknownPct =
+    hero.mustHaveTotal > 0 ? (hero.mustHaveUnknown / hero.mustHaveTotal) * 100 : 0;
   const uncomparedPct =
     hero.mustHaveTotal > 0 ? (hero.mustHaveUncompared / hero.mustHaveTotal) * 100 : 0;
 
@@ -140,9 +142,16 @@ export const ExecutiveHeroCard: React.FC<ExecutiveHeroCardProps> = ({
                   style={{ width: `${gapPct}%` }}
                   title={`${hero.mustHaveGap} ${isVi ? 'Cần bổ sung' : 'Gap'}`}
                 />
-                {hero.mustHaveUncompared > 0 && (
+                {hero.mustHaveUnknown > 0 && (
                   <div
                     className="bg-slate-400 h-full transition-all"
+                    style={{ width: `${unknownPct}%` }}
+                    title={`${hero.mustHaveUnknown} ${isVi ? 'Chưa xác định' : 'Unknown'}`}
+                  />
+                )}
+                {hero.mustHaveUncompared > 0 && (
+                  <div
+                    className="bg-slate-300 h-full transition-all"
                     style={{ width: `${uncomparedPct}%` }}
                     title={`${hero.mustHaveUncompared} ${isVi ? 'Chưa đối chiếu' : 'Uncompared'}`}
                   />
@@ -162,6 +171,11 @@ export const ExecutiveHeroCard: React.FC<ExecutiveHeroCardProps> = ({
                 <span className="text-rose-600 font-bold">
                   ● {hero.mustHaveGap} {isVi ? 'Cần bổ sung' : 'Gap'}
                 </span>
+                {hero.mustHaveUnknown > 0 && (
+                  <span className="text-slate-500 font-bold">
+                    ? {hero.mustHaveUnknown} {isVi ? 'Chưa xác định' : 'Unknown'}
+                  </span>
+                )}
                 {hero.mustHaveUncompared > 0 && (
                   <span className="text-slate-500 font-bold">
                     ○ {hero.mustHaveUncompared} {isVi ? 'Chưa đối chiếu' : 'Uncompared'}

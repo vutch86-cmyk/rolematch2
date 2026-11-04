@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { buildEvidenceMapViewModel, computeAnalysisFingerprint } from './utils/evidenceMapAdapter';
+import {
+  buildEvidenceMapViewModel,
+  computeAnalysisFingerprint,
+  shouldUnhideFilterForTarget,
+} from './utils/evidenceMapAdapter';
 import { ExecutiveHeroCard } from './components/ExecutiveHeroCard';
 import { EvidenceMapTab } from './components/EvidenceMapTab';
 import { CompleteCVAnalysisResponse } from './types';
@@ -151,19 +155,12 @@ describe('Phase 2 Real Component Rendering & Interaction Regression Suite', () =
     const targetItem = vm.groups.flatMap((g) => g.items).find((it) => it.id === qw.targetItemId);
     expect(targetItem).toBeDefined();
 
-    // Giả lập logic kiểm tra điều kiện unhide của App.tsx:
-    // Case 1: Bộ lọc đang là 'gap'. Target item là PostgreSQL (thieu) -> KHÔNG bị che giấu -> giữ nguyên 'gap'
-    const checkFilterReset = (currentFilter: 'all' | 'must_have' | 'gap') => {
-      const isHiddenByFilter =
-        (currentFilter === 'must_have' && !targetItem?.isMustHave) ||
-        (currentFilter === 'gap' && targetItem?.matchStatus !== 'thieu');
-      return isHiddenByFilter ? 'all' : currentFilter;
-    };
+    // Gọi trực tiếp hàm production shouldUnhideFilterForTarget:
+    // Case 1: Bộ lọc đang là 'gap'. Target item là PostgreSQL (thieu) -> KHÔNG bị che giấu -> false (không cần unhide)
+    expect(shouldUnhideFilterForTarget('gap', targetItem)).toBe(false);
 
-    expect(checkFilterReset('gap')).toBe('gap'); // Không bị gỡ về 'all' vô điều kiện!
-
-    // Case 2: Bộ lọc đang là 'must_have'. Target item PostgreSQL (isMustHave: false) -> BỊ CHE GIẤU -> phải reset về 'all'!
-    expect(checkFilterReset('must_have')).toBe('all');
+    // Case 2: Bộ lọc đang là 'must_have'. Target item PostgreSQL (isMustHave: false) -> BỊ CHE GIẤU -> true (phải unhide)
+    expect(shouldUnhideFilterForTarget('must_have', targetItem)).toBe(true);
   });
 
   it('5. [REGRESSION POINT 5] Corrupt status in component renders neutral badge without crashing or false count', () => {

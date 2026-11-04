@@ -5,7 +5,12 @@ import { CompactContextBar } from './components/CompactContextBar';
 import { KeywordMatchTab } from './components/KeywordMatchTab';
 import { ExecutiveHeroCard } from './components/ExecutiveHeroCard';
 import { EvidenceMapTab, CompetencyFilterType } from './components/EvidenceMapTab';
-import { buildEvidenceMapViewModel, QuickWinAction, computeAnalysisFingerprint } from './utils/evidenceMapAdapter';
+import {
+  buildEvidenceMapViewModel,
+  QuickWinAction,
+  computeAnalysisFingerprint,
+  shouldUnhideFilterForTarget,
+} from './utils/evidenceMapAdapter';
 import { BulletPointRewriteTab } from './components/BulletPointRewriteTab';
 import { RecruiterScanTab } from './components/RecruiterScanTab';
 import { InterviewPrepTab } from './components/InterviewPrepTab';
@@ -412,13 +417,8 @@ export default function App() {
       .flatMap((g) => g.items)
       .find((it) => it.id === qw.targetItemId);
 
-    if (targetItem) {
-      const isHiddenByFilter =
-        (competencyFilter === 'must_have' && !targetItem.isMustHave) ||
-        (competencyFilter === 'gap' && targetItem.matchStatus !== 'thieu');
-      if (isHiddenByFilter) {
-        setCompetencyFilter('all');
-      }
+    if (shouldUnhideFilterForTarget(competencyFilter, targetItem)) {
+      setCompetencyFilter('all');
     }
 
     if (qw.targetGroupId) {

@@ -35,6 +35,7 @@ export interface CompetencyGroup {
   unknownCount: number;
   mustHaveGapCount: number;
   mustHavePartialCount: number;
+  mustHaveUnknownCount: number;
   items: EvidenceItem[];
 }
 
@@ -50,12 +51,13 @@ export interface QuickWinAction {
 export interface ExecutiveHeroViewModel {
   verdictStatement: string;
   hasMustHaveData: boolean;
-  mustHaveTotal: number; // Tổng Must-Have xác định (gồm cả đã đối chiếu + chưa đối chiếu)
-  mustHaveEvaluated: number; // Số Must-Have đã có dòng đối chiếu
+  mustHaveTotal: number; // Tổng Must-Have xác định (passed + partial + gap + unknown + uncompared)
+  mustHaveEvaluated: number; // Số Must-Have đã có dòng đối chiếu (passed + partial + gap + unknown)
   mustHavePassed: number; // Số Must-Have đạt
   mustHavePartial: number; // Số Must-Have đạt một phần
   mustHaveGap: number; // Số Must-Have chưa thấy bằng chứng trong bảng đối chiếu
-  mustHaveUncompared: number; // Số Must-Have chưa có dòng đối chiếu (từ jdKeywords)
+  mustHaveUnknown: number; // Số Must-Have có trạng thái chưa xác định / lỗi
+  mustHaveUncompared: number; // Số Must-Have chưa có dòng đối chiếu (từ jdKeywords đã deduplicate)
   mustHaveSource: MustHaveSource;
   explicitMustHaveCount: number;
   inferredMustHaveCount: number;
@@ -78,6 +80,7 @@ export interface EvidenceMapSharedViewModel {
   totalCriteriaCount: number;
   totalMustHaveCount: number;
   totalGapCount: number;
+  totalUnknownCount: number;
   totalUncomparedCount: number;
   initialOpenGroupId: string;
 }
@@ -130,16 +133,73 @@ export function slugify(text: string): string {
 }
 
 /**
+ * Kiểm tra xem một bộ lọc có đang thực sự che giấu mục tiêu đích hay không
+ */
+export function shouldUnhideFilterForTarget(
+  currentFilter: 'all' | 'must_have' | 'gap',
+  targetItem: EvidenceItem | undefined
+): boolean {
+  if (!targetItem) return false;
+  if (currentFilter === 'all') return false;
+  if (currentFilter === 'must_have' && !targetItem.isMustHave) return true;
+  if (currentFilter === 'gap' && targetItem.matchStatus !== 'thieu') return true;
+  return false;
+}
+
+/**
+ * Chuẩn hóa và khử trùng lặp danh sách jdKeywords.
+ * Giữ nguyên cờ Must-Have nếu có xung đột trùng lặp (AWS vs aws).
+ */
+export function deduplicateKeywords(rawKeywords: JDKeyword[]): JDKeyword[] {
+  const map = new Map<string, JDKeyword>();
+
+  for (const kw of rawKeywords) {
+    if (!kw || !kw.keyword || !kw.keyword.trim()) continue;
+    const normKey = kw.keyword.trim().toLowerCase();
+
+    if (!map.has(normKey)) {
+      map.set(normKey, {
+        ...kw,
+        keyword: kw.keyword.trim(),
+      });
+    } else {
+      const existing = map.get(normKey)!;
+      // Bảo toàn cờ Must-Have: nếu bất kỳ bản ghi trùng nào là Must-Have, giữ Must-Have = true
+      const isMustHave = Boolean(existing.isMustHave || kw.isMustHave);
+
+      // Ưu tiên độ quan trọng cao nhất
+      let importance = existing.importance;
+      if (kw.importance === 'Rất quan trọng' || existing.importance === 'Rất quan trọng') {
+        importance = 'Rất quan trọng';
+      } else if (kw.importance === 'Quan trọng' || existing.importance === 'Quan trọng') {
+        importance = 'Quan trọng';
+      }
+
+      const category = existing.category || kw.category;
+
+      map.set(normKey, {
+        keyword: existing.keyword,
+        category,
+        importance,
+        isMustHave,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+/**
  * Tính toán fingerprint nội dung duy nhất cho một bản phân tích.
- * Độc lập với ngôn ngữ UI; thay đổi ngay cả khi company, jobTitle, score giống nhau
- * nhưng các tiêu chí, từ khóa hoặc kết quả chi tiết khác nhau.
+ * Độc lập với ngôn ngữ UI; phản ánh mọi thay đổi trong comparisonTable (term, category, importance, cvEvidence, status)
+ * và jdKeywords (keyword, category, importance, isMustHave).
  */
 export function computeAnalysisFingerprint(
   analysis: CompleteCVAnalysisResponse | null | undefined
 ): string {
   if (!analysis) return 'empty';
 
-  // 1. Neu co requestId hoac id dinh danh tu backend
+  // 1. Ưu tiên requestId hoặc id định danh từ backend/lịch sử
   const anyAnalysis = analysis as Record<string, any>;
   const reqId =
     anyAnalysis.requestId ||
@@ -147,23 +207,40 @@ export function computeAnalysisFingerprint(
     anyAnalysis.audit?.requestId ||
     anyAnalysis.id;
 
-  // 2. Fingerprint chi tiết từ danh sách đối chiếu
+  // 2. Fingerprint chi tiết từ comparisonTable
   const tablePart = (analysis.feature1?.comparisonTable || [])
-    .map((r) => `${r.jdTerm || ''}:${r.matchStatus || ''}:${r.isMustHave ?? ''}`)
+    .map((r) => [
+      r.jdTerm || '',
+      r.matchStatus || '',
+      r.isMustHave ?? '',
+      r.importance || '',
+      r.cvEvidence || '',
+      r.gapOrClarification || '',
+      r.targetSection || '',
+    ].join('~'))
     .sort()
     .join(';');
 
-  // 3. Fingerprint từ danh sách từ khóa
+  // 3. Fingerprint từ jdKeywords
   const kwPart = (analysis.feature1?.jdKeywords || [])
-    .map((k) => `${k.keyword || ''}:${k.isMustHave ?? ''}`)
+    .map((k) => [
+      k.keyword || '',
+      k.category || '',
+      k.importance || '',
+      k.isMustHave ?? '',
+    ].join('~'))
     .sort()
     .join(';');
 
-  const scorePart = analysis.feature1?.scores?.overallRoleScore ?? 0;
+  const scores = analysis.feature1?.scores;
+  const scorePart = scores
+    ? `${scores.overallRoleScore}_${scores.keywordMatchScore}_${scores.skillMatchScore}_${scores.experienceOutcomeScore}`
+    : '0';
+
   const companyPart = analysis.companyName || '';
   const titlePart = analysis.jobTitle || '';
 
-  return `${reqId ? `req:${reqId}_` : ''}${companyPart}_${titlePart}_${scorePart}_[${tablePart}]_[${kwPart}]`;
+  return `${reqId ? `req:${reqId}_` : ''}${companyPart}_${titlePart}_[scores:${scorePart}]_[table:${tablePart}]_[kw:${kwPart}]`;
 }
 
 /**
@@ -183,10 +260,8 @@ export function isExactWordOrPhraseMatch(term: string, text: string): boolean {
   const trimmedText = text.trim();
   if (!trimmedTerm || !trimmedText) return false;
 
-  // Nếu term và text giống hệt nhau
   if (trimmedTerm.toLowerCase() === trimmedText.toLowerCase()) return true;
 
-  // Sử dụng ranh giới từ hoặc ký tự phân cách lập trình (+, #, ., -, space, dấu câu)
   const escaped = escapeRegex(trimmedTerm);
   const regex = new RegExp(`(^|[^a-zA-Z0-9_#+.-])${escaped}([^a-zA-Z0-9_#+.-]|$)`, 'i');
   return regex.test(trimmedText);
@@ -214,6 +289,7 @@ export function buildEvidenceMapViewModel(
         mustHavePassed: 0,
         mustHavePartial: 0,
         mustHaveGap: 0,
+        mustHaveUnknown: 0,
         mustHaveUncompared: 0,
         mustHaveSource: 'none',
         explicitMustHaveCount: 0,
@@ -226,6 +302,7 @@ export function buildEvidenceMapViewModel(
       totalCriteriaCount: 0,
       totalMustHaveCount: 0,
       totalGapCount: 0,
+      totalUnknownCount: 0,
       totalUncomparedCount: 0,
       initialOpenGroupId: 'tech',
     };
@@ -234,15 +311,14 @@ export function buildEvidenceMapViewModel(
   const rawRows: ComparisonRow[] = analysis.feature1.comparisonTable || [];
   const rawKeywords: JDKeyword[] = analysis.feature1.jdKeywords || [];
 
-  // Tạo map từ keyword để tra cứu category & isMustHave nếu comparisonRow bị thiếu
+  // 1. Chuẩn hóa và khử trùng lặp tập từ khóa gốc
+  const normalizedKeywords = deduplicateKeywords(rawKeywords);
   const keywordLookup = new Map<string, JDKeyword>();
-  for (const kw of rawKeywords) {
-    if (kw && kw.keyword) {
-      keywordLookup.set(kw.keyword.trim().toLowerCase(), kw);
-    }
+  for (const kw of normalizedKeywords) {
+    keywordLookup.set(kw.keyword.toLowerCase(), kw);
   }
 
-  // 1. Khử trùng lặp (Deduplication) và chuẩn hóa Comparison Rows
+  // 2. Khử trùng lặp (Deduplication) và chuẩn hóa Comparison Rows
   const processedRowsMap = new Map<string, EvidenceItem>();
 
   for (let i = 0; i < rawRows.length; i++) {
@@ -293,7 +369,6 @@ export function buildEvidenceMapViewModel(
       suggestedPhrasing: row.suggestedPhrasing?.trim(),
     };
 
-    // Nếu trùng termKey: giữ item có nhiều bằng chứng hơn hoặc có isMustHave
     if (processedRowsMap.has(termKey)) {
       const existing = processedRowsMap.get(termKey)!;
       if (!existing.cvEvidence && item.cvEvidence) {
@@ -308,11 +383,10 @@ export function buildEvidenceMapViewModel(
 
   const items = Array.from(processedRowsMap.values());
 
-  // 2. Tìm các Keywords chưa có dòng đối chiếu (Uncompared Keywords)
+  // 3. Tìm các Keywords chưa có dòng đối chiếu (Uncompared Keywords từ tập normalizedKeywords)
   const uncomparedKeywords: UncomparedKeywordItem[] = [];
-  for (const kw of rawKeywords) {
-    if (!kw || !kw.keyword) continue;
-    const termKey = kw.keyword.trim().toLowerCase();
+  for (const kw of normalizedKeywords) {
+    const termKey = kw.keyword.toLowerCase();
     if (!processedRowsMap.has(termKey)) {
       let isMustHave = false;
       let mustHaveSource: 'explicit' | 'inferred_importance' | 'none' = 'none';
@@ -333,7 +407,7 @@ export function buildEvidenceMapViewModel(
     }
   }
 
-  // 3. Nhóm vào 5 Nhóm Năng Lực Chuẩn + 1 Nhóm Chưa Phân Loại nếu có
+  // 4. Nhóm vào 5 Nhóm Năng Lực Chuẩn + 1 Nhóm Chưa Phân Loại nếu có
   const groupBuckets: Record<string, EvidenceItem[]> = {
     tech: [],
     tools: [],
@@ -365,6 +439,7 @@ export function buildEvidenceMapViewModel(
     let unknownCount = 0;
     let mustHaveGapCount = 0;
     let mustHavePartialCount = 0;
+    let mustHaveUnknownCount = 0;
 
     for (const it of bucketItems) {
       if (it.matchStatus === 'khop') {
@@ -377,6 +452,7 @@ export function buildEvidenceMapViewModel(
         if (it.isMustHave) mustHaveGapCount++;
       } else {
         unknownCount++;
+        if (it.isMustHave) mustHaveUnknownCount++;
       }
     }
 
@@ -391,11 +467,11 @@ export function buildEvidenceMapViewModel(
       unknownCount,
       mustHaveGapCount,
       mustHavePartialCount,
+      mustHaveUnknownCount,
       items: bucketItems,
     });
   }
 
-  // Thêm nhóm Chưa phân loại nếu có item
   if (groupBuckets.unclassified.length > 0) {
     const unclassItems = groupBuckets.unclassified;
     let matchedCount = 0;
@@ -404,6 +480,7 @@ export function buildEvidenceMapViewModel(
     let unknownCount = 0;
     let mustHaveGapCount = 0;
     let mustHavePartialCount = 0;
+    let mustHaveUnknownCount = 0;
 
     for (const it of unclassItems) {
       if (it.matchStatus === 'khop') {
@@ -416,6 +493,7 @@ export function buildEvidenceMapViewModel(
         if (it.isMustHave) mustHaveGapCount++;
       } else {
         unknownCount++;
+        if (it.isMustHave) mustHaveUnknownCount++;
       }
     }
 
@@ -430,21 +508,25 @@ export function buildEvidenceMapViewModel(
       unknownCount,
       mustHaveGapCount,
       mustHavePartialCount,
+      mustHaveUnknownCount,
       items: unclassItems,
     });
   }
 
-  // 4. Tổng hợp số liệu Must-Have toàn hệ thống (Đầy đủ cả Đã đối chiếu + Chưa đối chiếu)
+  // 5. Tổng hợp số liệu Must-Have toàn hệ thống (ĐẦY ĐỦ: passed + partial + gap + unknown + uncompared)
   let explicitMustHaveCount = 0;
   let inferredMustHaveCount = 0;
 
   let mustHavePassed = 0;
   let mustHavePartial = 0;
   let mustHaveGap = 0;
+  let mustHaveUnknown = 0;
   let totalGapCount = 0;
+  let totalUnknownCount = 0;
 
   for (const it of items) {
     if (it.matchStatus === 'thieu') totalGapCount++;
+    if (it.matchStatus === 'unknown') totalUnknownCount++;
 
     if (it.isMustHave) {
       if (it.mustHaveSource === 'explicit') explicitMustHaveCount++;
@@ -453,10 +535,11 @@ export function buildEvidenceMapViewModel(
       if (it.matchStatus === 'khop') mustHavePassed++;
       else if (it.matchStatus === 'can_bo_sung') mustHavePartial++;
       else if (it.matchStatus === 'thieu') mustHaveGap++;
+      else if (it.matchStatus === 'unknown') mustHaveUnknown++; // KHÔNG ĐƯỢC BỎ QUÊN UNKNOWN!
     }
   }
 
-  // Đếm Must-Have trong uncomparedKeywords
+  // Đếm Must-Have trong uncomparedKeywords (đã khử trùng lặp)
   let mustHaveUncompared = 0;
   for (const uk of uncomparedKeywords) {
     if (uk.isMustHave) {
@@ -466,11 +549,11 @@ export function buildEvidenceMapViewModel(
     }
   }
 
-  const mustHaveEvaluated = mustHavePassed + mustHavePartial + mustHaveGap;
+  // Bất biến: totalMustHaveCount = passed + partial + gap + unknown + uncompared
+  const mustHaveEvaluated = mustHavePassed + mustHavePartial + mustHaveGap + mustHaveUnknown;
   const totalMustHaveCount = mustHaveEvaluated + mustHaveUncompared;
   const hasMustHaveData = totalMustHaveCount > 0;
 
-  // Xác định nguồn gốc tổng thể: explicit, inferred, mixed hoặc none
   let primaryMustHaveSource: MustHaveSource = 'none';
   if (explicitMustHaveCount > 0 && inferredMustHaveCount > 0) {
     primaryMustHaveSource = 'mixed';
@@ -480,7 +563,7 @@ export function buildEvidenceMapViewModel(
     primaryMustHaveSource = 'inferred_importance';
   }
 
-  // 5. Xác định nhóm ưu tiên mở lần đầu (Initial Open Group Algorithm)
+  // 6. Xác định nhóm ưu tiên mở lần đầu
   let initialOpenGroupId = groups[0]?.id || 'tech';
   const groupsWithItems = groups.filter((g) => g.total > 0);
 
@@ -492,6 +575,9 @@ export function buildEvidenceMapViewModel(
       if (b.mustHavePartialCount !== a.mustHavePartialCount) {
         return b.mustHavePartialCount - a.mustHavePartialCount;
       }
+      if (b.mustHaveUnknownCount !== a.mustHaveUnknownCount) {
+        return b.mustHaveUnknownCount - a.mustHaveUnknownCount;
+      }
       if (b.gapCount !== a.gapCount) {
         return b.gapCount - a.gapCount;
       }
@@ -501,7 +587,7 @@ export function buildEvidenceMapViewModel(
     initialOpenGroupId = sorted[0].id;
   }
 
-  // 6. Xây dựng Verdict Statement chuẩn mực có căn cứ
+  // 7. Xây dựng Verdict Statement chuẩn mực có căn cứ
   let verdictStatement = '';
   if (hasMustHaveData) {
     if (isVi) {
@@ -514,6 +600,9 @@ export function buildEvidenceMapViewModel(
       if (mustHaveGap > 0) {
         extraClauses.push(`${mustHaveGap} yêu cầu chưa thấy bằng chứng`);
       }
+      if (mustHaveUnknown > 0) {
+        extraClauses.push(`${mustHaveUnknown} yêu cầu chưa xác định được trạng thái`);
+      }
       if (mustHaveUncompared > 0) {
         extraClauses.push(`${mustHaveUncompared} yêu cầu bắt buộc chưa được đối chiếu`);
       }
@@ -521,7 +610,7 @@ export function buildEvidenceMapViewModel(
       if (extraClauses.length > 0) {
         verdictStatement += `; ${extraClauses.join(', ')}.`;
       } else {
-        // Chỉ kết luận đầy đủ khi không còn gap, không còn partial VÀ không còn uncompared!
+        // CHỈ kết luận đầy đủ khi không còn partial, gap, unknown VÀ uncompared!
         verdictStatement += ` và đáp ứng đầy đủ tất cả các yêu cầu cốt lõi.`;
       }
     } else {
@@ -534,6 +623,9 @@ export function buildEvidenceMapViewModel(
       if (mustHaveGap > 0) {
         extraClauses.push(`${mustHaveGap} lacking evidence`);
       }
+      if (mustHaveUnknown > 0) {
+        extraClauses.push(`${mustHaveUnknown} with unknown status`);
+      }
       if (mustHaveUncompared > 0) {
         extraClauses.push(`${mustHaveUncompared} mandatory requirement(s) uncompared`);
       }
@@ -545,7 +637,6 @@ export function buildEvidenceMapViewModel(
       }
     }
   } else {
-    // Không có Must-Have -> Trung tính, không gán 100%
     if (isVi) {
       verdictStatement = `Hệ thống ghi nhận ${items.length} tiêu chí đối chiếu (chưa xác định yêu cầu bắt buộc cụ thể trong JD); trong đó có ${totalGapCount} tiêu chí chưa thấy bằng chứng.`;
     } else {
@@ -553,13 +644,12 @@ export function buildEvidenceMapViewModel(
     }
   }
 
-  // 7. Xây dựng Top Quick Wins với liên kết xác định không suy đoán
+  // 8. Xây dựng Top Quick Wins với liên kết xác định không suy đoán
   const quickWins: QuickWinAction[] = [];
   const rawFixes = analysis.feature3?.top3MustFix || [];
   const rawImmediate = analysis.feature1?.summary?.immediateActions || [];
   const candidateFixes = rawFixes.length > 0 ? rawFixes : rawImmediate;
 
-  // Lọc các items có khoảng trống cần sửa, sắp xếp theo độ dài term giảm dần để ưu tiên term dài (tránh Java ăn vào JavaScript)
   const sortedGapItems = [...items]
     .filter((it) => it.matchStatus === 'thieu' || it.matchStatus === 'can_bo_sung')
     .sort((a, b) => b.term.length - a.term.length);
@@ -568,7 +658,6 @@ export function buildEvidenceMapViewModel(
     const fixText = candidateFixes[idx]?.trim();
     if (!fixText) continue;
 
-    // Tìm tất cả các items khớp với fixText bằng từ/ngữ độc lập
     const matchedItems: EvidenceItem[] = [];
     for (const it of sortedGapItems) {
       if (isExactWordOrPhraseMatch(it.term, fixText)) {
@@ -579,8 +668,6 @@ export function buildEvidenceMapViewModel(
     let targetGroupId: string | undefined;
     let targetItemId: string | undefined;
 
-    // CHỈ liên kết khi có DUY NHẤT 1 item khớp rõ ràng.
-    // Nếu fixText nhắc nhiều tiêu chí cùng lúc hoặc không khớp tiêu chí nào, không được suy đoán bừa!
     if (matchedItems.length === 1) {
       const singleMatch = matchedItems[0];
       targetItemId = singleMatch.id;
@@ -598,8 +685,6 @@ export function buildEvidenceMapViewModel(
     });
   }
 
-  // Nếu không có Quick Win nào từ candidateFixes có thể liên kết,
-  // hoặc candidateFixes rỗng, tạo Quick Win trực tiếp từ các Must-Have Gap items có ID chắc chắn 100%!
   if (quickWins.length === 0 || quickWins.every((qw) => !qw.targetItemId)) {
     const mustHaveGaps = items.filter((it) => it.isMustHave && it.matchStatus === 'thieu');
     for (let k = 0; k < Math.min(mustHaveGaps.length, 3); k++) {
@@ -619,10 +704,8 @@ export function buildEvidenceMapViewModel(
     }
   }
 
-  // Cắt tối đa 3 Quick Wins
   const finalQuickWins = quickWins.slice(0, 3);
 
-  // Điểm số và nhận định
   const overallScore = analysis.feature1?.scores?.overallRoleScore || 0;
   const scoreRationale =
     analysis.feature1?.scores?.overallRationale ||
@@ -638,6 +721,7 @@ export function buildEvidenceMapViewModel(
       mustHavePassed,
       mustHavePartial,
       mustHaveGap,
+      mustHaveUnknown,
       mustHaveUncompared,
       mustHaveSource: primaryMustHaveSource,
       explicitMustHaveCount,
@@ -653,6 +737,7 @@ export function buildEvidenceMapViewModel(
     totalCriteriaCount: items.length,
     totalMustHaveCount,
     totalGapCount,
+    totalUnknownCount,
     totalUncomparedCount: uncomparedKeywords.length,
     initialOpenGroupId,
   };
