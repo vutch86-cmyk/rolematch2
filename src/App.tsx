@@ -5,7 +5,7 @@ import { CompactContextBar } from './components/CompactContextBar';
 import { KeywordMatchTab } from './components/KeywordMatchTab';
 import { ExecutiveHeroCard } from './components/ExecutiveHeroCard';
 import { EvidenceMapTab, CompetencyFilterType } from './components/EvidenceMapTab';
-import { buildEvidenceMapViewModel, QuickWinAction } from './utils/evidenceMapAdapter';
+import { buildEvidenceMapViewModel, QuickWinAction, computeAnalysisFingerprint } from './utils/evidenceMapAdapter';
 import { BulletPointRewriteTab } from './components/BulletPointRewriteTab';
 import { RecruiterScanTab } from './components/RecruiterScanTab';
 import { InterviewPrepTab } from './components/InterviewPrepTab';
@@ -354,10 +354,17 @@ export default function App() {
     return buildEvidenceMapViewModel(analysis, lang as 'vi' | 'en');
   }, [analysis, lang]);
 
-  // Khi phan tich moi nap vao: khoi tao lai nhom uu tien mo va reset filter
+  const activeNavCancelRef = useRef<(() => void) | null>(null);
+
+  // Khi phan tich moi nap vao: dung fingerprint noi dung tin cay de khoi tao lai
   useEffect(() => {
+    if (activeNavCancelRef.current) {
+      activeNavCancelRef.current();
+      activeNavCancelRef.current = null;
+    }
+
     if (analysis && analysis.feature1) {
-      const currentKey = `${analysis.companyName || ''}-${analysis.jobTitle || ''}-${analysis.feature1.scores?.overallRoleScore || 0}-${analysis.feature1.comparisonTable?.length || 0}`;
+      const currentKey = computeAnalysisFingerprint(analysis);
       if (currentKey !== analysisSnapshotKey) {
         setAnalysisSnapshotKey(currentKey);
         setExpandedCompetencyGroups(new Set([evidenceMapViewModel.initialOpenGroupId]));
@@ -368,6 +375,15 @@ export default function App() {
       setAnalysisSnapshotKey(null);
     }
   }, [analysis, evidenceMapViewModel.initialOpenGroupId, analysisSnapshotKey]);
+
+  // Huy dieu huong khi component unmount
+  useEffect(() => {
+    return () => {
+      if (activeNavCancelRef.current) {
+        activeNavCancelRef.current();
+      }
+    };
+  }, []);
 
   const handleToggleCompetencyGroup = (groupId: string) => {
     setExpandedCompetencyGroups((prev) => {
@@ -384,8 +400,26 @@ export default function App() {
   const handleQuickWinClick = (qw: QuickWinAction) => {
     if (!qw.targetItemId) return;
 
+    if (activeNavCancelRef.current) {
+      activeNavCancelRef.current();
+      activeNavCancelRef.current = null;
+    }
+
     setActiveTab('feature1');
-    setCompetencyFilter('all');
+
+    // Chi go bo loc neu bo loc hien tai thuc su che giau target item
+    const targetItem = evidenceMapViewModel.groups
+      .flatMap((g) => g.items)
+      .find((it) => it.id === qw.targetItemId);
+
+    if (targetItem) {
+      const isHiddenByFilter =
+        (competencyFilter === 'must_have' && !targetItem.isMustHave) ||
+        (competencyFilter === 'gap' && targetItem.matchStatus !== 'thieu');
+      if (isHiddenByFilter) {
+        setCompetencyFilter('all');
+      }
+    }
 
     if (qw.targetGroupId) {
       setExpandedCompetencyGroups((prev) => {
@@ -397,24 +431,65 @@ export default function App() {
 
     setHighlightedEvidenceItemId(qw.targetItemId);
 
-    setTimeout(() => {
-      const el = document.getElementById(qw.targetItemId!);
+    let isCancelled = false;
+    let frameId: number | null = null;
+    let pollCount = 0;
+    const maxPolls = 25;
+
+    const findVisibleElement = (itemId: string): HTMLElement | null => {
+      const candidates = document.querySelectorAll(`[data-criterion-id="${itemId}"]`);
+      for (let i = 0; i < candidates.length; i++) {
+        const el = candidates[i] as HTMLElement;
+        if (el.offsetParent !== null || el.getClientRects().length > 0) {
+          return el;
+        }
+      }
+      return document.getElementById(itemId);
+    };
+
+    const pollAndNavigate = () => {
+      if (isCancelled) return;
+
+      const el = findVisibleElement(qw.targetItemId!);
       if (el) {
-        const headerOffset = headerHeight || 80;
+        const topHeaderH = headerHeight || 64;
+        const stickyTabH = tabsHeaderRef.current?.offsetHeight || 56;
+        const totalStickyOffset = topHeaderH + stickyTabH + 20;
         const elementPosition = el.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.pageYOffset - headerOffset - 24;
+        const offsetPosition = elementPosition + window.pageYOffset - totalStickyOffset;
+
+        const prefersReducedMotion =
+          typeof window !== 'undefined' &&
+          window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
         window.scrollTo({
           top: Math.max(0, offsetPosition),
-          behavior: 'smooth',
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
         });
-        el.focus();
-      }
-    }, 120);
 
-    setTimeout(() => {
-      setHighlightedEvidenceItemId((curr) => (curr === qw.targetItemId ? undefined : curr));
+        el.focus({ preventScroll: true });
+        return;
+      }
+
+      pollCount++;
+      if (pollCount < maxPolls) {
+        frameId = requestAnimationFrame(pollAndNavigate);
+      }
+    };
+
+    frameId = requestAnimationFrame(pollAndNavigate);
+
+    const timerId = setTimeout(() => {
+      if (!isCancelled) {
+        setHighlightedEvidenceItemId((curr) => (curr === qw.targetItemId ? undefined : curr));
+      }
     }, 2500);
+
+    activeNavCancelRef.current = () => {
+      isCancelled = true;
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      clearTimeout(timerId);
+    };
   };
   const [copiedReport, setCopiedReport] = useState<boolean>(false);
   const [currentRoleTitle, setCurrentRoleTitle] = useState<string>('');

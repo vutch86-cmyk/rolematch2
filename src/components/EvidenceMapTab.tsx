@@ -8,6 +8,7 @@ import {
   Sparkles,
   Info,
   Layers,
+  HelpCircle,
 } from 'lucide-react';
 import {
   CompetencyGroup,
@@ -130,6 +131,7 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
           const passedPct = totalInGroup > 0 ? (group.matchedCount / totalInGroup) * 100 : 0;
           const partialPct = totalInGroup > 0 ? (group.partialCount / totalInGroup) * 100 : 0;
           const gapPct = totalInGroup > 0 ? (group.gapCount / totalInGroup) * 100 : 0;
+          const unknownPct = totalInGroup > 0 ? (group.unknownCount / totalInGroup) * 100 : 0;
 
           return (
             <div
@@ -167,18 +169,39 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                   <div className="flex flex-col items-end gap-1">
                     <div
                       className="w-32 sm:w-48 h-2 rounded-full bg-slate-200 overflow-hidden flex"
-                      title={`${group.matchedCount} Đủ | ${group.partialCount} Một phần | ${group.gapCount} Chưa thấy`}
+                      title={
+                        isVi
+                          ? `${group.matchedCount} Đủ | ${group.partialCount} Một phần | ${group.gapCount} Chưa thấy`
+                          : `${group.matchedCount} Met | ${group.partialCount} Partial | ${group.gapCount} Missing`
+                      }
                     >
                       <div className="bg-emerald-500 h-full" style={{ width: `${passedPct}%` }} />
                       <div className="bg-amber-400 h-full" style={{ width: `${partialPct}%` }} />
                       <div className="bg-rose-500 h-full" style={{ width: `${gapPct}%` }} />
+                      {group.unknownCount > 0 && (
+                        <div className="bg-slate-400 h-full" style={{ width: `${unknownPct}%` }} />
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
-                      <span className="text-emerald-700 font-bold">{group.matchedCount} Đủ</span>
+                      <span className="text-emerald-700 font-bold">
+                        {group.matchedCount} {isVi ? 'Đủ' : 'Met'}
+                      </span>
                       <span>•</span>
-                      <span className="text-amber-700 font-bold">{group.partialCount} Một phần</span>
+                      <span className="text-amber-700 font-bold">
+                        {group.partialCount} {isVi ? 'Một phần' : 'Partial'}
+                      </span>
                       <span>•</span>
-                      <span className="text-rose-600 font-bold">{group.gapCount} Chưa thấy</span>
+                      <span className="text-rose-600 font-bold">
+                        {group.gapCount} {isVi ? 'Chưa thấy' : 'Missing'}
+                      </span>
+                      {group.unknownCount > 0 && (
+                        <>
+                          <span>•</span>
+                          <span className="text-slate-500 font-bold">
+                            {group.unknownCount} {isVi ? 'Chưa xác định' : 'Unknown'}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -202,7 +225,7 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                     </div>
                   ) : (
                     <>
-                      {/* Desktop Table View (>= 768px) */}
+                      {/* Desktop Table View (>= 768px) - ID riêng biệt cho desktop */}
                       <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
@@ -220,7 +243,9 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                               return (
                                 <tr
                                   key={item.id}
-                                  id={item.id}
+                                  id={`criterion-desktop-${item.id}`}
+                                  data-criterion-id={item.id}
+                                  data-device-target="desktop"
                                   tabIndex={-1}
                                   className={`transition-all ${
                                     isHighlighted
@@ -261,6 +286,12 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                                             {isVi ? 'Chưa thấy' : 'Missing'}
                                           </span>
                                         )}
+                                        {item.matchStatus === 'unknown' && (
+                                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500">
+                                            <HelpCircle className="w-3.5 h-3.5" />
+                                            {isVi ? 'Chưa xác định' : 'Unknown'}
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                   </td>
@@ -278,15 +309,23 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                                     )}
                                   </td>
 
-                                  {/* Khoảng trống */}
+                                  {/* Khoảng trống - Xử lý trung thực không bịa 'Đã thể hiện tốt' */}
                                   <td className="py-3 px-3 align-top">
                                     {item.gapOrClarification ? (
                                       <p className="text-slate-700 leading-relaxed">
                                         {item.gapOrClarification}
                                       </p>
-                                    ) : (
+                                    ) : item.matchStatus === 'khop' ? (
                                       <span className="text-emerald-700 font-semibold">
                                         {isVi ? 'Đã thể hiện tốt' : 'Well represented'}
+                                      </span>
+                                    ) : item.matchStatus === 'thieu' ? (
+                                      <span className="text-rose-600 italic">
+                                        {isVi ? 'Chưa tìm thấy bằng chứng trong hồ sơ' : 'No evidence found in profile'}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400 italic">
+                                        {isVi ? 'Chưa ghi nhận đánh giá' : 'Not evaluated'}
                                       </span>
                                     )}
                                   </td>
@@ -314,7 +353,7 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                         </table>
                       </div>
 
-                      {/* Mobile Card-based View (< 768px) */}
+                      {/* Mobile Card-based View (< 768px) - ID riêng biệt cho mobile */}
                       <div className="md:hidden space-y-3">
                         {visibleItems.map((item) => {
                           const isHighlighted = highlightedItemId === item.id;
@@ -322,7 +361,9 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                           return (
                             <div
                               key={item.id}
-                              id={item.id}
+                              id={`criterion-mobile-${item.id}`}
+                              data-criterion-id={item.id}
+                              data-device-target="mobile"
                               tabIndex={-1}
                               className={`bg-white rounded-xl p-3.5 border text-xs space-y-2.5 transition-all ${
                                 isHighlighted
@@ -367,6 +408,12 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                                       {isVi ? 'Chưa thấy' : 'Missing'}
                                     </span>
                                   )}
+                                  {item.matchStatus === 'unknown' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                      <HelpCircle className="w-3.5 h-3.5" />
+                                      {isVi ? 'Chưa xác định' : 'Unknown'}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 
@@ -386,17 +433,29 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
                                 )}
                               </div>
 
-                              {/* Khoảng trống */}
-                              {item.gapOrClarification && (
-                                <div className="space-y-1">
-                                  <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">
-                                    {isVi ? 'Khoảng trống cần làm rõ:' : 'Identified Gap:'}
-                                  </span>
+                              {/* Khoảng trống - Xử lý trung thực không bịa */}
+                              <div className="space-y-1">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                  {isVi ? 'Khoảng trống cần làm rõ:' : 'Identified Gap:'}
+                                </span>
+                                {item.gapOrClarification ? (
                                   <p className="text-slate-700 leading-relaxed">
                                     {item.gapOrClarification}
                                   </p>
-                                </div>
-                              )}
+                                ) : item.matchStatus === 'khop' ? (
+                                  <p className="text-emerald-700 font-semibold">
+                                    {isVi ? 'Đã thể hiện tốt' : 'Well represented'}
+                                  </p>
+                                ) : item.matchStatus === 'thieu' ? (
+                                  <p className="text-rose-600 italic">
+                                    {isVi ? 'Chưa tìm thấy bằng chứng trong hồ sơ' : 'No evidence found in profile'}
+                                  </p>
+                                ) : (
+                                  <p className="text-slate-400 italic">
+                                    {isVi ? 'Chưa ghi nhận đánh giá' : 'Not evaluated'}
+                                  </p>
+                                )}
+                              </div>
 
                               {/* Gợi ý mẫu */}
                               {item.suggestedPhrasing && (
@@ -445,10 +504,20 @@ export const EvidenceMapTab: React.FC<EvidenceMapTabProps> = ({
             {uncomparedKeywords.map((kw, i) => (
               <span
                 key={`uncompared-${i}`}
-                className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium text-[11px]"
+                className={`px-2.5 py-1 rounded-lg border font-medium text-[11px] flex items-center gap-1.5 ${
+                  kw.isMustHave
+                    ? 'bg-rose-50 border-rose-200 text-rose-800 font-bold'
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
               >
                 {kw.keyword}
-                <span className="text-[9px] text-slate-400 ml-1">({kw.importance})</span>
+                {kw.isMustHave ? (
+                  <span className="text-[9px] px-1 rounded bg-rose-100 text-rose-700 uppercase">
+                    {isVi ? 'Bắt buộc • Chưa đối chiếu' : 'Must-Have • Uncompared'}
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-slate-400">({kw.importance})</span>
+                )}
               </span>
             ))}
           </div>

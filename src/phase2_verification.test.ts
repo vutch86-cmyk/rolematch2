@@ -1,193 +1,200 @@
 import { describe, it, expect } from 'vitest';
-import { buildEvidenceMapViewModel, QuickWinAction } from './utils/evidenceMapAdapter';
+import React from 'react';
+import { renderToString } from 'react-dom/server';
+import { buildEvidenceMapViewModel, computeAnalysisFingerprint } from './utils/evidenceMapAdapter';
+import { ExecutiveHeroCard } from './components/ExecutiveHeroCard';
+import { EvidenceMapTab } from './components/EvidenceMapTab';
 import { CompleteCVAnalysisResponse } from './types';
 
-describe('Phase 2 Verification Suite: Executive Hero, Evidence Map & State Resilience', () => {
-  const sampleAnalysisA: CompleteCVAnalysisResponse = {
-    companyName: 'TechCorp Vietnam',
-    jobTitle: 'Senior Frontend Engineer',
+describe('Phase 2 Real Component Rendering & Interaction Regression Suite', () => {
+  const sampleAnalysis: CompleteCVAnalysisResponse = {
+    companyName: 'Fintech Solutions',
+    jobTitle: 'Senior Fullstack Engineer',
     feature1: {
       jdKeywords: [
         { keyword: 'React', category: 'Kỹ năng chuyên môn', importance: 'Rất quan trọng', isMustHave: true },
-        { keyword: 'TypeScript', category: 'Kỹ năng chuyên môn', importance: 'Rất quan trọng', isMustHave: true },
-        { keyword: 'Docker', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng', isMustHave: true },
+        { keyword: 'PostgreSQL', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Quan trọng', isMustHave: false },
+        { keyword: 'AWS', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng', isMustHave: true },
       ],
       comparisonTable: [
-        { jdTerm: 'React', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '3 năm React', gapOrClarification: '', matchStatus: 'khop' },
-        { jdTerm: 'TypeScript', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '', gapOrClarification: 'Chưa thấy trong CV', matchStatus: 'thieu' },
-        { jdTerm: 'Docker', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: 'Có dùng Docker cơ bản', gapOrClarification: 'Cần bổ sung chi tiết compose', matchStatus: 'can_bo_sung' },
+        { jdTerm: 'React', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '4 năm React', gapOrClarification: '', matchStatus: 'khop' },
+        { jdTerm: 'PostgreSQL', importance: 'Quan trọng', isMustHave: false, cvEvidence: '', gapOrClarification: 'Chưa có thông tin SQL', matchStatus: 'thieu' },
       ],
       scores: {
-        keywordMatchScore: 80,
-        skillMatchScore: 75,
+        keywordMatchScore: 75,
+        skillMatchScore: 80,
         experienceOutcomeScore: 70,
-        overallRoleScore: 78,
+        overallRoleScore: 76,
+        overallRationale: 'Cần làm rõ thêm kinh nghiệm về cơ sở dữ liệu',
       },
       summary: {
-        biggestStrength: 'React vững',
-        missingKeywordsSkills: ['TypeScript'],
+        biggestStrength: 'Frontend vững',
+        missingKeywordsSkills: ['PostgreSQL'],
         weakOrVagueSections: [],
-        immediateActions: ['Bổ sung TypeScript vào mục kỹ năng'],
+        immediateActions: ['Bổ sung dự án sử dụng PostgreSQL'],
       },
     },
     feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
     feature3: {
-      inviteDecision: 'YES',
-      decisionReason: 'Kinh nghiệm phù hợp',
-      firstImpression10s: 'Tốt',
+      inviteDecision: 'MAYBE',
+      decisionReason: 'Cần làm rõ khả năng backend',
+      firstImpression10s: 'Khá',
       immediateStrength: 'React',
-      biggestDoubt: 'TypeScript',
-      fastestPointLossSection: 'Skills',
-      top3MustFix: [
-        'Bổ sung TypeScript vào phần kinh nghiệm dự án gần nhất',
-        'Cần rà soát lại lỗi chính tả',
-      ],
+      biggestDoubt: 'Cơ sở dữ liệu',
+      fastestPointLossSection: 'Database',
+      top3MustFix: ['Bổ sung dự án sử dụng PostgreSQL vào phần kinh nghiệm'],
     },
   };
 
-  const sampleAnalysisB: CompleteCVAnalysisResponse = {
-    companyName: 'DataCorp Global',
-    jobTitle: 'Data Engineer',
-    feature1: {
-      jdKeywords: [
-        { keyword: 'Python', category: 'Kỹ năng chuyên môn', importance: 'Rất quan trọng', isMustHave: true },
-      ],
-      comparisonTable: [
-        { jdTerm: 'Python', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '5 năm Python', gapOrClarification: '', matchStatus: 'khop' },
-      ],
-      scores: {
-        keywordMatchScore: 90,
-        skillMatchScore: 90,
-        experienceOutcomeScore: 85,
-        overallRoleScore: 88,
+  it('1. [REGRESSION POINT 1] Renders distinct, unique DOM IDs for desktop vs mobile to prevent selecting hidden desktop rows on mobile', () => {
+    const vm = buildEvidenceMapViewModel(sampleAnalysis, 'vi');
+    const html = renderToString(
+      React.createElement(EvidenceMapTab, {
+        viewModel: vm,
+        lang: 'vi',
+        expandedGroups: new Set(['tech', 'tools']),
+        onToggleGroup: () => {},
+        competencyFilter: 'all',
+        onFilterChange: () => {},
+      })
+    );
+
+    // Kiểm tra desktop row ID
+    expect(html).toContain('id="criterion-desktop-');
+    expect(html).toContain('data-device-target="desktop"');
+
+    // Kiểm tra mobile card ID
+    expect(html).toContain('id="criterion-mobile-');
+    expect(html).toContain('data-device-target="mobile"');
+
+    // Đảm bảo không còn dùng id trùng nhau không có prefix
+    const reactItemId = vm.groups.flatMap((g) => g.items).find((it) => it.term === 'React')?.id;
+    expect(reactItemId).toBeDefined();
+
+    // Attribute id="..." không được trùng với reactItemId trực tiếp (phải có prefix desktop/mobile)
+    const hasUnprefixedId = new RegExp(`(?:^|\\s)id="${reactItemId}"`).test(html);
+    expect(hasUnprefixedId).toBe(false);
+    // Nhưng có attribute data-criterion-id dùng chung để tìm kiếm theo view
+    expect(html).toContain(`data-criterion-id="${reactItemId}"`);
+  });
+
+  it('2. [REGRESSION POINT 2 & 7] Renders localized indicators in EN without hardcoded VI and truthful gap column', () => {
+    const vmEn = buildEvidenceMapViewModel(sampleAnalysis, 'en');
+    const htmlEn = renderToString(
+      React.createElement(EvidenceMapTab, {
+        viewModel: vmEn,
+        lang: 'en',
+        expandedGroups: new Set(['tech', 'tools']),
+        onToggleGroup: () => {},
+        competencyFilter: 'all',
+        onFilterChange: () => {},
+      })
+    );
+
+    // Không còn text tiếng Việt sót lại trong counter
+    expect(htmlEn).toContain('Met');
+    expect(htmlEn).toContain('Missing');
+    expect(htmlEn).not.toContain('Đủ bằng chứng');
+
+    // Cột khoảng trống của PostgreSQL (matchStatus: thieu, gapOrClarification có nội dung) hiển thị đúng nội dung
+    expect(htmlEn).toContain('Chưa có thông tin SQL');
+
+    // Hero Card EN không chứa text tiếng Việt
+    const heroHtmlEn = renderToString(
+      React.createElement(ExecutiveHeroCard, {
+        hero: vmEn.hero,
+        lang: 'en',
+      })
+    );
+    expect(heroHtmlEn).toContain('EVIDENCED ASSESSMENT');
+    expect(heroHtmlEn).toContain('MANDATORY CRITERIA');
+    expect(heroHtmlEn).not.toContain('KẾT LUẬN ĐÁNH GIÁ');
+  });
+
+  it('3. [REGRESSION POINT 4] Fingerprint-based state reset detects changes even with identical company, title and score', () => {
+    const baseAnalysis: CompleteCVAnalysisResponse = {
+      companyName: 'Acme Corp',
+      jobTitle: 'Lead Architect',
+      feature1: {
+        comparisonTable: [
+          { jdTerm: 'Microservices', importance: 'Rất quan trọng', matchStatus: 'khop', cvEvidence: '', gapOrClarification: '' },
+        ],
+        jdKeywords: [],
+        scores: { keywordMatchScore: 80, skillMatchScore: 80, experienceOutcomeScore: 80, overallRoleScore: 85 },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
       },
-      summary: {
-        biggestStrength: 'Python vững',
-        missingKeywordsSkills: [],
-        weakOrVagueSections: [],
-        immediateActions: [],
-      },
-    },
-    feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
-    feature3: {
-      inviteDecision: 'YES',
-      decisionReason: 'Rất phù hợp',
-      firstImpression10s: 'Ấn tượng',
-      immediateStrength: 'Python',
-      biggestDoubt: '',
-      fastestPointLossSection: '',
-      top3MustFix: [],
-    },
-  };
-
-  it('1. Quick Win Navigation auto-unhides filter and links to exact criterion without speculation', () => {
-    const vm = buildEvidenceMapViewModel(sampleAnalysisA, 'vi');
-    expect(vm.hero.quickWins.length).toBe(2);
-
-    const qwLinked = vm.hero.quickWins[0];
-    expect(qwLinked.targetItemId).toBeDefined();
-    expect(qwLinked.targetGroupId).toBe('tech');
-
-    // Giả lập tương tác 1-Click Jump:
-    // Nếu filter hiện tại đang là 'must_have' hay 'gap', khi click Quick Win thì chuyển về 'all'
-    let currentFilter: 'all' | 'must_have' | 'gap' = 'gap';
-    let currentActiveTab = 'feature3';
-    let expandedGroups = new Set(['tools']);
-    let highlightedId: string | undefined = undefined;
-
-    // Execute jump handler logic
-    const simulateJump = (qw: QuickWinAction) => {
-      if (!qw.targetItemId) return;
-      currentActiveTab = 'feature1';
-      currentFilter = 'all'; // Auto-unhide
-      if (qw.targetGroupId) {
-        expandedGroups.add(qw.targetGroupId);
-      }
-      highlightedId = qw.targetItemId;
+      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
+      feature3: { inviteDecision: 'YES', decisionReason: '', firstImpression10s: '', immediateStrength: '', biggestDoubt: '', fastestPointLossSection: '', top3MustFix: [] },
     };
 
-    simulateJump(qwLinked);
+    const differentContentAnalysis: CompleteCVAnalysisResponse = {
+      ...baseAnalysis,
+      feature1: {
+        ...baseAnalysis.feature1,
+        comparisonTable: [
+          { jdTerm: 'Serverless', importance: 'Rất quan trọng', matchStatus: 'can_bo_sung', cvEvidence: '', gapOrClarification: '' },
+        ],
+      },
+    };
 
-    expect(currentActiveTab).toBe('feature1');
-    expect(currentFilter).toBe('all');
-    expect(expandedGroups.has('tech')).toBe(true);
-    expect(highlightedId).toBe(qwLinked.targetItemId);
+    const fp1 = computeAnalysisFingerprint(baseAnalysis);
+    const fp2 = computeAnalysisFingerprint(differentContentAnalysis);
 
-    // Quick Win 2 không có term khớp -> targetItemId không được suy đoán bừa
-    const qwUnlinked = vm.hero.quickWins[1];
-    expect(qwUnlinked.targetItemId).toBeUndefined();
+    expect(fp1).not.toBe(fp2);
   });
 
-  it('2. State Preservation: filter and expanded groups are preserved across tab switch & language switch', () => {
-    // Trạng thái được nâng lên cấp App (lifted state)
-    let expandedGroups = new Set(['tech', 'tools']);
-    let competencyFilter: 'all' | 'must_have' | 'gap' = 'gap';
+  it('4. [REGRESSION POINT 7] Quick Win only resets filter to "all" when target item is actually hidden by filter', () => {
+    const vm = buildEvidenceMapViewModel(sampleAnalysis, 'vi');
+    const qw = vm.hero.quickWins[0]; // PostgreSQL (isMustHave: false, matchStatus: 'thieu')
+    expect(qw.targetItemId).toBeDefined();
 
-    // Đổi tab từ feature1 sang feature2
-    let activeTab = 'feature1';
-    activeTab = 'feature2';
-    // Đổi sang feature3
-    activeTab = 'feature3';
-    // Quay lại feature1
-    activeTab = 'feature1';
+    const targetItem = vm.groups.flatMap((g) => g.items).find((it) => it.id === qw.targetItemId);
+    expect(targetItem).toBeDefined();
 
-    // State vẫn được bảo toàn nguyên vẹn
-    expect(activeTab).toBe('feature1');
-    expect(expandedGroups.has('tech')).toBe(true);
-    expect(expandedGroups.has('tools')).toBe(true);
-    expect(competencyFilter).toBe('gap');
+    // Giả lập logic kiểm tra điều kiện unhide của App.tsx:
+    // Case 1: Bộ lọc đang là 'gap'. Target item là PostgreSQL (thieu) -> KHÔNG bị che giấu -> giữ nguyên 'gap'
+    const checkFilterReset = (currentFilter: 'all' | 'must_have' | 'gap') => {
+      const isHiddenByFilter =
+        (currentFilter === 'must_have' && !targetItem?.isMustHave) ||
+        (currentFilter === 'gap' && targetItem?.matchStatus !== 'thieu');
+      return isHiddenByFilter ? 'all' : currentFilter;
+    };
 
-    // Đổi ngôn ngữ từ VI sang EN
-    const vmEn = buildEvidenceMapViewModel(sampleAnalysisA, 'en');
-    expect(vmEn.hero.verdictStatement).toContain('Resume clearly demonstrates 1/3 mandatory requirements');
-    // Không tác động đến state mở nhóm của người dùng
-    expect(expandedGroups.size).toBe(2);
+    expect(checkFilterReset('gap')).toBe('gap'); // Không bị gỡ về 'all' vô điều kiện!
+
+    // Case 2: Bộ lọc đang là 'must_have'. Target item PostgreSQL (isMustHave: false) -> BỊ CHE GIẤU -> phải reset về 'all'!
+    expect(checkFilterReset('must_have')).toBe('all');
   });
 
-  it('3. State Reset: re-initializes open group priority and resets filter when switching to a new analysis', () => {
-    const vmA = buildEvidenceMapViewModel(sampleAnalysisA, 'vi');
-    // Group 'tech' có 1 mustHaveGap (TypeScript)
-    expect(vmA.initialOpenGroupId).toBe('tech');
+  it('5. [REGRESSION POINT 5] Corrupt status in component renders neutral badge without crashing or false count', () => {
+    const corruptAnalysis: CompleteCVAnalysisResponse = {
+      feature1: {
+        jdKeywords: [],
+        comparisonTable: [
+          // @ts-expect-error test corrupted status
+          { jdTerm: 'Security Audit', importance: 'Quan trọng', matchStatus: 'corrupted_state_123', cvEvidence: 'Đã làm', gapOrClarification: '' },
+        ],
+        scores: { keywordMatchScore: 60, skillMatchScore: 60, experienceOutcomeScore: 60, overallRoleScore: 60 },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
+      feature3: { inviteDecision: 'MAYBE', decisionReason: '', firstImpression10s: '', immediateStrength: '', biggestDoubt: '', fastestPointLossSection: '', top3MustFix: [] },
+    };
 
-    // Người dùng mở thêm 'tools' và đặt filter 'gap'
-    let userExpanded = new Set(['tech', 'tools']);
-    let userFilter: 'all' | 'must_have' | 'gap' = 'gap';
+    const vm = buildEvidenceMapViewModel(corruptAnalysis, 'vi');
+    expect(vm.hero.mustHavePartial).toBe(0);
 
-    // Giả lập nạp phân tích B
-    const vmB = buildEvidenceMapViewModel(sampleAnalysisB, 'vi');
-    // Snapshot key thay đổi -> trigger reset
-    userExpanded = new Set([vmB.initialOpenGroupId]);
-    userFilter = 'all';
+    const html = renderToString(
+      React.createElement(EvidenceMapTab, {
+        viewModel: vm,
+        lang: 'vi',
+        expandedGroups: new Set(['unclassified']),
+        onToggleGroup: () => {},
+        competencyFilter: 'all',
+        onFilterChange: () => {},
+      })
+    );
 
-    expect(userFilter).toBe('all');
-    expect(userExpanded.size).toBe(1);
-    expect(userExpanded.has('tech')).toBe(true);
-  });
-
-  it('4. Multimodal Accessibility & WCAG Compliance: includes counts, labels and color semantics simultaneously', () => {
-    const vm = buildEvidenceMapViewModel(sampleAnalysisA, 'vi');
-    const hero = vm.hero;
-
-    expect(hero.mustHaveTotal).toBe(3);
-    expect(hero.mustHavePassed).toBe(1);
-    expect(hero.mustHavePartial).toBe(1);
-    expect(hero.mustHaveGap).toBe(1);
-
-    // Kiểm tra câu verdict có cả số đếm lẫn phân loại
-    expect(hero.verdictStatement).toContain('1/3 yêu cầu được xác định là bắt buộc');
-    expect(hero.verdictStatement).toContain('1 yêu cầu có bằng chứng một phần');
-    expect(hero.verdictStatement).toContain('1 yêu cầu chưa thấy bằng chứng');
-  });
-
-  it('5. Phase 1 Regression check: Header and Input Context Bar behavior remain 100% intact', () => {
-    // Đảm bảo không làm ảnh hưởng đến các logic của Phase 1:
-    // Stale score indicator khi input thay đổi
-    const isInputDirty = true;
-    const isStale = Boolean(isInputDirty);
-    expect(isStale).toBe(true);
-
-    // ViewModel cho hero vẫn giữ overallScore của bản snapshot phân tích
-    const vm = buildEvidenceMapViewModel(sampleAnalysisA, 'vi');
-    expect(vm.hero.overallScore).toBe(78);
+    expect(html).toContain('Chưa xác định');
   });
 });

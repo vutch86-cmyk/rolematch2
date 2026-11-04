@@ -24,6 +24,8 @@ export const ExecutiveHeroCard: React.FC<ExecutiveHeroCardProps> = ({
     hero.mustHaveTotal > 0 ? (hero.mustHavePartial / hero.mustHaveTotal) * 100 : 0;
   const gapPct =
     hero.mustHaveTotal > 0 ? (hero.mustHaveGap / hero.mustHaveTotal) * 100 : 0;
+  const uncomparedPct =
+    hero.mustHaveTotal > 0 ? (hero.mustHaveUncompared / hero.mustHaveTotal) * 100 : 0;
 
   return (
     <section
@@ -46,10 +48,28 @@ export const ExecutiveHeroCard: React.FC<ExecutiveHeroCardProps> = ({
             </span>
           )}
 
-          {hero.mustHaveSource === 'inferred_importance' && hero.hasMustHaveData && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-slate-500 bg-slate-100 border border-slate-200">
-              {isVi ? 'Must-Have dựa trên độ quan trọng cao nhất JD' : 'Must-Have inferred from top JD importance'}
-            </span>
+          {hero.hasMustHaveData && (
+            <>
+              {hero.mustHaveSource === 'mixed' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-slate-600 bg-slate-100 border border-slate-200">
+                  {isVi
+                    ? `Must-Have: ${hero.explicitMustHaveCount} tường minh, ${hero.inferredMustHaveCount} suy luận`
+                    : `Must-Have: ${hero.explicitMustHaveCount} explicit, ${hero.inferredMustHaveCount} inferred`}
+                </span>
+              )}
+
+              {hero.mustHaveSource === 'inferred_importance' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-slate-500 bg-slate-100 border border-slate-200">
+                  {isVi ? 'Must-Have suy luận từ độ quan trọng cao nhất JD' : 'Must-Have inferred from top JD importance'}
+                </span>
+              )}
+
+              {hero.mustHaveSource === 'explicit' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200">
+                  {isVi ? 'Must-Have xác định tường minh từ JD' : 'Must-Have explicit in JD'}
+                </span>
+              )}
+            </>
           )}
         </div>
 
@@ -118,8 +138,15 @@ export const ExecutiveHeroCard: React.FC<ExecutiveHeroCardProps> = ({
                 <div
                   className="bg-rose-500 h-full transition-all"
                   style={{ width: `${gapPct}%` }}
-                  title={`${hero.mustHaveGap} ${isVi ? 'Chưa thấy' : 'Missing'}`}
+                  title={`${hero.mustHaveGap} ${isVi ? 'Cần bổ sung' : 'Gap'}`}
                 />
+                {hero.mustHaveUncompared > 0 && (
+                  <div
+                    className="bg-slate-400 h-full transition-all"
+                    style={{ width: `${uncomparedPct}%` }}
+                    title={`${hero.mustHaveUncompared} ${isVi ? 'Chưa đối chiếu' : 'Uncompared'}`}
+                  />
+                )}
               </div>
 
               {/* Text Count Indicators */}
@@ -135,6 +162,11 @@ export const ExecutiveHeroCard: React.FC<ExecutiveHeroCardProps> = ({
                 <span className="text-rose-600 font-bold">
                   ● {hero.mustHaveGap} {isVi ? 'Cần bổ sung' : 'Gap'}
                 </span>
+                {hero.mustHaveUncompared > 0 && (
+                  <span className="text-slate-500 font-bold">
+                    ○ {hero.mustHaveUncompared} {isVi ? 'Chưa đối chiếu' : 'Uncompared'}
+                  </span>
+                )}
               </div>
             </>
           ) : (

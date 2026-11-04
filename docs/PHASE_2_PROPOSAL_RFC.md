@@ -1,8 +1,8 @@
-# RFC v1.1: Phase 2 Architecture & Data Blueprint — Executive Hero Card & Evidence Map Workspace
+# RFC v1.2: Phase 2 Desktop-Focused Architecture & Data Blueprint — Executive Hero Card & Evidence Map Workspace
 
 > **Tài liệu tham chiếu:** `docs/PHASE_2_PROPOSAL_RFC.md`  
-> **Phiên bản:** 1.1 (Tháng 11/2026 — Đã tích hợp đầy đủ hợp đồng dữ liệu, ranh giới Phase 2 & chỉ đạo từ PO)  
-> **Trạng thái:** APPROVED SPECIFICATION — Sẵn sàng cho triển khai kỹ thuật  
+> **Phiên bản:** 1.2 (Tháng 11/2026 — Đã tích hợp làm rõ phạm vi Desktop từ PO & hoàn thiện 7 tiêu chí phản biện)  
+> **Trạng thái:** IMPLEMENTED & VERIFIED — Chờ PO nghiệm thu trước khi deploy  
 > **Nhánh áp dụng:** `staging`  
 > **Liên kết kế hoạch tổng thể:** [`docs/UI_UX_IMPLEMENTATION_PLAN.md`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/UI_UX_IMPLEMENTATION_PLAN.md)
 
@@ -10,23 +10,22 @@
 
 ## 1. Bối Cảnh, Mục Tiêu & Ranh Giới Phạm Vi Phase 2 (P2 Scope)
 
-### 1.1. Mục tiêu cốt lõi của Phase 2
-- Giải quyết triệt để "Bức tường chữ" (Cognitive Overload) từ kết quả phân tích.
-- Tái cấu trúc trải nghiệm theo 2 thành phần chính:
+### 1.1. Phạm vi cốt lõi của Phase 2 (Desktop-First Focus)
+- **Đối tượng người dùng mục tiêu:** Ứng viên và chuyên viên tuyển dụng sử dụng máy tính (Desktop / Laptop).
+- **Ranh giới:** Bỏ các yêu cầu cải thiện UI/UX và kiểm thử mobile/tablet khỏi đợt P2 này. Giữ DOM hợp lệ, không gây xung đột ID và tập trung 100% vào tính đúng đắn của dữ liệu và trải nghiệm desktop.
+- **Hai cấu phần trung tâm:**
   1. **`ExecutiveHeroCard` (Nằm trên thanh Tabs):** Cung cấp kết luận định lượng, rõ ràng có căn cứ trong 3–5 giây đầu tiên.
   2. **`EvidenceMapWorkspace` (Tab 1 thay thế `KeywordMatchTab` cũ):** Trình bày bằng chứng theo 5 nhóm năng lực, thanh phân đoạn trực quan và bộ lọc 1-click.
-- Hỗ trợ **Quick Win Navigation** chuyển tab, tự gỡ bộ lọc che đích, mở nhóm và cuộn đặt focus tiếp cận vào đúng tiêu chí.
+- Hỗ trợ **Desktop Quick Win Navigation** chuyển tab, chỉ gỡ bộ lọc khi thực sự che đích, mở nhóm và cuộn đặt focus tiếp cận vào đúng tiêu chí với khoảng bù trừ của cả top header và sticky tab bar.
 
 ### 1.2. Ranh giới nghiêm ngặt của Phase 2 (Out of Scope for P2)
 - **Giữ nguyên 100% backend:** Không thay đổi server prompt, không gọi thêm lượt AI phụ, không làm phát sinh thêm quota trong Phase 2.
 - **Không có luồng biên tập hoặc áp dụng câu viết lại trong P2:** Chưa triển khai chức năng chỉnh sửa CV, áp dụng câu viết lại vào bản nháp (`cvDraft`), Undo/Redo hay can thiệp văn bản của Phase 3. P2 tập trung hoàn toàn vào **Thấu hiểu, Đọc bằng chứng, Lọc và Điều hướng**.
-- **Không tự ý deploy sản phẩm:** Chỉ triển khai code và kiểm thử trên môi trường phát triển; chỉ merge/deploy khi PO duyệt toàn bộ bằng chứng nghiệm thu thực tế.
+- **Không yêu cầu tối ưu mobile/tablet:** Phạm vi mobile được tách khỏi P2.
 
 ---
 
-## 2. Hợp Đồng Dữ Liệu Chi Tiết (Data Contract & Adapter Layer)
-
-Để đảm bảo tính nhất quán giữa Hero Card và Evidence Map, toàn bộ dữ liệu hiển thị phải đi qua một Adapter duy nhất (`evidenceMapAdapter.ts`) với các nguyên tắc nghiêm ngặt sau:
+## 2. Hợp Đồng Dữ Liệu & Quy Tắc Tính Toán Chuẩn Xác (Đã Hoàn Thiện)
 
 ```mermaid
 flowchart TD
@@ -36,122 +35,64 @@ flowchart TD
     VM --> EVIDENCE["EvidenceMapWorkspace<br/>(Filter Chips, 5 Groups, Drilldown)"]
 ```
 
-### 2.1. Đơn vị nguồn sự thật duy nhất (Single Source of Truth)
-- `ExecutiveHeroCard` và `EvidenceMapWorkspace` **phải dùng chung một ViewModel** và **áp dụng cùng một quy tắc đếm**. Tuyệt đối không để xảy ra trường hợp Hero Card hiển thị 7/9 Must-Have mà vào Evidence Map lại đếm ra số lượng khác.
+### 2.1. Phân biệt rõ rệt Must-Have Đã đối chiếu vs. Chưa đối chiếu
+$$\text{mustHaveTotal} = \text{mustHaveEvaluated} + \text{mustHaveUncompared}$$
+- `mustHaveEvaluated`: Số lượng Must-Have đã có dòng trong `comparisonTable` (`mustHavePassed + mustHavePartial + mustHaveGap`).
+- `mustHaveUncompared`: Số lượng Must-Have có trong `jdKeywords` nhưng chưa xuất hiện trong `comparisonTable`.
+- **Quy tắc phán quyết tuyệt đối:** **KHÔNG BAO GIỜ** kết luận *"đáp ứng đầy đủ tất cả các yêu cầu cốt lõi"* khi vẫn còn `mustHaveUncompared > 0`!
+- Hiển thị *"Chưa đối chiếu"* thành trạng thái riêng (xám), không tự ý biến thành gap nhưng cũng không được che giấu khỏi người dùng.
 
-### 2.2. Quy tắc phân loại Tiêu chí Bắt buộc (Must-Have vs. Nice-to-Have)
-1. **Ưu tiên giá trị tường minh (`isMustHave` explicit):**
-   - Nếu tiêu chí trong `comparisonTable` hoặc `jdKeywords` đã có trường boolean `isMustHave !== undefined`, adapter sử dụng trực tiếp giá trị này (`source: 'explicit'`).
-2. **Quy tắc suy luận fallback và ghi nhận nguồn gốc:**
-   - Nếu `isMustHave` không có sẵn, tiêu chí chỉ được suy luận là Bắt buộc nếu `importance === 'Rất quan trọng'`.
-   - Adapter phải đánh dấu rõ nguồn gốc suy luận: `mustHaveSource: 'inferred_importance'`. Giao diện có tooltip/ghi chú nhỏ giải thích tiêu chí được xác định dựa trên mức độ quan trọng cao nhất của JD.
-3. **Quy tắc xử lý trường hợp không có Must-Have:**
-   - Nếu hồ sơ/JD không xác định được tiêu chí bắt buộc nào (`mustHaveTotal === 0`):
-     - Hệ thống hiển thị: *"Chưa xác định yêu cầu bắt buộc trong JD"* (hoặc nhãn trung tính tương đương).
-     - **Tuyệt đối không mặc định coi là đạt 100%** hoặc hiển thị tỷ lệ giả định $0/0 = 100\%$.
+### 2.2. Khử va chạm chuỗi & Liên kết Quick Win xác định (Deterministic Linking)
+- **Sử dụng Word Boundary Regex:** Khử lỗi chuỗi con (như `"Java"` bị ăn nhầm vào `"JavaScript"`, hay `"C"` vào `"C++"`).
+- **Sắp xếp theo độ dài giảm dần:** Thuật ngữ dài hơn được đối chiếu trước.
+- **Xử lý hành động nhắc nhiều tiêu chí:** Nếu hành động nhắc 2 tiêu chí trở lên (ví dụ: *"Bổ sung cả Docker và Kubernetes"*), adapter đánh dấu `targetItemId = undefined` (hướng dẫn chung) để không suy đoán bừa.
+- **Ưu tiên tiêu chí Gap có ID thật:** Nếu không có câu fix nào khớp 1-1, adapter tự động tạo Quick Win trực tiếp từ các tiêu chí Must-Have Gap trong hồ sơ với ID chắc chắn $100\%$.
 
-### 2.3. Quy tắc phân loại Trạng thái Bằng chứng (Evidence Match Status)
-Phân định rạch ròi 3 trạng thái có căn cứ:
-1. `khop` (Đủ bằng chứng - Xanh lá): CV có câu văn/dự án chứng minh rõ ràng.
-2. `can_bo_sung` (Một phần - Vàng hổ phách): CV có nhắc đến nhưng thiếu bối cảnh, thiếu số liệu hoặc còn chung chung.
-3. `thieu` (Chưa thấy bằng chứng - Đỏ/Hồng): Không tìm thấy bằng chứng phù hợp trong nội dung CV hiện tại.
+### 2.3. Định Danh Snapshot Tin Cậy (`computeAnalysisFingerprint`)
+- Thay thế chuỗi ghép 4 trường dễ trùng lặp bằng hàm tạo fingerprint nội dung:
+  - Kết hợp `requestId` (nếu có), hash danh sách tiêu chí `jdTerm:matchStatus:isMustHave`, hash từ khóa `jdKeywords` và điểm số.
+  - Hoàn toàn độc lập với ngôn ngữ hiển thị (VI/EN).
+  - Đảm bảo khi người dùng đổi sang phân tích mới (dù cùng công ty, chức danh, điểm và số dòng) thì state bộ lọc và nhóm mở vẫn được khởi tạo lại chính xác.
 
-> [!IMPORTANT]
-> **Quy tắc Keyword chưa có dòng đối chiếu:**  
-> Nếu một từ khóa nằm trong danh sách `jdKeywords` nhưng chưa xuất hiện trong `comparisonTable`, adapter phải phân loại vào nhóm **"Chưa được đối chiếu"**, tuyệt đối **không tự ý coi là thiếu bằng chứng (thieu)**.
+### 2.4. Không Biến Trạng Thái Lỗi Thành Partial
+- Mọi trạng thái lạ ngoài `'khop' | 'can_bo_sung' | 'thieu'` được chuyển về `'unknown'`.
+- Tuyệt đối không tự ý cộng vào `partialCount` hay `mustHavePartial`. Hiển thị nhãn trung tính *"Chưa xác định" / "Unknown"*.
 
-### 2.4. Phân nhóm Năng lực (5 Nhóm chuẩn & Nhóm dự phòng)
-Ánh xạ chuẩn hóa từ `KeywordCategory`:
-1. `Kỹ năng chuyên môn` $\rightarrow$ `tech` (Kỹ Năng Chuyên Môn)
-2. `Công cụ, phần mềm hoặc phương pháp` $\rightarrow$ `tools` (Công Cụ & Phương Pháp)
-3. `Kinh nghiệm mong muốn` $\rightarrow$ `experience` (Kinh Nghiệm Thực Tế)
-4. `Kết quả đầu ra hoặc kỳ vọng công việc` $\rightarrow$ `outcomes` (Kết Quả & Đầu Ra)
-5. `Phẩm chất hoặc cách làm việc` $\rightarrow$ `culture` (Văn Hóa & Làm Việc Nhóm)
-- **Nhóm Chưa Phân Loại (`unclassified`):** Mọi tiêu chí có category không khớp 5 nhóm trên hoặc bị trống/lỗi dữ liệu phải được gom vào nhóm **"Chưa phân loại"**, không được bỏ sót hay vứt bỏ dữ liệu của ứng viên.
-
-### 2.5. Xử lý Trùng lặp, Xung đột & Dữ liệu không hợp lệ
-- **Trùng lặp (Deduplication):** Nếu có nhiều dòng đối chiếu trùng cùng một thuật ngữ `jdTerm` (không phân biệt hoa thường), adapter giữ dòng có thông tin chi tiết nhất (hoặc gộp bằng chứng), không hiển thị lặp dòng.
-- **Xung đột trạng thái:** Nếu `jdKeywords` gắn nhãn `isMustHave = false` nhưng `comparisonTable` gắn `isMustHave = true`, ưu tiên cờ tường minh từ `comparisonTable`.
-- **Chống bịa đặt dữ liệu (Anti-Hallucination):** Tuyệt đối không tự sinh câu khẳng định kinh nghiệm, công nghệ hay số liệu định lượng nếu dữ liệu gốc không có căn cứ.
-
-> [!NOTE]
-> **Lưu ý về tính toán định lượng:**  
-> Rule-based adapter đảm bảo thuật toán tính toán, quy tắc làm tròn và xử lý dữ liệu đầu ra mang tính nhất quán logic và kiểm thử tự động được $100\%$. Điều này không bảo đảm bản thân nội dung văn bản do AI sinh ra ở bước trước là hoàn hảo tuyệt đối; do đó giao diện luôn trình bày dưới dạng nhận định hỗ trợ tham khảo.
+### 2.5. Cột Khoảng Trống Trung Thực
+- Nếu `gapOrClarification` rỗng nhưng tiêu chí có trạng thái là `thieu`: hiển thị *"Chưa tìm thấy bằng chứng trong hồ sơ"* / *"No evidence found in profile"*.
+- **Chỉ hiển thị** *"Đã thể hiện tốt"* khi trạng thái thực sự là `khop`.
 
 ---
 
-## 3. Bốn Quyết Định Kiến Trúc Đã Thống Nhất
+## 3. Hoàn Thiện Điều Hướng Desktop (Desktop Navigation Protocol)
 
-### Quyết định 1: Phán Quyết Hệ Thống (Verdict Statement) bằng Rule-Based Adapter
-- Sử dụng hoàn toàn dữ liệu có sẵn, không gọi thêm AI.
-- Câu phán quyết phản ánh số liệu thực tế:
-  > *"CV đã thể hiện rõ 7/9 yêu cầu được xác định là bắt buộc; 1 yêu cầu có bằng chứng một phần và 1 yêu cầu chưa thấy bằng chứng trong hồ sơ."*
-- `feature3.inviteDecision` (YES/NO/MAYBE) và `decisionReason` chỉ là nhận định bổ trợ, không diễn giải YES thành cam kết chắc chắn trúng tuyển.
-- Không sử dụng các khái niệm phỏng đoán thiếu dữ liệu đo như *"Top 15%"* hay *"ATS Pass: Rất cao"*.
-
-### Quyết định 2: Tương Tác Top 3 Quick Wins Điều Hướng Đến Evidence Map
-- **Điều hướng xác định (Deterministic Linking):** Chỉ hiển thị nút `[ Xem vị trí ]` khi Quick Win có `targetItemId` hợp lệ khớp với một tiêu chí trong bảng đối chiếu.
-- Nếu `top3MustFix` hay `immediateActions` là văn bản tự do không ánh xạ được 1-1, hiển thị dạng checklist tư vấn thông thường, không đoán mò liên kết.
-- Hiển thị tối đa 3 Quick Wins; nếu dữ liệu chỉ có 1 hoặc 2 thì chỉ hiển thị số lượng thực có.
-- **Chuỗi thao tác 1-Click Jump:**
-  1. Chuyển tab sang `feature1` (Evidence Map).
-  2. Tự động chuyển bộ lọc về `all` nếu bộ lọc hiện tại đang vô tình ẩn tiêu chí đích.
-  3. Mở accordion nhóm chứa tiêu chí đích nếu đang đóng.
-  4. Cuộn trang có bù trừ khoảng trống động (Dynamic header offset đã hoàn thành ở P1).
-  5. Đặt focus trợ năng bàn phím và kích hoạt viền highlight nhẹ 2 giây. Sau khi hết 2 giây, focus ring và nhãn ngữ cảnh vẫn được giữ nguyên.
-- Không đánh dấu trạng thái là `applied` chỉ vì người dùng đã bấm xem hoặc sao chép.
-
-### Quyết định 3: Trạng Thái Mở Nhóm Năng Lực & Bảo Toàn State
-- **Thuật toán mở nhóm ưu tiên (Lần đầu nạp kết quả):**
-  - Nhóm có nhiều Must-Have thiếu bằng chứng (`gap`) nhất.
-  - Nếu bằng nhau: nhóm có nhiều Must-Have bằng chứng một phần (`partial`) nhất.
-  - Nếu vẫn bằng nhau: nhóm đầu tiên theo thứ tự nghiệp vụ cố định (`tech` $\rightarrow$ `tools` $\rightarrow$ `experience` $\rightarrow$ `outcomes` $\rightarrow$ `culture`).
-  - Nếu không có khoảng trống: mở nhóm đầu tiên có dữ liệu.
-- **Bảo toàn trạng thái chống unmount (Tab Unmount Resilience):**
-  - Do `App.tsx` có thể unmount component con khi chuyển `activeTab`, toàn bộ state:
-    - Danh sách các nhóm đang mở (`expandedGroups: Set<string>`)
-    - Bộ lọc nhanh hiện tại (`competencyFilter: 'all' | 'must_have' | 'gap'`)
-    phải được **nâng lên (lift state) cấp App** hoặc lưu trong state store gắn chặt với `analysisId` (ID của kết quả phân tích hiện tại).
-  - Trạng thái **không bị reset** khi chuyển đổi qua lại giữa các tab hoặc đổi ngôn ngữ (VI/EN).
-  - Chỉ khởi tạo lại (re-initialize) khi người dùng phân tích bộ dữ liệu mới hoặc chọn Preset khác.
-  - Cho phép người dùng mở nhiều nhóm đồng thời (Multi-expand).
-
-### Quyết định 4: Bố Cục Mobile / Tablet Nhỏ — Xếp Dọc & Trực Quan
-- Xếp dọc các thẻ chỉ số theo hàng ngắn, không dùng thao tác vuốt ẩn (swipeable carousel).
-- Hero Card không sticky trên thiết bị nhỏ để giữ không gian cuộn đọc dữ liệu.
-- Mọi thanh phân đoạn Segmented Bar phải hiển thị đồng thời cả **số đếm**, **nhãn chữ** và **màu sắc** (tuân thủ nguyên tắc tiếp cận cho người mù màu).
-- Bảng đối chiếu trên mobile chuyển thành thẻ dọc:
-  $$\text{Yêu cầu JD} \longrightarrow \text{Bằng chứng CV} \longrightarrow \text{Khoảng trống} \longrightarrow \text{Gợi ý mẫu}$$
+1. **Bù trừ khoảng che của cả Top Header và Sticky Tabs Bar:**
+   $$\text{totalStickyOffset} = \text{headerHeight} (64\text{px}) + \text{stickyTabHeight} (56\text{px}) + 20\text{px}$$
+   Đảm bảo phần tử được cuộn tới nằm hoàn toàn trong tầm nhìn của người dùng, không bị thanh tab sticky che mất phần trên.
+2. **Gỡ bộ lọc có điều kiện (Conditional Filter Unhide):**
+   - Chỉ reset `competencyFilter` về `'all'` khi tiêu chí đích thực sự bị ẩn bởi bộ lọc hiện tại. Nếu tiêu chí đích là Gap và bộ lọc đang là `'gap'`, giữ nguyên bộ lọc.
+3. **DOM Selector Độc Lập:**
+   - Desktop row sử dụng `id="criterion-desktop-${id}"` và `data-criterion-id="${id}"`.
+   - Hàm `findVisibleElement` chọn chính xác phần tử desktop đang hiển thị.
+4. **Trợ năng & Trải nghiệm cuộn:**
+   - Sử dụng `requestAnimationFrame` polling (tối đa 25 frames ~400ms) để chờ phần tử render sau khi chuyển tab và mở nhóm.
+   - `el.focus({ preventScroll: true })` để không phá vỡ khoảng bù trừ cuộn.
+   - Tôn trọng `prefers-reduced-motion`: chuyển `behavior: 'auto'` khi người dùng bật giảm chuyển động trên hệ điều hành.
+   - Hủy bỏ (cancel) tác vụ điều hướng cũ khi người dùng bấm Quick Win khác hoặc khi phân tích thay đổi.
 
 ---
 
-## 4. Kế Hoạch Triển Khai Kỹ Thuật Theo Thứ Tự
+## 4. Bảng Bằng Chứng & Kết Quả Kiểm Thử Thực Tế
 
-```mermaid
-flowchart LR
-    S1["A. Adapter & Unit Tests<br/>(evidenceMapAdapter.ts)"] --> S2["B. Components MD3<br/>(ExecutiveHero & EvidenceMap)"]
-    S2 --> S3["C. Navigation & Lifted State<br/>(1-Click Jump & Tab Resilience)"]
-    S3 --> S4["D. Integration & Regression<br/>(App.tsx & Verification Suite)"]
-```
-
-| Giai đoạn | Nội dung công việc chi tiết | Files tác động |
+| Lỗi phản biện | Giải pháp kỹ thuật | Test case kiểm chứng |
 | :--- | :--- | :--- |
-| **Bước A** | Xây dựng Data Adapter với đầy đủ quy tắc tính Must-Have, phân loại 5 nhóm + 1 nhóm unclassified, xử lý trùng lặp và dữ liệu thiếu. Viết unit tests bao phủ 100% các ca biên. | `src/utils/evidenceMapAdapter.ts`<br/>`src/utils/evidenceMapAdapter.test.ts` |
-| **Bước B** | Xây dựng component `ExecutiveHeroCard` và `EvidenceMapTab` theo Google MD3 tokens, hỗ trợ giao diện thẻ dọc trên mobile và đa mở nhóm. | `src/components/ExecutiveHeroCard.tsx`<br/>`src/components/EvidenceMapTab.tsx` |
-| **Bước C** | Cài đặt luồng 1-Click Jump từ Quick Win sang Evidence Map (auto-unhide filter, auto-expand, dynamic offset, accessible focus) và nâng state lên App để chống mất state khi đổi tab. | `src/App.tsx`<br/>`src/components/ExecutiveHeroCard.tsx`<br/>`src/components/EvidenceMapTab.tsx` |
-| **Bước D** | Tích hợp hoàn chỉnh, chạy typecheck (`tsc`), test suite hồi quy Phase 1 & Phase 2, build kiểm tra bundle (`npm run build`). | `src/phase1_verification.test.ts`<br/>`src/phase2_verification.test.ts` |
+| **1. Hero kết luận đầy đủ khi còn Must-Have chưa đối chiếu** | Phân tách `mustHaveTotal`, `mustHaveEvaluated`, `mustHaveUncompared`. Không kết luận đầy đủ khi uncompared > 0. | `src/utils/evidenceMapAdapter.test.ts` (Test 2: ca React + AWS) |
+| **2. Quick Win va chạm từ khóa con (Java vs JavaScript)** | Áp dụng `isExactWordOrPhraseMatch` với word boundary và length-descending order. Xử lý đa tiêu chí thành general. | `src/utils/evidenceMapAdapter.test.ts` (Test 3: Java vs JavaScript, C vs C++, Docker + K8s) |
+| **3. Snapshot key trùng khi cùng công ty/điểm** | Thay bằng `computeAnalysisFingerprint` băm toàn bộ nội dung tiêu chí. | `src/utils/evidenceMapAdapter.test.ts` (Test 4), `src/phase2_verification.test.ts` (Test 3) |
+| **4. Trạng thái lỗi bị tính vào partial** | Bổ sung `MatchStatus = 'unknown'`. Không tăng `partialCount`. Hiển thị nhãn trung tính. | `src/utils/evidenceMapAdapter.test.ts` (Test 5), `src/phase2_verification.test.ts` (Test 5) |
+| **5. Test mô phỏng thiếu kiểm tra component thật** | Dùng `renderToString` từ `react-dom/server` kiểm tra HTML render thật của component và DOM attributes. | `src/phase2_verification.test.ts` (5/5 tests PASS) |
+| **6. Khoảng che sticky tab & filter unhide** | Tính tổng `topHeaderH + stickyTabH + 20px`, unhide có điều kiện, `preventScroll: true`. | `src/App.tsx`, `src/phase2_verification.test.ts` (Test 4) |
+| **7. Song ngữ EN & cột khoảng trống trung thực** | Localize toàn bộ counter text, hiển thị mixed source, không bịa "Đã thể hiện tốt" khi thiếu bằng chứng. | `src/components/EvidenceMapTab.tsx`, `src/components/ExecutiveHeroCard.tsx` |
 
 ---
-
-## 5. Tiêu Chí & Bằng Chứng Nghiệm Thu Cần Báo Cáo Trước Khi Deploy
-
-Báo cáo nghiệm thu cuối cùng trình PO sẽ bao gồm đầy đủ các bằng chứng thực nghiệm:
-1. **Commit SHA** và bảng thống kê chi tiết các tệp thay đổi.
-2. **Kết quả kiểm thử tự động:** `npm test`, `npx tsc --noEmit`, và `npm run build` đạt $100\%$ pass không cảnh báo lỗi.
-3. **Kiểm chứng tương tác thực tế:**
-   - Hoạt động mượt mà trên cả Desktop ($\ge 1024$px) và Mobile / Tablet ($< 640$px).
-   - Kiểm tra hiển thị chuẩn xác trên cả 2 ngôn ngữ `VI` và `EN`.
-   - Điều hướng bàn phím (`Tab`, `Enter`, `Space`) và focus outline tiếp cận.
-   - 1-Click Jump hoạt động chính xác ngay cả khi bộ lọc nhanh đang ở trạng thái che giấu mục tiêu.
-   - Trạng thái các nhóm mở và bộ lọc được bảo toàn nguyên vẹn khi chuyển tab hoặc đổi ngôn ngữ, và được reset đúng khi nạp phân tích mới.
-   - Điểm số và thẻ cảnh báo dữ liệu thay đổi (*Stale score / input modified*) từ Phase 1 tiếp tục hoạt động chính xác, bảo toàn toàn bộ chức năng hồi quy của Phase 1.
+*Tài liệu này xác nhận hoàn tất đợt sửa lỗi Desktop P2 và sẵn sàng cho PO kiểm chứng nghiệm thu.*

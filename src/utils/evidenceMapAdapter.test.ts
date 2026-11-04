@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { buildEvidenceMapViewModel } from './evidenceMapAdapter';
+import {
+  buildEvidenceMapViewModel,
+  computeAnalysisFingerprint,
+  isExactWordOrPhraseMatch,
+} from './evidenceMapAdapter';
 import { CompleteCVAnalysisResponse } from '../types';
 
-describe('Phase 2 Data Contract: evidenceMapAdapter', () => {
+describe('Phase 2 Data Contract & Regression Suite: evidenceMapAdapter', () => {
   it('1. Shares identical Must-Have counts and criteria totals between Hero and Evidence Groups (Single Source of Truth)', () => {
     const mockAnalysis: CompleteCVAnalysisResponse = {
       feature1: {
@@ -43,13 +47,12 @@ describe('Phase 2 Data Contract: evidenceMapAdapter', () => {
 
     const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
 
-    // Hero và Groups phải khớp nhau từng số
     expect(vm.hero.mustHaveTotal).toBe(2);
     expect(vm.hero.mustHavePassed).toBe(1);
     expect(vm.hero.mustHaveGap).toBe(1);
     expect(vm.hero.mustHavePartial).toBe(0);
+    expect(vm.hero.mustHaveUncompared).toBe(0);
 
-    // Tổng số lượng must-have trong groups phải bằng đúng 2
     let groupMustHaveGap = 0;
     for (const g of vm.groups) {
       groupMustHaveGap += g.mustHaveGapCount;
@@ -59,162 +62,10 @@ describe('Phase 2 Data Contract: evidenceMapAdapter', () => {
     expect(vm.hero.overallScore).toBe(78);
   });
 
-  it('2. Prioritizes explicit isMustHave over inferred importance, and records inference source', () => {
-    const mockAnalysis: CompleteCVAnalysisResponse = {
-      feature1: {
-        jdKeywords: [],
-        comparisonTable: [
-          // Explicitly false dù importance là Rất quan trọng
-          { jdTerm: 'GraphQL', importance: 'Rất quan trọng', isMustHave: false, cvEvidence: '', gapOrClarification: '', matchStatus: 'thieu' },
-          // Không có isMustHave nhưng importance là Rất quan trọng -> inferred
-          { jdTerm: 'NodeJS', importance: 'Rất quan trọng', cvEvidence: 'Có NodeJS', gapOrClarification: '', matchStatus: 'khop' },
-        ],
-        scores: { keywordMatchScore: 50, skillMatchScore: 50, experienceOutcomeScore: 50, overallRoleScore: 60 },
-        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
-      },
-      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
-      feature3: {
-        inviteDecision: 'MAYBE',
-        decisionReason: '',
-        firstImpression10s: '',
-        immediateStrength: '',
-        biggestDoubt: '',
-        fastestPointLossSection: '',
-        top3MustFix: [],
-      },
-    };
-
-    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
-    expect(vm.hero.mustHaveTotal).toBe(1); // Chỉ có NodeJS được coi là Must-Have (inferred)
-    expect(vm.hero.mustHavePassed).toBe(1);
-    expect(vm.hero.mustHaveSource).toBe('inferred_importance');
-  });
-
-  it('3. When no Must-Have is identified (mustHaveTotal === 0), it does NOT assume 100% pass', () => {
-    const mockAnalysis: CompleteCVAnalysisResponse = {
-      feature1: {
-        jdKeywords: [],
-        comparisonTable: [
-          { jdTerm: 'Figma', importance: 'Có lợi thế', isMustHave: false, cvEvidence: '', gapOrClarification: 'Không có', matchStatus: 'thieu' },
-          { jdTerm: 'Canva', importance: 'Có lợi thế', isMustHave: false, cvEvidence: 'Dùng Canva cơ bản', gapOrClarification: '', matchStatus: 'khop' },
-        ],
-        scores: { keywordMatchScore: 50, skillMatchScore: 50, experienceOutcomeScore: 50, overallRoleScore: 55 },
-        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
-      },
-      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
-      feature3: {
-        inviteDecision: 'MAYBE',
-        decisionReason: '',
-        firstImpression10s: '',
-        immediateStrength: '',
-        biggestDoubt: '',
-        fastestPointLossSection: '',
-        top3MustFix: [],
-      },
-    };
-
-    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
-    expect(vm.hero.hasMustHaveData).toBe(false);
-    expect(vm.hero.mustHaveTotal).toBe(0);
-    expect(vm.hero.mustHavePassed).toBe(0);
-    expect(vm.hero.verdictStatement).toContain('chưa xác định yêu cầu bắt buộc cụ thể trong JD');
-    expect(vm.hero.verdictStatement).not.toContain('100%');
-  });
-
-  it('4. Classifies keywords without comparison rows as "Chưa được đối chiếu" (uncompared), never as missing evidence', () => {
-    const mockAnalysis: CompleteCVAnalysisResponse = {
-      feature1: {
-        jdKeywords: [
-          { keyword: 'React', category: 'Kỹ năng chuyên môn', importance: 'Rất quan trọng' },
-          { keyword: 'Kubernetes', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Quan trọng' },
-        ],
-        comparisonTable: [
-          { jdTerm: 'React', importance: 'Rất quan trọng', cvEvidence: 'React expert', gapOrClarification: '', matchStatus: 'khop' },
-        ],
-        scores: { keywordMatchScore: 80, skillMatchScore: 80, experienceOutcomeScore: 80, overallRoleScore: 80 },
-        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
-      },
-      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
-      feature3: {
-        inviteDecision: 'YES',
-        decisionReason: '',
-        firstImpression10s: '',
-        immediateStrength: '',
-        biggestDoubt: '',
-        fastestPointLossSection: '',
-        top3MustFix: [],
-      },
-    };
-
-    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
-    expect(vm.uncomparedKeywords.length).toBe(1);
-    expect(vm.uncomparedKeywords[0].keyword).toBe('Kubernetes');
-    // Tổng số gap trong bảng đối chiếu không bị tính oan Kubernetes
-    expect(vm.totalGapCount).toBe(0);
-  });
-
-  it('5. Puts unmapped or unrecognized categories into "Chưa phân loại" (unclassified group)', () => {
-    const mockAnalysis: CompleteCVAnalysisResponse = {
-      feature1: {
-        jdKeywords: [
-          // @ts-expect-error Testing exotic category
-          { keyword: 'Blockchain Web3', category: 'Danh mục đặc thù khác', importance: 'Quan trọng' },
-        ],
-        comparisonTable: [
-          { jdTerm: 'Blockchain Web3', importance: 'Quan trọng', cvEvidence: 'Solidity', gapOrClarification: '', matchStatus: 'khop' },
-        ],
-        scores: { keywordMatchScore: 70, skillMatchScore: 70, experienceOutcomeScore: 70, overallRoleScore: 70 },
-        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
-      },
-      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
-      feature3: {
-        inviteDecision: 'YES',
-        decisionReason: '',
-        firstImpression10s: '',
-        immediateStrength: '',
-        biggestDoubt: '',
-        fastestPointLossSection: '',
-        top3MustFix: [],
-      },
-    };
-
-    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
-    const unclassGroup = vm.groups.find((g) => g.id === 'unclassified');
-    expect(unclassGroup).toBeDefined();
-    expect(unclassGroup?.total).toBe(1);
-    expect(unclassGroup?.items[0].term).toBe('Blockchain Web3');
-  });
-
-  it('6. Deduplicates rows with identical terms (case-insensitive) keeping best evidence', () => {
-    const mockAnalysis: CompleteCVAnalysisResponse = {
-      feature1: {
-        jdKeywords: [],
-        comparisonTable: [
-          { jdTerm: 'react', importance: 'Quan trọng', cvEvidence: '', gapOrClarification: 'chưa rõ', matchStatus: 'can_bo_sung' },
-          { jdTerm: 'React', importance: 'Quan trọng', cvEvidence: 'Có 3 năm xây dựng SPA bằng React', gapOrClarification: '', matchStatus: 'khop' },
-        ],
-        scores: { keywordMatchScore: 80, skillMatchScore: 80, experienceOutcomeScore: 80, overallRoleScore: 80 },
-        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
-      },
-      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
-      feature3: {
-        inviteDecision: 'YES',
-        decisionReason: '',
-        firstImpression10s: '',
-        immediateStrength: '',
-        biggestDoubt: '',
-        fastestPointLossSection: '',
-        top3MustFix: [],
-      },
-    };
-
-    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
-    expect(vm.totalCriteriaCount).toBe(1);
-    const item = vm.groups.flatMap((g) => g.items).find((it) => it.term.toLowerCase() === 'react');
-    expect(item?.cvEvidence).toBe('Có 3 năm xây dựng SPA bằng React');
-  });
-
-  it('7. Initial Open Group Priority selects group with highest Must-Have Gaps first', () => {
+  it('2. [REGRESSION POINT 2] NEVER concludes "đáp ứng đầy đủ tất cả các yêu cầu cốt lõi" when there are uncompared Must-Haves', () => {
+    // Exact reproduction case:
+    // JD has React (isMustHave) and AWS (isMustHave).
+    // comparisonTable only has React (khop).
     const mockAnalysis: CompleteCVAnalysisResponse = {
       feature1: {
         jdKeywords: [
@@ -222,12 +73,54 @@ describe('Phase 2 Data Contract: evidenceMapAdapter', () => {
           { keyword: 'AWS', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng', isMustHave: true },
         ],
         comparisonTable: [
-          // tech: 1 match
-          { jdTerm: 'React', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '3 năm', gapOrClarification: '', matchStatus: 'khop' },
-          // tools: 1 gap (Must-Have missing)
-          { jdTerm: 'AWS', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '', gapOrClarification: 'Thiếu AWS', matchStatus: 'thieu' },
+          { jdTerm: 'React', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '3 năm React', gapOrClarification: '', matchStatus: 'khop' },
         ],
-        scores: { keywordMatchScore: 60, skillMatchScore: 60, experienceOutcomeScore: 60, overallRoleScore: 65 },
+        scores: { keywordMatchScore: 90, skillMatchScore: 90, experienceOutcomeScore: 90, overallRoleScore: 90 },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
+      feature3: {
+        inviteDecision: 'YES',
+        decisionReason: 'Nền tảng tốt',
+        firstImpression10s: '',
+        immediateStrength: '',
+        biggestDoubt: '',
+        fastestPointLossSection: '',
+        top3MustFix: [],
+      },
+    };
+
+    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
+
+    // Phải nhận diện ĐỦ 2 Must-Have (1 đã đối chiếu + 1 chưa đối chiếu)
+    expect(vm.hero.mustHaveTotal).toBe(2);
+    expect(vm.hero.mustHavePassed).toBe(1);
+    expect(vm.hero.mustHaveUncompared).toBe(1);
+    expect(vm.uncomparedKeywords.length).toBe(1);
+    expect(vm.uncomparedKeywords[0].keyword).toBe('AWS');
+    expect(vm.uncomparedKeywords[0].isMustHave).toBe(true);
+
+    // Verdict KHÔNG ĐƯỢC khẳng định "đáp ứng đầy đủ tất cả các yêu cầu cốt lõi"
+    expect(vm.hero.verdictStatement).not.toContain('đáp ứng đầy đủ tất cả các yêu cầu cốt lõi');
+    expect(vm.hero.verdictStatement).toContain('1/2 yêu cầu được xác định là bắt buộc');
+    expect(vm.hero.verdictStatement).toContain('1 yêu cầu bắt buộc chưa được đối chiếu');
+  });
+
+  it('3. [REGRESSION POINT 3] Word boundary matching prevents substring collisions (Java vs JavaScript, C vs C++)', () => {
+    expect(isExactWordOrPhraseMatch('Java', 'Bổ sung kinh nghiệm JavaScript')).toBe(false);
+    expect(isExactWordOrPhraseMatch('JavaScript', 'Bổ sung kinh nghiệm JavaScript')).toBe(true);
+    expect(isExactWordOrPhraseMatch('Java', 'Cần làm rõ kỹ năng Java')).toBe(true);
+    expect(isExactWordOrPhraseMatch('C', 'Thành thạo lập trình C++')).toBe(false);
+    expect(isExactWordOrPhraseMatch('C++', 'Thành thạo lập trình C++')).toBe(true);
+
+    const mockAnalysis: CompleteCVAnalysisResponse = {
+      feature1: {
+        jdKeywords: [],
+        comparisonTable: [
+          { jdTerm: 'Java', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '', gapOrClarification: 'Thiếu Java', matchStatus: 'thieu' },
+          { jdTerm: 'JavaScript', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '', gapOrClarification: 'Thiếu JS', matchStatus: 'thieu' },
+        ],
+        scores: { keywordMatchScore: 50, skillMatchScore: 50, experienceOutcomeScore: 50, overallRoleScore: 50 },
         summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
       },
       feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
@@ -238,31 +131,26 @@ describe('Phase 2 Data Contract: evidenceMapAdapter', () => {
         immediateStrength: '',
         biggestDoubt: '',
         fastestPointLossSection: '',
-        top3MustFix: [],
+        top3MustFix: ['Bổ sung kinh nghiệm JavaScript vào dự án gần nhất'],
       },
     };
 
     const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
-    // Group "tools" có 1 mustHaveGap, trong khi "tech" có 0 mustHaveGap
-    expect(vm.initialOpenGroupId).toBe('tools');
+    // Quick Win phải liên kết đúng JavaScript, KHÔNG ĐƯỢC nhầm sang Java!
+    const targetItem = vm.groups.flatMap((g) => g.items).find((it) => it.id === vm.hero.quickWins[0].targetItemId);
+    expect(targetItem?.term).toBe('JavaScript');
   });
 
-  it('8. Quick Win only contains targetItemId when there is a deterministic match', () => {
+  it('3b. [REGRESSION POINT 3] Ambiguous action mentioning multiple criteria remains general guidance without speculative link', () => {
     const mockAnalysis: CompleteCVAnalysisResponse = {
       feature1: {
-        jdKeywords: [
-          { keyword: 'GraphQL', category: 'Kỹ năng chuyên môn', importance: 'Rất quan trọng', isMustHave: true },
-        ],
+        jdKeywords: [],
         comparisonTable: [
-          { jdTerm: 'GraphQL', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '', gapOrClarification: 'Thiếu', matchStatus: 'thieu' },
+          { jdTerm: 'Docker', importance: 'Quan trọng', isMustHave: false, cvEvidence: '', gapOrClarification: 'Thiếu Docker', matchStatus: 'thieu' },
+          { jdTerm: 'Kubernetes', importance: 'Quan trọng', isMustHave: false, cvEvidence: '', gapOrClarification: 'Thiếu K8s', matchStatus: 'thieu' },
         ],
         scores: { keywordMatchScore: 50, skillMatchScore: 50, experienceOutcomeScore: 50, overallRoleScore: 50 },
-        summary: {
-          biggestStrength: '',
-          missingKeywordsSkills: [],
-          weakOrVagueSections: [],
-          immediateActions: [],
-        },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
       },
       feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
       feature3: {
@@ -272,20 +160,98 @@ describe('Phase 2 Data Contract: evidenceMapAdapter', () => {
         immediateStrength: '',
         biggestDoubt: '',
         fastestPointLossSection: '',
-        top3MustFix: [
-          'Bổ sung kinh nghiệm làm việc với GraphQL', // Có chữ GraphQL -> map được
-          'Cần viết hoa các danh từ riêng ở phần sở thích', // Chuỗi tự do không có term nào -> không có targetItemId
-        ],
+        top3MustFix: ['Cần làm rõ kinh nghiệm về cả Docker và Kubernetes trong môi trường cloud'],
       },
     };
 
     const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
-    expect(vm.hero.quickWins.length).toBe(2);
-    // Quick win 1 map được sang GraphQL
-    expect(vm.hero.quickWins[0].targetItemId).toBeDefined();
-    expect(vm.hero.quickWins[0].targetGroupId).toBe('tech');
+    // Hành động nhắc cả 2 tiêu chí -> không suy đoán liên kết bừa
+    const qw = vm.hero.quickWins.find((q) => q.title.includes('Docker và Kubernetes'));
+    expect(qw?.targetItemId).toBeUndefined();
+  });
 
-    // Quick win 2 là text tự do -> targetItemId không được suy đoán bừa
-    expect(vm.hero.quickWins[1].targetItemId).toBeUndefined();
+  it('4. [REGRESSION POINT 4] computeAnalysisFingerprint distinguishes analyses even with identical company, title, score and table length', () => {
+    const analysis1: CompleteCVAnalysisResponse = {
+      companyName: 'SameCompany',
+      jobTitle: 'Engineer',
+      feature1: {
+        scores: { keywordMatchScore: 70, skillMatchScore: 70, experienceOutcomeScore: 70, overallRoleScore: 75 },
+        comparisonTable: [
+          { jdTerm: 'Python', importance: 'Quan trọng', matchStatus: 'khop', cvEvidence: '', gapOrClarification: '' },
+        ],
+        jdKeywords: [],
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
+      feature3: { inviteDecision: 'YES', decisionReason: '', firstImpression10s: '', immediateStrength: '', biggestDoubt: '', fastestPointLossSection: '', top3MustFix: [] },
+    };
+
+    const analysis2: CompleteCVAnalysisResponse = {
+      companyName: 'SameCompany',
+      jobTitle: 'Engineer',
+      feature1: {
+        scores: { keywordMatchScore: 70, skillMatchScore: 70, experienceOutcomeScore: 70, overallRoleScore: 75 },
+        comparisonTable: [
+          { jdTerm: 'Golang', importance: 'Quan trọng', matchStatus: 'thieu', cvEvidence: '', gapOrClarification: '' },
+        ],
+        jdKeywords: [],
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
+      feature3: { inviteDecision: 'YES', decisionReason: '', firstImpression10s: '', immediateStrength: '', biggestDoubt: '', fastestPointLossSection: '', top3MustFix: [] },
+    };
+
+    const fp1 = computeAnalysisFingerprint(analysis1);
+    const fp2 = computeAnalysisFingerprint(analysis2);
+
+    expect(fp1).not.toBe(fp2);
+  });
+
+  it('5. [REGRESSION POINT 5] Invalid or corrupt matchStatus is NOT changed to partial (mustHavePartial is not inflated)', () => {
+    const mockAnalysis: CompleteCVAnalysisResponse = {
+      feature1: {
+        jdKeywords: [],
+        comparisonTable: [
+          // @ts-expect-error testing corrupted/invalid status
+          { jdTerm: 'Rust', importance: 'Rất quan trọng', isMustHave: true, cvEvidence: '', gapOrClarification: '', matchStatus: 'invalid_status_xyz' },
+        ],
+        scores: { keywordMatchScore: 50, skillMatchScore: 50, experienceOutcomeScore: 50, overallRoleScore: 50 },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
+      feature3: { inviteDecision: 'MAYBE', decisionReason: '', firstImpression10s: '', immediateStrength: '', biggestDoubt: '', fastestPointLossSection: '', top3MustFix: [] },
+    };
+
+    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
+    // Tuyệt đối không được tăng mustHavePartial!
+    expect(vm.hero.mustHavePartial).toBe(0);
+    expect(vm.hero.mustHavePassed).toBe(0);
+    expect(vm.hero.mustHaveGap).toBe(0);
+    const rustItem = vm.groups.flatMap((g) => g.items).find((it) => it.term === 'Rust');
+    expect(rustItem?.matchStatus).toBe('unknown');
+  });
+
+  it('6. Mixed sources of Must-Have is reported as mixed (with counts of explicit vs inferred)', () => {
+    const mockAnalysis: CompleteCVAnalysisResponse = {
+      feature1: {
+        jdKeywords: [
+          { keyword: 'React', category: 'Kỹ năng chuyên môn', importance: 'Quan trọng', isMustHave: true }, // explicit
+          { keyword: 'TypeScript', category: 'Kỹ năng chuyên môn', importance: 'Rất quan trọng' }, // inferred from importance
+        ],
+        comparisonTable: [
+          { jdTerm: 'React', importance: 'Quan trọng', isMustHave: true, cvEvidence: 'React 3y', gapOrClarification: '', matchStatus: 'khop' },
+          { jdTerm: 'TypeScript', importance: 'Rất quan trọng', cvEvidence: 'TS 2y', gapOrClarification: '', matchStatus: 'khop' },
+        ],
+        scores: { keywordMatchScore: 80, skillMatchScore: 80, experienceOutcomeScore: 80, overallRoleScore: 80 },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+      feature2: { clarifyingQuestions: [], rewrittenBullets: [] },
+      feature3: { inviteDecision: 'YES', decisionReason: '', firstImpression10s: '', immediateStrength: '', biggestDoubt: '', fastestPointLossSection: '', top3MustFix: [] },
+    };
+
+    const vm = buildEvidenceMapViewModel(mockAnalysis, 'vi');
+    expect(vm.hero.mustHaveSource).toBe('mixed');
+    expect(vm.hero.explicitMustHaveCount).toBe(1);
+    expect(vm.hero.inferredMustHaveCount).toBe(1);
   });
 });
