@@ -343,6 +343,25 @@ export default function App() {
   const [copiedReport, setCopiedReport] = useState<boolean>(false);
   const [currentRoleTitle, setCurrentRoleTitle] = useState<string>('');
   const [jdSourceLabel, setJdSourceLabel] = useState<string | null>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState<number>(64);
+
+  useEffect(() => {
+    if (!headerRef.current) return;
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+    updateHeaderHeight();
+    const observer = new ResizeObserver(updateHeaderHeight);
+    observer.observe(headerRef.current);
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
   const [cvFileName, setCvFileName] = useState<string | null>(null);
   const [isInputCollapsed, setIsInputCollapsed] = useState<boolean>(false);
   const [analyzedCvText, setAnalyzedCvText] = useState<string>('');
@@ -402,6 +421,8 @@ export default function App() {
 
   const handleAnalyze = async (clarifyingAnswers?: string) => {
     if (!cvText.trim() || !jdText.trim()) return;
+    const sentCvText = cvText;
+    const sentJdText = jdText;
 
     if (clarifyingAnswers) {
       setIsRefining(true);
@@ -432,8 +453,8 @@ export default function App() {
       const data = await parseApiResponseSafely<CompleteCVAnalysisResponse>(res, lang as 'vi' | 'en', requestId);
 
       setAnalysis(data as any);
-      setAnalyzedCvText(cvText);
-      setAnalyzedJdText(jdText);
+      setAnalyzedCvText(sentCvText);
+      setAnalyzedJdText(sentJdText);
       setIsInputCollapsed(true);
       setCheckedActions([false, false, false, false, false]);
 
@@ -792,6 +813,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col">
       {/* Header */}
       <Header
+        ref={headerRef}
         onReset={handleReset}
         hasData={!!analysis}
         lang={lang}
@@ -826,6 +848,7 @@ export default function App() {
             onReAnalyze={() => handleAnalyze()}
             isLoading={isLoading}
             lang={lang}
+            topOffset={headerHeight}
           />
         )}
 

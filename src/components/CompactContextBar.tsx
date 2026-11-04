@@ -14,6 +14,7 @@ interface CompactContextBarProps {
   onReAnalyze: () => void;
   isLoading: boolean;
   lang: Language;
+  topOffset?: number;
 }
 
 export const CompactContextBar: React.FC<CompactContextBarProps> = ({
@@ -28,6 +29,7 @@ export const CompactContextBar: React.FC<CompactContextBarProps> = ({
   onReAnalyze,
   isLoading,
   lang,
+  topOffset = 64,
 }) => {
   const displayJd = jdTitle || jdSourceLabel || (lang === 'vi' ? 'Mô tả công việc (JD)' : 'Job Description (JD)');
   const displayCv = cvFileName
@@ -37,7 +39,11 @@ export const CompactContextBar: React.FC<CompactContextBarProps> = ({
     : (lang === 'vi' ? 'Chưa có CV' : 'No CV');
 
   return (
-    <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs px-4 sm:px-6 lg:px-8 py-2.5 transition-all">
+    <div
+      className="sticky z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs px-4 sm:px-6 lg:px-8 py-2.5 transition-all"
+      style={{ top: `${topOffset}px` }}
+      data-testid="compact-context-bar"
+    >
       <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between gap-3 flex-wrap min-h-[38px]">
         {/* Left: Input Source Metadata */}
         <div className="flex items-center gap-3 text-xs sm:text-sm flex-wrap text-slate-700">
@@ -60,12 +66,31 @@ export const CompactContextBar: React.FC<CompactContextBarProps> = ({
             </span>
           </div>
 
-          {/* Pegged Score indicator if available */}
-          {overallScore !== undefined && !isInputDirty && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              <span>{lang === 'vi' ? 'Điểm gốc' : 'Original Score'}: {overallScore}/100</span>
-            </span>
+          {/* Pegged Score indicator with dirty/stale distinction */}
+          {overallScore !== undefined && (
+            isInputDirty ? (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-xs animate-in fade-in"
+                title={lang === 'vi' ? 'Điểm này thuộc về lần phân tích trước khi chỉnh sửa CV/JD' : 'This score reflects the analysis before input was edited'}
+                data-testid="stale-score-badge"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>
+                  {lang === 'vi' ? 'Điểm lần phân tích trước' : 'Previous score'}: <span className="font-mono font-black">{overallScore}/100</span>
+                </span>
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-xs"
+                title={lang === 'vi' ? 'Điểm khớp hồ sơ hiện tại' : 'Current profile match score'}
+                data-testid="fresh-score-badge"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                <span>
+                  {lang === 'vi' ? 'Điểm hồ sơ' : 'Match score'}: <span className="font-mono font-black">{overallScore}/100</span>
+                </span>
+              </span>
+            )
           )}
         </div>
 
@@ -81,7 +106,7 @@ export const CompactContextBar: React.FC<CompactContextBarProps> = ({
               <button
                 onClick={onReAnalyze}
                 disabled={isLoading}
-                className="flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer ml-1"
+                className="flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer ml-1"
                 title={lang === 'vi' ? 'Chấm điểm lại theo nội dung mới' : 'Re-analyze with new input'}
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -90,9 +115,10 @@ export const CompactContextBar: React.FC<CompactContextBarProps> = ({
             </div>
           )}
 
-          {/* Toggle Button */}
+          {/* Toggle Button: only expands/collapses form; 0 API calls, 0 quota */}
           <button
             onClick={onToggleCollapse}
+            data-testid="toggle-collapse-btn"
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
               isInputCollapsed
                 ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200/90'

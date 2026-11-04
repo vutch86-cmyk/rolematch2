@@ -515,7 +515,8 @@ export const InputSection: React.FC<InputSectionProps> = ({
                   if (selectedPresetId) setSelectedPresetId('');
                 }}
                 placeholder={t.jdPlaceholder}
-                className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-transparent focus:outline-none transition-all resize-y font-mono leading-relaxed"
+                disabled={isLoading}
+                className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-transparent focus:outline-none transition-all resize-y font-mono leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
               />
             ) : (
               <div className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-white overflow-y-auto leading-relaxed">
@@ -674,7 +675,8 @@ export const InputSection: React.FC<InputSectionProps> = ({
                   if (selectedPresetId) setSelectedPresetId('');
                 }}
                 placeholder={t.cvPlaceholder}
-                className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-transparent focus:outline-none transition-all resize-y font-mono leading-relaxed"
+                disabled={isLoading}
+                className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-transparent focus:outline-none transition-all resize-y font-mono leading-relaxed disabled:opacity-60 disabled:cursor-not-allowed"
               />
             ) : (
               <div className="w-full h-[340px] p-4 text-xs sm:text-sm text-slate-800 bg-white overflow-y-auto leading-relaxed">

@@ -3,7 +3,7 @@ import { FileSearch, Sparkles, RefreshCw, Globe, History, ShieldCheck, LogOut, U
 import { Language, translations } from '../utils/i18n';
 import { UserAccount } from '../types';
 
-interface HeaderProps {
+export interface HeaderProps {
   onReset?: () => void;
   hasData?: boolean;
   lang: Language;
@@ -20,7 +20,7 @@ interface HeaderProps {
   onAppModeChange?: (mode: 'single' | 'batch') => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
+export const Header = React.forwardRef<HTMLElement, HeaderProps>(({
   onReset,
   hasData,
   lang,
@@ -35,13 +35,13 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdminPanel,
   appMode = 'single',
   onAppModeChange,
-}) => {
+}, ref) => {
   const t = translations[lang].header;
   const tHistory = translations[lang].history;
 
   return (
-    <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 text-slate-900 sticky top-0 z-30 shadow-xs">
-      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 h-16 flex items-center justify-between gap-4">
+    <header ref={ref} className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 text-slate-900 sticky top-0 z-30 shadow-xs transition-all">
+      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 min-h-[4rem] py-2 sm:py-0 flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
         {/* Brand / Logo */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 shadow-xs shadow-blue-500/20 shrink-0">
@@ -88,71 +88,56 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>{lang === 'vi' ? 'Nhà tuyển dụng' : 'Recruiter'}</span>
+              <span className="relative">
+                {lang === 'vi' ? 'Nhà tuyển dụng' : 'Recruiter'}
+                <span className="absolute -top-1 -right-2.5 w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+              </span>
             </button>
           </div>
         )}
 
-        {/* Right Navigation & User Menu */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* History Drawer Trigger Button */}
+        {/* Right Actions Menu */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Reset App State Button */}
+          {hasData && onReset && (
+            <button
+              onClick={onReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
+              title={t.resetTooltip}
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{t.reset}</span>
+            </button>
+          )}
+
+          {/* Candidate History Drawer Trigger */}
           {onOpenHistory && (
             <button
               onClick={onOpenHistory}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-all cursor-pointer relative"
-              title={tHistory.openHistory}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 transition-all cursor-pointer"
+              title={tHistory.title}
             >
-              <History className="w-4 h-4 text-slate-600" />
-              <span className="hidden md:inline">{tHistory.buttonLabel}</span>
+              <History className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{tHistory.title}</span>
               {historyCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-xs font-extrabold bg-blue-600 text-white">
+                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700">
                   {historyCount}
                 </span>
               )}
             </button>
           )}
 
-          {/* Language Switcher Toggle */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
-            <div className="px-1.5 text-slate-400 flex items-center gap-1 text-xs font-medium hidden sm:flex">
-              <Globe className="w-3.5 h-3.5 text-slate-500" />
-            </div>
-            <button
-              onClick={() => onLangChange('vi')}
-              className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                lang === 'vi'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="Tiếng Việt"
-            >
-              VN
-            </button>
-            <button
-              onClick={() => onLangChange('en')}
-              className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                lang === 'en'
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="English"
-            >
-              EN
-            </button>
-          </div>
+          {/* Language Switcher */}
+          <button
+            onClick={() => onLangChange(lang === 'vi' ? 'en' : 'vi')}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+            title={lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+          >
+            <Globe className="w-3.5 h-3.5 text-slate-500" />
+            <span className="font-bold">{lang.toUpperCase()}</span>
+          </button>
 
-          {hasData && onReset && (
-            <button
-              onClick={onReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 transition-all cursor-pointer"
-              title={t.reanalyze}
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden xl:inline">{t.reanalyze}</span>
-            </button>
-          )}
-
-          {/* USER AUTH STATUS / LOGIN BUTTON */}
+          {/* User Account / Admin Badge / Login */}
           {currentUser ? (
             <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 p-1 pl-2.5 rounded-xl text-xs shadow-xs">
               <div className="flex items-center gap-1.5">
@@ -169,7 +154,6 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
 
-              {/* Admin Dashboard Button if admin */}
               {currentUser.role === 'admin' && onOpenAdminPanel && (
                 <button
                   onClick={onOpenAdminPanel}
@@ -202,4 +186,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
     </header>
   );
-};
+});
+
+Header.displayName = 'Header';
