@@ -4,6 +4,7 @@ import {
   computeAnalysisFingerprint,
   isExactWordOrPhraseMatch,
   deduplicateKeywords,
+  mergeIsMustHave,
   shouldUnhideFilterForTarget,
   EvidenceItem,
 } from './evidenceMapAdapter';
@@ -284,5 +285,100 @@ describe('Phase 2 Data Contract & Regression Suite: evidenceMapAdapter', () => {
     expect(isExactWordOrPhraseMatch('Java', 'Cần làm rõ kỹ năng Java')).toBe(true);
     expect(isExactWordOrPhraseMatch('C', 'Thành thạo lập trình C++')).toBe(false);
     expect(isExactWordOrPhraseMatch('C++', 'Thành thạo lập trình C++')).toBe(true);
+  });
+
+  it('7. [REGRESSION TRI-STATE] mergeIsMustHave handles complete truth table and preserves symmetry', () => {
+    // true với bất kỳ giá trị nào đều ra true
+    expect(mergeIsMustHave(true, true)).toBe(true);
+    expect(mergeIsMustHave(true, false)).toBe(true);
+    expect(mergeIsMustHave(false, true)).toBe(true);
+    expect(mergeIsMustHave(true, undefined)).toBe(true);
+    expect(mergeIsMustHave(undefined, true)).toBe(true);
+
+    // false kết hợp undefined -> false (explicit false được ưu tiên hơn undefined)
+    expect(mergeIsMustHave(false, false)).toBe(false);
+    expect(mergeIsMustHave(false, undefined)).toBe(false);
+    expect(mergeIsMustHave(undefined, false)).toBe(false);
+
+    // Cả hai đều undefined -> undefined (để adapter tiếp tục suy luận từ importance)
+    expect(mergeIsMustHave(undefined, undefined)).toBe(undefined);
+  });
+
+  it('8. [REGRESSION TRI-STATE] deduplicateKeywords preserves undefined when both duplicates lack isMustHave', () => {
+    // Tái hiện đúng ca: AWS và aws đều importance='Rất quan trọng', không có isMustHave
+    const deduped = deduplicateKeywords([
+      { keyword: 'AWS', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng' },
+      { keyword: 'aws', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng' },
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0].keyword).toBe('AWS');
+    // KHÔNG được biến thành false, phải giữ undefined!
+    expect(deduped[0].isMustHave).toBeUndefined();
+
+    // Khi đưa vào buildEvidenceMapViewModel, AWS chưa đối chiếu phải suy luận ra Must-Have = true
+    const vm = buildEvidenceMapViewModel({
+      feature1: {
+        jdKeywords: [
+          { keyword: 'AWS', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng' },
+          { keyword: 'aws', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng' },
+        ],
+        comparisonTable: [],
+        scores: { keywordMatchScore: 50, skillMatchScore: 50, experienceOutcomeScore: 50, overallRoleScore: 50 },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+    } as unknown as CompleteCVAnalysisResponse);
+
+    expect(vm.hero.mustHaveTotal).toBe(1);
+    expect(vm.hero.mustHaveUncompared).toBe(1);
+    expect(vm.uncomparedKeywords[0].isMustHave).toBe(true);
+    expect(vm.uncomparedKeywords[0].mustHaveSource).toBe('inferred_importance');
+  });
+
+  it('9. [REGRESSION TRI-STATE] deduplicateKeywords preserves explicit false over undefined, and works with comparisonTable without explicit flag', () => {
+    // 1. Explicit false + undefined -> false (bảo toàn explicit false, không suy luận importance)
+    const dedupedFalse = deduplicateKeywords([
+      { keyword: 'AWS', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng', isMustHave: false },
+      { keyword: 'aws', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng', isMustHave: undefined },
+    ]);
+    expect(dedupedFalse[0].isMustHave).toBe(false);
+
+    // Đảo thứ tự: undefined + explicit false -> false
+    const dedupedFalseRev = deduplicateKeywords([
+      { keyword: 'AWS', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng', isMustHave: undefined },
+      { keyword: 'aws', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng', isMustHave: false },
+    ]);
+    expect(dedupedFalseRev[0].isMustHave).toBe(false);
+
+    // 2. Keyword có comparison row nhưng row không có cờ explicit:
+    // row.isMustHave = undefined, jdKeywords có AWS và aws với isMustHave = undefined và importance = 'Rất quan trọng'
+    const vmRow = buildEvidenceMapViewModel({
+      feature1: {
+        jdKeywords: [
+          { keyword: 'AWS', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng' },
+          { keyword: 'aws', category: 'Công cụ, phần mềm hoặc phương pháp', importance: 'Rất quan trọng' },
+        ],
+        comparisonTable: [
+          {
+            jdTerm: 'AWS',
+            importance: 'Rất quan trọng',
+            cvEvidence: '2 năm AWS EC2 S3',
+            gapOrClarification: '',
+            matchStatus: 'khop',
+          },
+        ],
+        scores: { keywordMatchScore: 50, skillMatchScore: 50, experienceOutcomeScore: 50, overallRoleScore: 50 },
+        summary: { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] },
+      },
+    } as unknown as CompleteCVAnalysisResponse);
+
+    const items = vmRow.groups.flatMap((g) => g.items);
+    expect(items).toHaveLength(1);
+    const awsItem = items[0];
+    expect(awsItem.isMustHave).toBe(true);
+    expect(awsItem.mustHaveSource).toBe('inferred_importance');
+    expect(vmRow.hero.mustHaveTotal).toBe(1);
+    expect(vmRow.hero.mustHavePassed).toBe(1);
+    expect(vmRow.hero.mustHaveUncompared).toBe(0);
   });
 });

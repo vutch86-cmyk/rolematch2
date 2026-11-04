@@ -147,8 +147,26 @@ export function shouldUnhideFilterForTarget(
 }
 
 /**
+ * Gộp trạng thái isMustHave bảo toàn tri-state (true | false | undefined):
+ * 1. Nếu bất kỳ bản ghi nào là true -> true (bảo toàn tín hiệu must-have khi có ít nhất 1 nguồn xác nhận).
+ * 2. Nếu một bên false và một bên undefined -> false (ưu tiên giá trị explicit đã xác định hơn undefined).
+ * 3. Nếu cả hai đều false -> false.
+ * 4. Nếu cả hai đều undefined -> undefined (giữ nguyên để adapter tiếp tục suy luận từ importance).
+ *
+ * Hàm này có tính giao hoán: mergeIsMustHave(a, b) === mergeIsMustHave(b, a).
+ */
+export function mergeIsMustHave(
+  a: boolean | undefined,
+  b: boolean | undefined
+): boolean | undefined {
+  if (a === true || b === true) return true;
+  if (a === false || b === false) return false;
+  return undefined;
+}
+
+/**
  * Chuẩn hóa và khử trùng lặp danh sách jdKeywords.
- * Giữ nguyên cờ Must-Have nếu có xung đột trùng lặp (AWS vs aws).
+ * Giữ nguyên cờ Must-Have nếu có xung đột trùng lặp (AWS vs aws) theo quy tắc tri-state merge.
  */
 export function deduplicateKeywords(rawKeywords: JDKeyword[]): JDKeyword[] {
   const map = new Map<string, JDKeyword>();
@@ -164,8 +182,8 @@ export function deduplicateKeywords(rawKeywords: JDKeyword[]): JDKeyword[] {
       });
     } else {
       const existing = map.get(normKey)!;
-      // Bảo toàn cờ Must-Have: nếu bất kỳ bản ghi trùng nào là Must-Have, giữ Must-Have = true
-      const isMustHave = Boolean(existing.isMustHave || kw.isMustHave);
+      // Bảo toàn tri-state (true / false / undefined)
+      const isMustHave = mergeIsMustHave(existing.isMustHave, kw.isMustHave);
 
       // Ưu tiên độ quan trọng cao nhất
       let importance = existing.importance;
