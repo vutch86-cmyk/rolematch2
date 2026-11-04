@@ -161,18 +161,25 @@ Bên dưới Hero Card là 4 tab chuyên sâu, mỗi tab tập trung vào 1 nhi�
 
 ## 5. Lộ Trình Triển Khai Thực Tế (Phased Roadmap)
 
+| Giai đoạn | Trọng tâm | Trạng thái | Ghi chú & Liên kết |
+| :--- | :--- | :---: | :--- |
+| **Đợt 0 (Phase 0)** | Sandbox Prototype & Usability Guide | ✅ **Hoàn thành** | Preset mẫu độc lập, Test suite & Observation Protocol |
+| **Đợt 1 (Phase 1)** | Google Header & Compact Context Bar | ✅ **Hoàn thành** | Commit `b11f55d`, `50371fd` (Test suite 100% pass) |
+| **Đợt 2 (Phase 2)** | Executive Hero Card & Evidence Map Workspace | 🚀 **RFC / Brainstorming** | Xem chi tiết: [`docs/PHASE_2_PROPOSAL_RFC.md`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/PHASE_2_PROPOSAL_RFC.md) |
+| **Đợt 3 (Phase 3)** | CV Diff Studio & Interview Kit | ⏳ Chờ triển khai | Dự kiến sau khi chốt P2 |
+
 ```mermaid
 gantt
     title LỘ TRÌNH TRIỂN KHAI CẢI TIẾN UI/UX v1.1
     dateFormat  YYYY-MM-DD
     section Đợt 0: Thử Nghiệm Sandbox
-    Dựng Preview Sandbox với Preset mẫu        :p0, 2026-11-04, 2d
+    Dựng Preview Sandbox với Preset mẫu        :done, p0, 2026-11-04, 2d
     section Đợt 1: Header & Input Context Bar
-    Header sáng sạch chuẩn Google Workspace    :p1_1, after p0, 2d
-    Dual Canvas & Compact Context Bar          :p1_2, after p1_1, 2d
+    Header sáng sạch chuẩn Google Workspace    :done, p1_1, after p0, 2d
+    Dual Canvas & Compact Context Bar          :done, p1_2, after p1_1, 2d
     section Đợt 2: Executive Hero & Evidence Map
-    Overarching Executive Hero Card            :p2_1, after p1_2, 3d
-    Bản đồ Bằng chứng 5 nhóm năng lực          :p2_2, after p2_1, 3d
+    Overarching Executive Hero Card            :active, p2_1, after p1_2, 3d
+    Bản đồ Bằng chứng 5 nhóm năng lực          :active, p2_2, after p2_1, 3d
     section Đợt 3: CV Diff Studio & Interview Kit
     CV Diff Studio dạng Google Docs Sidebar    :p3_1, after p2_2, 4d
     Luyện phỏng vấn 2 chế độ & Tối ưu Recruiter:p3_2, after p3_1, 2d
