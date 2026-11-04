@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Header } from './components/Header';
 import { InputSection } from './components/InputSection';
 import { CompactContextBar } from './components/CompactContextBar';
 import { KeywordMatchTab } from './components/KeywordMatchTab';
+import { ExecutiveHeroCard } from './components/ExecutiveHeroCard';
+import { EvidenceMapTab, CompetencyFilterType } from './components/EvidenceMapTab';
+import { buildEvidenceMapViewModel, QuickWinAction } from './utils/evidenceMapAdapter';
 import { BulletPointRewriteTab } from './components/BulletPointRewriteTab';
 import { RecruiterScanTab } from './components/RecruiterScanTab';
 import { InterviewPrepTab } from './components/InterviewPrepTab';
@@ -340,6 +343,79 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<CompleteCVAnalysisResponse | null>(null);
   const [checkedActions, setCheckedActions] = useState<boolean[]>([false, false, false, false, false]);
+
+  // Phase 2: Evidence Map & Executive Hero State (Lifted to preserve across tab switches & lang changes)
+  const [expandedCompetencyGroups, setExpandedCompetencyGroups] = useState<Set<string>>(new Set(['tech']));
+  const [competencyFilter, setCompetencyFilter] = useState<CompetencyFilterType>('all');
+  const [highlightedEvidenceItemId, setHighlightedEvidenceItemId] = useState<string | undefined>(undefined);
+  const [analysisSnapshotKey, setAnalysisSnapshotKey] = useState<string | null>(null);
+
+  const evidenceMapViewModel = useMemo(() => {
+    return buildEvidenceMapViewModel(analysis, lang as 'vi' | 'en');
+  }, [analysis, lang]);
+
+  // Khi phan tich moi nap vao: khoi tao lai nhom uu tien mo va reset filter
+  useEffect(() => {
+    if (analysis && analysis.feature1) {
+      const currentKey = `${analysis.companyName || ''}-${analysis.jobTitle || ''}-${analysis.feature1.scores?.overallRoleScore || 0}-${analysis.feature1.comparisonTable?.length || 0}`;
+      if (currentKey !== analysisSnapshotKey) {
+        setAnalysisSnapshotKey(currentKey);
+        setExpandedCompetencyGroups(new Set([evidenceMapViewModel.initialOpenGroupId]));
+        setCompetencyFilter('all');
+        setHighlightedEvidenceItemId(undefined);
+      }
+    } else if (!analysis) {
+      setAnalysisSnapshotKey(null);
+    }
+  }, [analysis, evidenceMapViewModel.initialOpenGroupId, analysisSnapshotKey]);
+
+  const handleToggleCompetencyGroup = (groupId: string) => {
+    setExpandedCompetencyGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  const handleQuickWinClick = (qw: QuickWinAction) => {
+    if (!qw.targetItemId) return;
+
+    setActiveTab('feature1');
+    setCompetencyFilter('all');
+
+    if (qw.targetGroupId) {
+      setExpandedCompetencyGroups((prev) => {
+        const next = new Set(prev);
+        next.add(qw.targetGroupId!);
+        return next;
+      });
+    }
+
+    setHighlightedEvidenceItemId(qw.targetItemId);
+
+    setTimeout(() => {
+      const el = document.getElementById(qw.targetItemId!);
+      if (el) {
+        const headerOffset = headerHeight || 80;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset - 24;
+
+        window.scrollTo({
+          top: Math.max(0, offsetPosition),
+          behavior: 'smooth',
+        });
+        el.focus();
+      }
+    }, 120);
+
+    setTimeout(() => {
+      setHighlightedEvidenceItemId((curr) => (curr === qw.targetItemId ? undefined : curr));
+    }, 2500);
+  };
   const [copiedReport, setCopiedReport] = useState<boolean>(false);
   const [currentRoleTitle, setCurrentRoleTitle] = useState<string>('');
   const [jdSourceLabel, setJdSourceLabel] = useState<string | null>(null);
@@ -1046,6 +1122,14 @@ export default function App() {
               </div>
             )}
 
+            {/* Executive Hero Card (Phase 2) */}
+            <ExecutiveHeroCard
+              hero={evidenceMapViewModel.hero}
+              lang={lang as 'vi' | 'en'}
+              isStale={Boolean(isInputDirty)}
+              onQuickWinClick={handleQuickWinClick}
+            />
+
             {/* Action Bar & Tabs Header */}
             <div ref={tabsHeaderRef} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 sticky top-20 z-20 max-w-full overflow-hidden">
               {/* Feature Tabs */}
@@ -1072,8 +1156,8 @@ export default function App() {
                   }`}
                 >
                   <Layers className={`w-3.5 h-3.5 ${activeTab === 'feature1' ? 'text-white' : 'text-indigo-600'}`} />
-                  <span className="hidden xl:inline">{t.tabs.tab2}</span>
-                  <span className="inline xl:hidden">{lang === 'vi' ? '2. Khớp & Từ Khóa' : '2. Keywords & JD'}</span>
+                  <span className="hidden xl:inline">{lang === 'vi' ? '2. Bản Đồ Bằng Chứng' : '2. Evidence Map'}</span>
+                  <span className="inline xl:hidden">{lang === 'vi' ? '2. Bằng Chứng' : '2. Evidence'}</span>
                 </button>
 
                 <button
@@ -1172,13 +1256,19 @@ export default function App() {
             {/* Tab Views */}
             <div key={activeTab} className="pt-2 animate-fade-in">
               {activeTab === 'feature1' && analysis.feature1 && (
-                <KeywordMatchTab
-                  jdKeywords={analysis.feature1?.jdKeywords || []}
-                  comparisonTable={analysis.feature1?.comparisonTable || []}
-                  scores={analysis.feature1?.scores || { keywordMatchScore: 0, skillMatchScore: 0, experienceOutcomeScore: 0, overallRoleScore: 0 }}
-                  summary={analysis.feature1?.summary || { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] }}
-                  checkedActions={checkedActions}
-                  onToggleAction={handleToggleAction}
+                <EvidenceMapTab
+                  viewModel={evidenceMapViewModel}
+                  expandedGroups={expandedCompetencyGroups}
+                  onToggleGroup={handleToggleCompetencyGroup}
+                  competencyFilter={competencyFilter}
+                  onFilterChange={setCompetencyFilter}
+                  highlightedItemId={highlightedEvidenceItemId}
+
+
+
+
+
+
                   lang={lang}
                 />
               )}
