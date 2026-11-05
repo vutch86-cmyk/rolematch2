@@ -167,14 +167,14 @@ Bên dưới Hero Card là 4 tab chuyên sâu, mỗi tab tập trung vào 1 nhi�
 
 | Giai đoạn | Trọng tâm | Trạng thái Nghiệm Thu Kỹ Thuật | Trạng thái Deploy Staging | Ghi chú & Hồ sơ Bằng chứng |
 | :--- | :--- | :---: | :---: | :--- |
-| **Đợt 0 (Phase 0)** | Sandbox Prototype & Usability Guide | ✅ **Hoàn tất** (`f69923f`) | ✅ **Đã deploy staging** (`9683938`) | Preset mẫu độc lập, Test suite & Observation Protocol |
-| **Đợt 1 (Phase 1)** | Google Header & Compact Context Bar | ✅ **Hoàn tất** (`b11f55d`, `50371fd`) | ⏳ Chờ deploy cùng đợt | Test suite 100% pass |
-| **Đợt 2 (Phase 2)** | Executive Hero Card & Evidence Map (Desktop Scope) | ✅ **Hoàn tất nghiệm thu kỹ thuật** (`c5a2bfc`) | ⏳ **Chưa deploy staging** *(Chờ lệnh PO)* | RFC: [`docs/PHASE_2_PROPOSAL_RFC.md`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/PHASE_2_PROPOSAL_RFC.md) <br/>Hồ sơ CDP & Logs: [`docs/evidence/phase2-c5a2bfc/`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/evidence/phase2-c5a2bfc/VERIFICATION_SUMMARY_AND_LOGS.md) |
-| **Đợt 3 (Phase 3)** | CV Diff Studio & Interview Kit | ⏸️ **Chưa bắt đầu** *(Chờ lệnh PO)* | ⏳ Chưa triển khai | Không tự mở code P3 trước khi PO yêu cầu |
+| **Đợt 0 (Phase 0)** | Sandbox Prototype & Usability Guide | ✅ **Hoàn tất** (`f69923f`) | ✅ **Đã đẩy nhánh `staging`** (`9683938`) | Preset mẫu độc lập, Test suite & Observation Protocol |
+| **Đợt 1 (Phase 1)** | Google Header & Compact Context Bar | ✅ **Hoàn tất** (`b11f55d`, `50371fd`) | ✅ **Đã đẩy nhánh `staging`** | Test suite 100% pass |
+| **Đợt 2 (Phase 2)** | Executive Hero Card & Evidence Map (Desktop Scope) | ✅ **Hoàn tất nghiệm thu kỹ thuật** (`c5a2bfc`) | ✅ **Đã đẩy nhánh `staging`** | RFC: [`docs/PHASE_2_PROPOSAL_RFC.md`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/PHASE_2_PROPOSAL_RFC.md) <br/>Hồ sơ CDP & Logs: [`docs/evidence/phase2-c5a2bfc/`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/evidence/phase2-c5a2bfc/VERIFICATION_SUMMARY_AND_LOGS.md) |
+| **Đợt 3 (Phase 3)** | CV Diff Studio & Interview Kit (2 Chế độ) | ✅ **Hoàn tất triển khai** (`src/phase3_verification.test.ts` PASS) | ✅ **Đã đẩy nhánh `staging`** | Engine: [`src/utils/cvDiffStudioEngine.ts`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/src/utils/cvDiffStudioEngine.ts), Tab 2 & Tab 4 |
 
 ```mermaid
 gantt
-    title LỘ TRÌNH TRIỂN KHAI CẢI TIẾN UI/UX v1.2 (DESKTOP FOCUS)
+    title LỘ TRÌNH TRIỂN KHAI CẢI TIẾN UI/UX v1.2 (DESKTOP FOCUS — P0 ĐẾN P3)
     dateFormat  YYYY-MM-DD
     section Đợt 0: Thử Nghiệm Sandbox
     Dựng Preview Sandbox với Preset mẫu        :done, p0, 2026-11-04, 1d
@@ -185,8 +185,8 @@ gantt
     Overarching Executive Hero Card (c5a2bfc)  :done, p2_1, after p1_2, 1d
     Bản đồ Bằng chứng 5 nhóm & CDP (c5a2bfc)   :done, p2_2, after p2_1, 1d
     section Đợt 3: CV Diff Studio & Interview Kit
-    CV Diff Studio dạng Google Docs Sidebar    :p3_1, after p2_2, 4d
-    Luyện phỏng vấn 2 chế độ & Tối ưu Recruiter:p3_2, after p3_1, 2d
+    CV Diff Studio dạng Google Docs Sidebar    :done, p3_1, after p2_2, 1d
+    Luyện phỏng vấn 2 chế độ & Tối ưu Recruiter:done, p3_2, after p3_1, 1d
 ```
 
 ---

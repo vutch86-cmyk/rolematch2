@@ -1361,6 +1361,7 @@ export default function App() {
                   onRefineWithAnswers={(ans) => handleAnalyze(ans)}
                   isRefining={isRefining}
                   onOpenGenerateUpdatedCv={() => handleGenerateUpdatedCv()}
+                  onApplyDraftToMainCv={(newCv) => setCvText(newCv)}
                   lang={lang}
                 />
               )}

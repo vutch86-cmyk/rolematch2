@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   BulletRewriteItem,
   TailoredSummaryPitch,
@@ -10,21 +10,43 @@ import {
   getSectionStatusConfig,
 } from '../utils/bulletRewriteHelpers';
 import {
+  createInitialStudioState,
+  applyStudioSuggestion,
+  applyStudioQualitativeFallback,
+  overrideStudioBlockWithSuggestion,
+  manualEditStudioBlock,
+  toggleDismissStudioSuggestion,
+  undoStudio,
+  redoStudio,
+  checkUnresolvedPlaceholdersInStudioDraft,
+  compileStudioDraftText,
+  CvStudioBlock,
+  StudioSuggestion,
+  CvStudioEngineState,
+} from '../utils/cvDiffStudioEngine';
+import {
   HelpCircle,
   Copy,
   Check,
   Sparkles,
   ArrowRight,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Briefcase,
   Code2,
   FileCheck2,
-  SlidersHorizontal,
   Lightbulb,
   Building2,
-  Target,
   Hash,
+  RotateCcw,
+  RotateCw,
+  Edit3,
+  FileText,
+  ShieldCheck,
+  Layers,
+  Table,
+  RefreshCw,
 } from 'lucide-react';
 
 interface BulletPointRewriteTabProps {
@@ -39,6 +61,7 @@ interface BulletPointRewriteTabProps {
   onRefineWithAnswers: (answers: string) => void;
   isRefining: boolean;
   onOpenGenerateUpdatedCv?: () => void;
+  onApplyDraftToMainCv?: (newCvText: string) => void;
   lang: Language;
 }
 
@@ -54,24 +77,29 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
   onRefineWithAnswers,
   isRefining,
   onOpenGenerateUpdatedCv,
+  onApplyDraftToMainCv,
   lang,
 }) => {
   const isEn = lang === 'en';
   const t = translations[lang].bulletRewriteTab;
 
   // Normalize data with resilient fallbacks
-  const normalized = normalizeFeature2Data(
-    {
-      clarifyingQuestions,
-      rewrittenBullets: rawBullets,
-      tailoredSummaries: rawSummaries,
-      sectionAudit: rawAudit,
-    },
-    cvText || '',
-    jdText || '',
-    companyName || '',
-    jobTitle || '',
-    isEn
+  const normalized = useMemo(
+    () =>
+      normalizeFeature2Data(
+        {
+          clarifyingQuestions,
+          rewrittenBullets: rawBullets,
+          tailoredSummaries: rawSummaries,
+          sectionAudit: rawAudit,
+        },
+        cvText || '',
+        jdText || '',
+        companyName || '',
+        jobTitle || '',
+        isEn
+      ),
+    [clarifyingQuestions, rawBullets, rawSummaries, rawAudit, cvText, jdText, companyName, jobTitle, isEn]
   );
 
   const {
@@ -80,6 +108,61 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
     tailoredSummaries,
     sectionAudit,
   } = normalized;
+
+  // Phase 3: CV Diff Studio State
+  const [studioState, setStudioState] = useState<CvStudioEngineState>(() =>
+    createInitialStudioState(cvText || '', rewrittenBullets, tailoredSummaries, isEn)
+  );
+  const [activeSuggestionId, setActiveSuggestionId] = useState<string>(() => {
+    const firstExp = studioState.suggestionOrder.find((id) => id.startsWith('studio-sug-exp-'));
+    return firstExp || studioState.suggestionOrder[0] || '';
+  });
+  const [metricInputs, setMetricInputs] = useState<Record<string, string>>({});
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [manualTextBuffer, setManualTextBuffer] = useState<string>('');
+  const [isReviewingOverride, setIsReviewingOverride] = useState<boolean>(false);
+  const [studioNotice, setStudioNotice] = useState<{
+    type: 'success' | 'warn' | 'error';
+    message: string;
+  } | null>(null);
+  const [copiedDraft, setCopiedDraft] = useState<boolean>(false);
+  const [syncedToMainCv, setSyncedToMainCv] = useState<boolean>(false);
+  const [workspaceView, setWorkspaceView] = useState<'studio_and_all' | 'classic_table'>('studio_and_all');
+
+  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Re-initialize studio state when rewrittenBullets or language changes significantly
+  const studioSourceKey = useMemo(() => {
+    const bulletKey = rewrittenBullets.map((b) => `${b.originalBullet}:${b.rewrittenBullet}`).join('|');
+    return `${lang}::${bulletKey}`;
+  }, [rewrittenBullets, lang]);
+
+  const prevStudioSourceKeyRef = useRef<string>(studioSourceKey);
+  useEffect(() => {
+    if (prevStudioSourceKeyRef.current !== studioSourceKey) {
+      prevStudioSourceKeyRef.current = studioSourceKey;
+      const freshState = createInitialStudioState(cvText || '', rewrittenBullets, tailoredSummaries, isEn);
+      setStudioState(freshState);
+      const firstExp = freshState.suggestionOrder.find((id) => id.startsWith('studio-sug-exp-'));
+      setActiveSuggestionId(firstExp || freshState.suggestionOrder[0] || '');
+      setEditingBlockId(null);
+      setIsReviewingOverride(false);
+    }
+  }, [studioSourceKey, cvText, rewrittenBullets, tailoredSummaries, isEn]);
+
+  const activeSuggestion: StudioSuggestion | null =
+    studioState.suggestions[activeSuggestionId] || null;
+
+  const unresolvedPlaceholders = useMemo(
+    () => checkUnresolvedPlaceholdersInStudioDraft(studioState),
+    [studioState]
+  );
+
+  const appliedCount = useMemo(
+    () =>
+      (Object.values(studioState.suggestions) as StudioSuggestion[]).filter((s) => s.status === 'applied').length,
+    [studioState.suggestions]
+  );
 
   // Active pitch version tab: 'technical' or 'management'
   const [activePitchType, setActivePitchType] = useState<'technical' | 'management'>('technical');
@@ -98,6 +181,162 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
     activePitchType === 'technical'
       ? tailoredSummaries.technicalFocus
       : tailoredSummaries.managementFocus;
+
+  const handleSelectSuggestion = (sugId: string, scrollBlock: boolean = true) => {
+    setActiveSuggestionId(sugId);
+    setIsReviewingOverride(false);
+    const sug = studioState.suggestions[sugId];
+    if (!sug || !scrollBlock) return;
+
+    const targetEl = blockRefs.current[sug.sourceBlockId];
+    if (targetEl && typeof window !== 'undefined') {
+      const rect = targetEl.getBoundingClientRect();
+      const offsetPosition = rect.top + window.scrollY - 160;
+      const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      window.scrollTo({
+        top: Math.max(0, offsetPosition),
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    }
+  };
+
+  const handleApplyStudioWithMetrics = () => {
+    if (!activeSuggestion) return;
+    const res = applyStudioSuggestion(studioState, activeSuggestion.id, metricInputs, isEn);
+    if (res.success) {
+      setStudioState(res.state);
+      setStudioNotice({
+        type: 'success',
+        message: isEn
+          ? `Applied rewrite to draft: "${activeSuggestion.title}"`
+          : `Đã chèn câu hoàn chỉnh vào bản nháp: "${activeSuggestion.title}"`,
+      });
+    } else {
+      setStudioNotice({
+        type: 'error',
+        message:
+          res.error ||
+          (isEn ? 'Could not apply suggestion.' : 'Không thể chèn đề xuất. Vui lòng điền số liệu thực tế.'),
+      });
+    }
+  };
+
+  const handleApplyStudioQualitative = () => {
+    if (!activeSuggestion) return;
+    const res = applyStudioQualitativeFallback(studioState, activeSuggestion.id, isEn);
+    if (res.success) {
+      setStudioState(res.state);
+      setStudioNotice({
+        type: 'success',
+        message: isEn
+          ? 'Applied honest qualitative version (without unverified numbers).'
+          : 'Đã áp dụng câu định tính trung thực (không chèn số liệu giả định).',
+      });
+    } else {
+      setStudioNotice({
+        type: 'error',
+        message: res.error || (isEn ? 'Could not apply qualitative fallback.' : 'Không thể áp dụng.'),
+      });
+    }
+  };
+
+  const handleOverrideStudioBlock = (useQualitative: boolean = false) => {
+    if (!activeSuggestion) return;
+    const res = overrideStudioBlockWithSuggestion(
+      studioState,
+      activeSuggestion.id,
+      metricInputs,
+      useQualitative,
+      isEn
+    );
+    if (res.success) {
+      setStudioState(res.state);
+      setIsReviewingOverride(false);
+      setStudioNotice({
+        type: 'success',
+        message: isEn
+          ? 'Replaced manually edited block with AI suggestion.'
+          : 'Đã thay thế đoạn sửa tay bằng đề xuất AI.',
+      });
+    } else {
+      setStudioNotice({
+        type: 'error',
+        message: res.error || (isEn ? 'Could not replace block.' : 'Không thể thay thế đoạn văn bản.'),
+      });
+    }
+  };
+
+  const handleStartManualEdit = (block: CvStudioBlock) => {
+    setEditingBlockId(block.id);
+    setManualTextBuffer(block.content);
+  };
+
+  const handleSaveManualEdit = (blockId: string) => {
+    const updated = manualEditStudioBlock(studioState, blockId, manualTextBuffer, isEn);
+    setStudioState(updated);
+    setEditingBlockId(null);
+    setStudioNotice({
+      type: 'warn',
+      message: isEn
+        ? 'Saved manual edit. Linked suggestions moved to Needs Review to prevent accidental overwrite.'
+        : 'Đã lưu sửa tay. Đề xuất liên quan chuyển sang "Cần kiểm tra lại" để chống ghi đè.',
+    });
+  };
+
+  const handleToggleDismiss = (sugId: string) => {
+    const updated = toggleDismissStudioSuggestion(studioState, sugId, isEn);
+    setStudioState(updated);
+  };
+
+  const handleUndoStudio = () => {
+    if (studioState.historyPast.length === 0) return;
+    setStudioState((prev) => undoStudio(prev, isEn));
+  };
+
+  const handleRedoStudio = () => {
+    if (studioState.historyFuture.length === 0) return;
+    setStudioState((prev) => redoStudio(prev, isEn));
+  };
+
+  const handleCopyStudioDraft = () => {
+    if (unresolvedPlaceholders.length > 0) {
+      setStudioNotice({
+        type: 'error',
+        message: isEn
+          ? `Cannot copy final draft while unresolved placeholders remain: ${unresolvedPlaceholders.join(', ')}`
+          : `Chặn xuất CV: Còn trường số liệu chưa điền (${unresolvedPlaceholders.join(', ')}).`,
+      });
+      return;
+    }
+    const text = compileStudioDraftText(studioState);
+    navigator.clipboard.writeText(text);
+    setCopiedDraft(true);
+    setTimeout(() => setCopiedDraft(false), 2000);
+  };
+
+  const handleSyncToMainCv = () => {
+    if (unresolvedPlaceholders.length > 0) {
+      setStudioNotice({
+        type: 'error',
+        message: isEn
+          ? `Cannot apply to main CV while unresolved placeholders remain: ${unresolvedPlaceholders.join(', ')}`
+          : `Chặn an toàn dữ liệu: Không thể cập nhật vào CV chính khi còn placeholder ${unresolvedPlaceholders.join(', ')}.`,
+      });
+      return;
+    }
+    const text = compileStudioDraftText(studioState);
+    if (onApplyDraftToMainCv) {
+      onApplyDraftToMainCv(text);
+      setSyncedToMainCv(true);
+      setStudioNotice({
+        type: 'success',
+        message: isEn
+          ? 'Draft synced to main CV input! Click "Re-analyze" on the top Context Bar whenever you want AI to re-score.'
+          : 'Đã đồng bộ bản nháp vào CV chính! Bạn có thể bấm "Chấm điểm lại" trên thanh Context Bar khi muốn tính điểm mới.',
+      });
+      setTimeout(() => setSyncedToMainCv(false), 3500);
+    }
+  };
 
   const handleCopyPitch = () => {
     if (activePitch?.pitch) {
@@ -143,7 +382,572 @@ export const BulletPointRewriteTab: React.FC<BulletPointRewriteTabProps> = ({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="cv-diff-studio-tab">
+      {/* ========================================================================= */}
+      {/* PHASE 3 WORKSPACE HEADER & MODE SWITCHER (CV DIFF STUDIO + FULL PILLARS)   */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{isEn ? 'CV Diff Studio • Google Docs Sidebar' : 'CV Diff Studio • Biên Tập Bản Nháp & Đề Xuất Bên Lề'}</span>
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>
+                  {isEn
+                    ? 'Anti-Hallucination Guardrail Active (0% [X%] allowed)'
+                    : 'Chống số liệu ảo (Chặn 100% placeholder [X%] chưa điền)'}
+                </span>
+              </span>
+            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+              {isEn
+                ? 'Interactive CV Draft Studio & Real-Metric Assistant'
+                : 'Biên Tập Bản Nháp CV 1 Cột & Thẻ Đề Xuất Bên Lề'}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600">
+              {isEn
+                ? 'Click any block or suggestion to inspect the Google XYZ rewrite, enter real metrics, undo/redo freely, and sync to your CV without consuming AI quota.'
+                : 'Nhấp vào từng đoạn CV để xem gợi ý viết lại theo công thức Google XYZ ở lề phải, điền số liệu thật hoặc dùng câu định tính. Chỉnh sửa bản nháp hoàn toàn miễn phí, không tốn lượt chấm AI.'}
+            </p>
+          </div>
+
+          {/* Toolbar: View Switcher + Undo/Redo + Sync Draft */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {/* Mode Switcher */}
+            <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center text-xs">
+              <button
+                type="button"
+                data-testid="studio-mode-btn"
+                onClick={() => setWorkspaceView('studio_and_all')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  workspaceView === 'studio_and_all'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>{isEn ? 'CV Diff Studio' : 'CV Diff Studio'}</span>
+              </button>
+              <button
+                type="button"
+                data-testid="table-mode-btn"
+                onClick={() => setWorkspaceView('classic_table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  workspaceView === 'classic_table'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Table className="w-3.5 h-3.5" />
+                <span>{isEn ? 'Table Only' : 'Chỉ xem Bảng'}</span>
+              </button>
+            </div>
+
+            {/* Undo / Redo */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                data-testid="studio-undo-btn"
+                onClick={handleUndoStudio}
+                disabled={studioState.historyPast.length === 0}
+                className="p-1.5 rounded-lg text-slate-700 hover:bg-white disabled:opacity-30 transition-all cursor-pointer"
+                title={isEn ? `Undo (${studioState.historyPast.length})` : `Hoàn tác (${studioState.historyPast.length})`}
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <span
+                data-testid="studio-history-count"
+                className="text-xs font-mono font-bold text-slate-700 px-1.5"
+              >
+                {studioState.historyPast.length}
+              </span>
+              <button
+                type="button"
+                data-testid="studio-redo-btn"
+                onClick={handleRedoStudio}
+                disabled={studioState.historyFuture.length === 0}
+                className="p-1.5 rounded-lg text-slate-700 hover:bg-white disabled:opacity-30 transition-all cursor-pointer"
+                title={isEn ? `Redo (${studioState.historyFuture.length})` : `Làm lại (${studioState.historyFuture.length})`}
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Copy Draft */}
+            <button
+              type="button"
+              onClick={handleCopyStudioDraft}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
+            >
+              {copiedDraft ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{isEn ? 'Copied Draft' : 'Đã chép bản nháp'}</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>{isEn ? 'Copy Draft' : 'Chép Bản Nháp'}</span>
+                </>
+              )}
+            </button>
+
+            {/* Sync Draft to Main CV */}
+            {onApplyDraftToMainCv && (
+              <button
+                type="button"
+                data-testid="sync-draft-to-cv-btn"
+                onClick={handleSyncToMainCv}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                {syncedToMainCv ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>{isEn ? 'Synced to Main CV!' : 'Đã cập nhật vào CV chính!'}</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{isEn ? 'Apply Draft to Main CV' : 'Đưa Bản Nháp Vào CV Chính'}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Studio Feedback Banner */}
+        {studioNotice && (
+          <div
+            data-testid="studio-notice-banner"
+            className={`p-3.5 rounded-xl border text-xs font-bold flex items-center justify-between gap-3 ${
+              studioNotice.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : studioNotice.type === 'warn'
+                ? 'bg-amber-50 border-amber-300 text-amber-950'
+                : 'bg-rose-50 border-rose-200 text-rose-900'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {studioNotice.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              )}
+              <span>{studioNotice.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStudioNotice(null)}
+              className="text-slate-500 hover:text-slate-800 text-xs font-semibold cursor-pointer"
+            >
+              {isEn ? 'Dismiss' : 'Đóng'}
+            </button>
+          </div>
+        )}
+
+        {/* Interactive 2-Column Google Docs Studio (Shown when workspaceView === 'studio_and_all') */}
+        {workspaceView === 'studio_and_all' && (
+          <div className="space-y-4">
+            {/* Quick Suggestion Selector Pills */}
+            <div className="flex items-center justify-between gap-3 flex-wrap bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  {isEn ? 'Suggestions:' : 'Danh sách đề xuất:'}
+                </span>
+                {studioState.suggestionOrder.map((sugId, idx) => {
+                  const sug = studioState.suggestions[sugId];
+                  if (!sug) return null;
+                  const isActive = activeSuggestionId === sugId;
+                  return (
+                    <button
+                      key={sugId}
+                      type="button"
+                      data-testid={`studio-sug-pill-${idx + 1}`}
+                      onClick={() => handleSelectSuggestion(sugId, true)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                          : sug.status === 'applied'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                          : sug.status === 'needs_review'
+                          ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                      }`}
+                    >
+                      <span>#{idx + 1}</span>
+                      <span className="max-w-[180px] truncate">{sug.title}</span>
+                      {sug.status === 'applied' && <Check className="w-3 h-3 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="text-xs font-bold text-slate-600">
+                {isEn
+                  ? `Applied: ${appliedCount}/${studioState.suggestionOrder.length}`
+                  : `Đã áp dụng: ${appliedCount}/${studioState.suggestionOrder.length} đề xuất`}
+              </div>
+            </div>
+
+            {/* 1-Column Clean Document (Left 7 Cols) + Sticky Suggestion Sidebar (Right 5 Cols) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: 1-Column Clean Document Canvas */}
+              <div className="lg:col-span-7 space-y-3" data-testid="studio-document-canvas">
+                {studioState.blocks.map((block) => {
+                  const linkedSuggestion = (Object.values(studioState.suggestions) as StudioSuggestion[]).find(
+                    (s) => s.sourceBlockId === block.id
+                  );
+                  const isTargetOfActive = activeSuggestion?.sourceBlockId === block.id;
+                  const isEditingThis = editingBlockId === block.id;
+
+                  return (
+                    <div
+                      key={block.id}
+                      ref={(el) => {
+                        blockRefs.current[block.id] = el;
+                      }}
+                      data-testid={`studio-block-${block.id}`}
+                      onClick={() => {
+                        if (linkedSuggestion && !isEditingThis) {
+                          handleSelectSuggestion(linkedSuggestion.id, false);
+                        }
+                      }}
+                      className={`rounded-xl border p-4 sm:p-5 transition-all ${
+                        isTargetOfActive
+                          ? 'border-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50/20 shadow-xs'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      } ${linkedSuggestion && !isEditingThis ? 'cursor-pointer' : ''}`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <span className="text-xs font-bold text-slate-900">{block.sectionTitle}</span>
+                          {block.revision > 0 && (
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              {isEn ? `Edited (${block.revision}x)` : `Đã cập nhật (${block.revision} lần)`}
+                            </span>
+                          )}
+                          {linkedSuggestion?.status === 'needs_review' && (
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              {isEn ? 'Needs Review' : 'Cần kiểm tra lại'}
+                            </span>
+                          )}
+                        </div>
+
+                        <div
+                          className="flex items-center gap-1.5 text-xs"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {isEditingThis ? (
+                            <>
+                              <button
+                                type="button"
+                                data-testid={`save-manual-edit-${block.id}`}
+                                onClick={() => handleSaveManualEdit(block.id)}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold cursor-pointer"
+                              >
+                                {isEn ? 'Save' : 'Lưu'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingBlockId(null)}
+                                className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-semibold cursor-pointer"
+                              >
+                                {isEn ? 'Cancel' : 'Hủy'}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              data-testid={`start-manual-edit-${block.id}`}
+                              onClick={() => handleStartManualEdit(block)}
+                              className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg font-semibold transition-colors cursor-pointer"
+                              title={isEn ? 'Manually edit this block' : 'Tự chỉnh sửa trực tiếp đoạn này'}
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>{isEn ? 'Edit' : 'Tự sửa'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {isEditingThis ? (
+                        <textarea
+                          data-testid={`manual-edit-textarea-${block.id}`}
+                          value={manualTextBuffer}
+                          onChange={(e) => setManualTextBuffer(e.target.value)}
+                          rows={3}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-xs sm:text-sm font-mono p-3 bg-white border-2 border-indigo-500 rounded-xl focus:outline-none leading-relaxed text-slate-900"
+                        />
+                      ) : (
+                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">
+                          {block.content}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Right Column: Sticky Google Docs Style Suggestion Card */}
+              <div className="lg:col-span-5 sticky top-36 space-y-4" data-testid="studio-sidebar-card">
+                {activeSuggestion ? (
+                  <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-6 space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {isEn ? 'Google XYZ Suggestion' : 'Thẻ Đề Xuất Bên Lề (Google XYZ)'}
+                      </span>
+                      <span
+                        data-testid="active-suggestion-status"
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          activeSuggestion.status === 'applied'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : activeSuggestion.status === 'needs_review'
+                            ? 'bg-amber-100 text-amber-900'
+                            : activeSuggestion.status === 'dismissed'
+                            ? 'bg-slate-200 text-slate-600'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {activeSuggestion.status === 'applied'
+                          ? isEn
+                            ? 'Applied'
+                            : 'Đã áp dụng'
+                          : activeSuggestion.status === 'needs_review'
+                          ? isEn
+                            ? 'Needs Review'
+                            : 'Cần kiểm tra lại'
+                          : activeSuggestion.status === 'dismissed'
+                          ? isEn
+                            ? 'Skipped'
+                            : 'Đã bỏ qua'
+                          : isEn
+                          ? 'Pending'
+                          : 'Chờ duyệt'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-bold text-base text-slate-900 leading-snug">
+                        {activeSuggestion.title}
+                      </h4>
+                      <p className="text-xs text-rose-700 bg-rose-50/70 border border-rose-100 rounded-lg p-2.5 mt-2 leading-relaxed">
+                        <strong className="font-bold">
+                          {isEn ? 'Issue in original: ' : 'Vấn đề câu gốc: '}
+                        </strong>
+                        {activeSuggestion.issueInOriginal}
+                      </p>
+                    </div>
+
+                    {/* Needs review protection banner if user manually edited the block */}
+                    {activeSuggestion.status === 'needs_review' && (
+                      <div
+                        data-testid="needs-review-alert"
+                        className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 space-y-2.5"
+                      >
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="font-bold">
+                              {isEn ? 'Manual Edit Protection: ' : 'Bảo vệ nội dung sửa tay: '}
+                            </strong>
+                            {activeSuggestion.reviewReason}
+                          </div>
+                        </div>
+                        {!isReviewingOverride ? (
+                          <button
+                            type="button"
+                            data-testid="review-override-btn"
+                            onClick={() => setIsReviewingOverride(true)}
+                            className="w-full py-2 bg-white hover:bg-amber-100/70 text-amber-950 border border-amber-300 rounded-lg text-xs font-bold cursor-pointer"
+                          >
+                            {isEn ? 'Compare & Decide Override' : 'Đối chiếu & Quyết định thay thế'}
+                          </button>
+                        ) : (
+                          <div className="space-y-2 pt-1 border-t border-amber-200">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                data-testid="confirm-override-btn"
+                                onClick={() =>
+                                  handleOverrideStudioBlock(activeSuggestion.placeholders.length > 0 && Object.keys(metricInputs).length === 0)
+                                }
+                                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer"
+                              >
+                                {isEn ? 'Replace with AI Rewrite' : 'Thay bằng câu đề xuất AI'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsReviewingOverride(false)}
+                                className="px-3 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer"
+                              >
+                                {isEn ? 'Keep Mine' : 'Giữ bản của tôi'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Original sentence */}
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        {isEn ? 'Original Sentence in CV:' : 'Câu gốc trong CV:'}
+                      </div>
+                      <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200 line-through leading-relaxed">
+                        {activeSuggestion.expectedOriginalText}
+                      </div>
+                    </div>
+
+                    {/* Rewritten sentence */}
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                        {isEn ? 'Suggested Rewrite (Google XYZ):' : 'Câu viết lại đề xuất (Google XYZ):'}
+                      </div>
+                      <div className="text-xs sm:text-sm text-emerald-950 bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-300 leading-relaxed font-semibold">
+                        {activeSuggestion.rewrittenText}
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        <strong className="text-slate-800">
+                          {isEn ? 'Why better: ' : 'Vì sao tốt hơn: '}
+                        </strong>
+                        {activeSuggestion.reasonBetter}
+                      </p>
+                    </div>
+
+                    {/* Anti-Hallucination Metric Inputs when placeholders exist */}
+                    {activeSuggestion.placeholders.length > 0 && activeSuggestion.status !== 'applied' && (
+                      <div
+                        data-testid="metric-placeholder-form"
+                        className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2.5"
+                      >
+                        <div className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                          <HelpCircle className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <span>
+                            {isEn
+                              ? 'Enter your real metrics before inserting (Anti-Hallucination):'
+                              : 'Nhập số liệu thực tế của bạn trước khi chèn (Chống bịa số liệu):'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {activeSuggestion.placeholders.map((ph, pIdx) => (
+                            <div key={ph} className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700 font-mono block">
+                                {ph}
+                              </label>
+                              <input
+                                type="text"
+                                data-testid={`metric-input-${pIdx}`}
+                                value={metricInputs[ph] || ''}
+                                onChange={(e) =>
+                                  setMetricInputs((prev) => ({ ...prev, [ph]: e.target.value }))
+                                }
+                                placeholder={isEn ? 'e.g. 25%' : 'VD: 25%'}
+                                className="w-full text-xs p-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-900 font-semibold"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      {activeSuggestion.status === 'applied' ? (
+                        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>
+                              {isEn
+                                ? 'Applied to CV draft.'
+                                : 'Đề xuất này đã được áp dụng vào bản nháp.'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleUndoStudio}
+                            className="w-full py-2 bg-white hover:bg-emerald-100/60 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>{isEn ? 'Undo this change' : 'Hoàn tác (Undo) thay đổi này'}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            data-testid="apply-suggestion-btn"
+                            onClick={handleApplyStudioWithMetrics}
+                            disabled={activeSuggestion.status === 'needs_review'}
+                            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shadow-xs"
+                          >
+                            {activeSuggestion.placeholders.length > 0
+                              ? isEn
+                                ? '✅ Confirm Real Metrics & Insert into CV'
+                                : '✅ Xác nhận số liệu thật & Chèn vào CV'
+                              : isEn
+                              ? '✅ Accept & Insert into CV Draft'
+                              : '✅ Chấp nhận & Chèn vào bản nháp CV'}
+                          </button>
+
+                          {activeSuggestion.placeholders.length > 0 && (
+                            <button
+                              type="button"
+                              data-testid="apply-qualitative-btn"
+                              onClick={handleApplyStudioQualitative}
+                              disabled={activeSuggestion.status === 'needs_review'}
+                              className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-200"
+                            >
+                              {isEn
+                                ? '🛡️ I have no exact metrics (Use honest qualitative sentence)'
+                                : '🛡️ Tôi không có số liệu (Dùng câu định tính trung thực)'}
+                            </button>
+                          )}
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetBlock = studioState.blocks.find(
+                                  (b) => b.id === activeSuggestion.sourceBlockId
+                                );
+                                if (targetBlock) handleStartManualEdit(targetBlock);
+                              }}
+                              className="flex-1 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold cursor-pointer"
+                            >
+                              {isEn ? '✏️ Edit Manually' : '✏️ Tự chỉnh sửa'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleDismiss(activeSuggestion.id)}
+                              className="flex-1 py-1.5 bg-white hover:bg-slate-50 text-slate-500 border border-slate-200 rounded-lg text-xs font-semibold cursor-pointer"
+                            >
+                              {activeSuggestion.status === 'dismissed'
+                                ? isEn
+                                  ? 'Restore'
+                                  : 'Khôi phục'
+                                : isEn
+                                ? 'Skip'
+                                : 'Bỏ qua'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ========================================================================= */}
       {/* 1. PILLAR 1: TAILORED EXECUTIVE SUMMARIES (PITCH MAY ĐO)                  */}
       {/* ========================================================================= */}
