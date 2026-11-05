@@ -1,8 +1,10 @@
 # RFC v1.2: Phase 2 Desktop-Focused Architecture & Data Blueprint — Executive Hero Card & Evidence Map Workspace
 
 > **Tài liệu tham chiếu:** `docs/PHASE_2_PROPOSAL_RFC.md`  
-> **Phiên bản:** 1.2 (Tháng 11/2026 — Đã tích hợp làm rõ phạm vi Desktop từ PO & hoàn thiện 7 tiêu chí phản biện)  
-> **Trạng thái:** IMPLEMENTED & VERIFIED — Chờ PO nghiệm thu trước khi deploy  
+> **Phiên bản:** 1.3 (Tháng 11/2026 — Hoàn tất nghiệm thu kỹ thuật Desktop tại commit `c5a2bfc`)  
+> **Trạng thái Nghiệm thu Kỹ thuật:** ✅ **HOÀN TẤT NGHIỆM THU KỸ THUẬT (Desktop Scope — Commit `c5a2bfc`)**  
+> **Trạng thái Deploy Staging:** ⏳ **CHƯA DEPLOY STAGING** *(Chờ lệnh triển khai từ PO; chỉ cập nhật sau khi có bằng chứng triển khai và smoke test thực tế)*  
+> **Hồ sơ bằng chứng (CDP JSON, Logs, Ảnh chụp):** [`docs/evidence/phase2-c5a2bfc/`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/evidence/phase2-c5a2bfc/VERIFICATION_SUMMARY_AND_LOGS.md)  
 > **Nhánh áp dụng:** `staging`  
 > **Liên kết kế hoạch tổng thể:** [`docs/UI_UX_IMPLEMENTATION_PLAN.md`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/UI_UX_IMPLEMENTATION_PLAN.md)
 
@@ -35,12 +37,17 @@ flowchart TD
     VM --> EVIDENCE["EvidenceMapWorkspace<br/>(Filter Chips, 5 Groups, Drilldown)"]
 ```
 
-### 2.1. Phân biệt rõ rệt Must-Have Đã đối chiếu vs. Chưa đối chiếu
+### 2.1. Phân biệt rõ rệt Must-Have Đã đối chiếu, Chưa xác định (Unknown) & Chưa đối chiếu (Uncompared)
+$$\text{mustHaveEvaluated} = \text{mustHavePassed} + \text{mustHavePartial} + \text{mustHaveGap} + \text{mustHaveUnknown}$$
 $$\text{mustHaveTotal} = \text{mustHaveEvaluated} + \text{mustHaveUncompared}$$
-- `mustHaveEvaluated`: Số lượng Must-Have đã có dòng trong `comparisonTable` (`mustHavePassed + mustHavePartial + mustHaveGap`).
-- `mustHaveUncompared`: Số lượng Must-Have có trong `jdKeywords` nhưng chưa xuất hiện trong `comparisonTable`.
-- **Quy tắc phán quyết tuyệt đối:** **KHÔNG BAO GIỜ** kết luận *"đáp ứng đầy đủ tất cả các yêu cầu cốt lõi"* khi vẫn còn `mustHaveUncompared > 0`!
-- Hiển thị *"Chưa đối chiếu"* thành trạng thái riêng (xám), không tự ý biến thành gap nhưng cũng không được che giấu khỏi người dùng.
+- `mustHaveEvaluated`: Số lượng Must-Have đã có dòng trong `comparisonTable` (bao gồm cả trạng thái không hợp lệ được chuyển về `mustHaveUnknown`).
+- `mustHaveUncompared`: Số lượng Must-Have có trong `jdKeywords` (sau khi khử trùng theo `normalizeTerm`) nhưng chưa xuất hiện trong `comparisonTable`.
+- **Khử trùng Tri-state (`mergeIsMustHave`):** Bảo toàn chính xác 3 trạng thái `true | false | undefined` khi gộp từ khóa hoặc dòng đối chiếu trùng:
+  - Có ít nhất 1 `true` $\rightarrow$ `true`
+  - Không có `true`, có ít nhất 1 `false` $\rightarrow$ `false` (giữ quyền ưu tiên explicit `false` trước suy luận `importance`)
+  - Cả hai đều `undefined` $\rightarrow$ `undefined` (cho phép suy luận từ `importance` khi không có cờ explicit trong toàn bộ dữ liệu).
+- **Quy tắc phán quyết tuyệt đối:** **KHÔNG BAO GIỜ** kết luận *"đáp ứng đầy đủ tất cả các yêu cầu cốt lõi"* khi vẫn còn `mustHavePartial > 0`, `mustHaveGap > 0`, `mustHaveUnknown > 0`, hoặc `mustHaveUncompared > 0`.
+- Hiển thị *"Chưa xác định"* và *"Chưa đối chiếu"* thành các pill trạng thái riêng biệt trên `ExecutiveHeroCard` và `EvidenceMapWorkspace`.
 
 ### 2.2. Khử va chạm chuỗi & Liên kết Quick Win xác định (Deterministic Linking)
 - **Sử dụng Word Boundary Regex:** Khử lỗi chuỗi con (như `"Java"` bị ăn nhầm vào `"JavaScript"`, hay `"C"` vào `"C++"`).
@@ -91,8 +98,10 @@ $$\text{mustHaveTotal} = \text{mustHaveEvaluated} + \text{mustHaveUncompared}$$
 | **3. Snapshot key trùng khi cùng công ty/điểm** | Thay bằng `computeAnalysisFingerprint` băm toàn bộ nội dung tiêu chí. | `src/utils/evidenceMapAdapter.test.ts` (Test 4), `src/phase2_verification.test.ts` (Test 3) |
 | **4. Trạng thái lỗi bị tính vào partial** | Bổ sung `MatchStatus = 'unknown'`. Không tăng `partialCount`. Hiển thị nhãn trung tính. | `src/utils/evidenceMapAdapter.test.ts` (Test 5), `src/phase2_verification.test.ts` (Test 5) |
 | **5. Test mô phỏng thiếu kiểm tra component thật** | Dùng `renderToString` từ `react-dom/server` kiểm tra HTML render thật của component và DOM attributes. | `src/phase2_verification.test.ts` (5/5 tests PASS) |
-| **6. Khoảng che sticky tab & filter unhide** | Tính tổng `topHeaderH + stickyTabH + 20px`, unhide có điều kiện, `preventScroll: true`. | `src/App.tsx`, `src/phase2_verification.test.ts` (Test 4) |
+| **6. Khoảng che sticky tab & filter unhide** | Tính tổng `topHeaderH + stickyTabH + 20px`, `shouldUnhideFilterForTarget` dùng chung, `preventScroll: true`. | `src/App.tsx`, `src/phase2_verification.test.ts` (Test 4) |
 | **7. Song ngữ EN & cột khoảng trống trung thực** | Localize toàn bộ counter text, hiển thị mixed source, không bịa "Đã thể hiện tốt" khi thiếu bằng chứng. | `src/components/EvidenceMapTab.tsx`, `src/components/ExecutiveHeroCard.tsx` |
+| **8. Unknown Must-Have & Tri-state Deduplication** | Cộng `mustHaveUnknown` vào `mustHaveEvaluated` & `mustHaveTotal`; dùng `mergeIsMustHave` giữ đúng `true / false / undefined`. | `src/utils/evidenceMapAdapter.test.ts` (`18/18 tests PASS`) |
+| **9. Kiểm chứng trình duyệt thật (Strict CDP)** | `43/43 assertions PASS` với `node:assert/strict` tại viewport `1280x850` (CP1–CP5). | [`docs/evidence/phase2-c5a2bfc/`](file:///c:/Users/User/Downloads/VU%20TA/GITHUB%20REPO/rolematch2/docs/evidence/phase2-c5a2bfc/VERIFICATION_SUMMARY_AND_LOGS.md) |
 
 ---
-*Tài liệu này xác nhận hoàn tất đợt sửa lỗi Desktop P2 và sẵn sàng cho PO kiểm chứng nghiệm thu.*
+*Tài liệu này ghi nhận Phase 2 (Desktop Scope) đã **hoàn tất nghiệm thu kỹ thuật tại commit `c5a2bfc`**. Trạng thái triển khai môi trường: **Chưa deploy staging** (chờ lệnh triển khai từ PO).*

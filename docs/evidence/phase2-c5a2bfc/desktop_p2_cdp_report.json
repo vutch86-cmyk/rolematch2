@@ -1,0 +1,663 @@
+{
+  "suite": "Phase 2 Desktop Browser Verification (Strict CDP Assertions)",
+  "timestamp": "2026-11-05T01:49:06.130Z",
+  "commitSha": "c5a2bfc",
+  "commitFullSha": "c5a2bfc603a83ac1e402c0fae97ed6d90f6e4c08",
+  "chromeVersion": "Chrome/157.0.8103.38",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+  "viewport": {
+    "innerWidth": 1280,
+    "innerHeight": 850,
+    "devicePixelRatio": 1
+  },
+  "status": "PASS",
+  "totalAssertions": 43,
+  "passedAssertions": 43,
+  "screenshots": {
+    "cp1": "C:\\Users\\User\\.gemini\\antigravity\\brain\\c7c1dc0f-bbda-42f8-9a2b-c968be2ec0c4\\desktop_1_hero_overview.png",
+    "cp2": "C:\\Users\\User\\.gemini\\antigravity\\brain\\c7c1dc0f-bbda-42f8-9a2b-c968be2ec0c4\\desktop_2_tab_preservation.png",
+    "cp3_cp4": "C:\\Users\\User\\.gemini\\antigravity\\brain\\c7c1dc0f-bbda-42f8-9a2b-c968be2ec0c4\\desktop_3_quick_win_scroll_focus.png",
+    "cp5": "C:\\Users\\User\\.gemini\\antigravity\\brain\\c7c1dc0f-bbda-42f8-9a2b-c968be2ec0c4\\desktop_4_result_switch_reset.png"
+  },
+  "checkpoints": {
+    "cp1": {
+      "hasHeroSection": true,
+      "verdictStatement": "CV đã thể hiện rõ 2/6 yêu cầu được xác định là bắt buộc; 1 yêu cầu có bằng chứng một phần, 1 yêu cầu chưa thấy bằng chứng, 1 yêu cầu chưa xác định được trạng thái, 1 yêu cầu bắt buộc chưa được đối chiếu.",
+      "hasPassedLabel": true,
+      "hasPartialLabel": true,
+      "hasGapLabel": true,
+      "hasUnknownLabel": true,
+      "hasUncomparedLabel": true,
+      "neverOverclaimsFullMet": true,
+      "linkedQuickWinsCount": 3
+    },
+    "cp2": {
+      "initialEmState": {
+        "filter": "all",
+        "expandedGroups": [
+          "tech"
+        ]
+      },
+      "stateBeforeTabSwitch": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      },
+      "stateAfterTabSwitch": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      },
+      "stateAfterLangEn": {
+        "headingText": "Competency Evidence Map",
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      },
+      "stateAfterLangVi": {
+        "headingText": "Bản Đồ Bằng Chứng Năng Lực",
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      }
+    },
+    "cp3": {
+      "caseA_keepMustHaveFilter": {
+        "activeTab": "feature1",
+        "activeFilter": "must_have",
+        "expandedGroups": [
+          "tech",
+          "tools",
+          "experience"
+        ],
+        "highlightedIds": [
+          "item-typescript-1"
+        ],
+        "targetExistsAndVisible": true,
+        "activeElementId": "criterion-desktop-item-typescript-1"
+      },
+      "caseB1_unhideGapFilterForPartial": {
+        "activeFilter": "all",
+        "expandedGroups": [
+          "tech",
+          "tools",
+          "experience"
+        ],
+        "highlightedIds": [
+          "item-kubernetes-2"
+        ],
+        "targetExistsAndVisible": true,
+        "activeElementId": "criterion-desktop-item-kubernetes-2"
+      },
+      "caseB2_unhideMustHaveFilterForNiceToHave": {
+        "activeFilter": "all",
+        "expandedGroups": [
+          "tech",
+          "tools",
+          "experience"
+        ],
+        "highlightedIds": [
+          "item-graphql-3"
+        ],
+        "targetExistsAndVisible": true,
+        "activeElementId": "criterion-desktop-item-graphql-3"
+      }
+    },
+    "cp4": {
+      "scrollY": 977,
+      "viewportHeight": 850,
+      "headerFound": true,
+      "stickyTabsFound": true,
+      "headerAndTabsAreDistinct": true,
+      "headerRect": {
+        "top": 0,
+        "bottom": 65,
+        "height": 65
+      },
+      "contextBarRect": {
+        "top": 64,
+        "bottom": 123,
+        "height": 59
+      },
+      "stickyTabsRect": {
+        "top": 80,
+        "bottom": 159,
+        "height": 79
+      },
+      "maxStickyBottom": 159,
+      "targetId": "criterion-desktop-item-typescript-1",
+      "activeElementId": "criterion-desktop-item-typescript-1",
+      "isExactFocusMatch": true,
+      "targetRect": {
+        "top": 162.96875,
+        "bottom": 227.296875,
+        "height": 64.328125
+      },
+      "clearancePx": 3.97,
+      "isBelowAllStickyBars": true,
+      "isWithinViewport": true
+    },
+    "cp5": {
+      "elapsedSinceHighlightMs": 795,
+      "timerLimitMs": 2500,
+      "preSwitchState": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tech",
+          "tools",
+          "experience",
+          "outcomes",
+          "culture"
+        ],
+        "highlightedIds": [
+          "item-typescript-1"
+        ]
+      },
+      "postSwitchState": {
+        "verdictText": "CV đã thể hiện rõ 1/2 yêu cầu được xác định là bắt buộc; 1 yêu cầu chưa thấy bằng chứng.",
+        "filter": "all",
+        "expandedGroups": [
+          "experience"
+        ],
+        "highlightedIds": [],
+        "hasDistributedSystemsRow": true
+      }
+    }
+  },
+  "assertions": [
+    {
+      "index": 1,
+      "checkpoint": "SETUP",
+      "name": "Register test user & obtain auth token",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 2,
+      "checkpoint": "SETUP",
+      "name": "Desktop viewport width === 1280 and height === 850",
+      "status": "PASS",
+      "actual": {
+        "innerWidth": 1280,
+        "innerHeight": 850,
+        "devicePixelRatio": 1
+      },
+      "expected": {
+        "innerWidth": 1280,
+        "innerHeight": 850,
+        "devicePixelRatio": 1
+      }
+    },
+    {
+      "index": 3,
+      "checkpoint": "SETUP",
+      "name": "Click History drawer button for Item A",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 4,
+      "checkpoint": "SETUP",
+      "name": "Select Senior Frontend Engineer (Item A) from History drawer",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 5,
+      "checkpoint": "CP1",
+      "name": "Hero card section and metric headers rendered",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 6,
+      "checkpoint": "CP1",
+      "name": "Verdict statement reflects exact 2/6 Must-Have breakdown including partial, gap, unknown, uncompared",
+      "status": "PASS",
+      "actual": "CV đã thể hiện rõ 2/6 yêu cầu được xác định là bắt buộc; 1 yêu cầu có bằng chứng một phần, 1 yêu cầu chưa thấy bằng chứng, 1 yêu cầu chưa xác định được trạng thái, 1 yêu cầu bắt buộc chưa được đối chiếu.",
+      "expected": "CV đã thể hiện rõ 2/6 yêu cầu được xác định là bắt buộc; 1 yêu cầu có bằng chứng một phần, 1 yêu cầu chưa thấy bằng chứng, 1 yêu cầu chưa xác định được trạng thái, 1 yêu cầu bắt buộc chưa được đối chiếu."
+    },
+    {
+      "index": 7,
+      "checkpoint": "CP1",
+      "name": "Hero displays Passed, Partial, Gap, Unknown, and Uncompared counters",
+      "status": "PASS",
+      "actual": {
+        "passed": true,
+        "partial": true,
+        "gap": true,
+        "unknown": true,
+        "uncompared": true
+      },
+      "expected": {
+        "passed": true,
+        "partial": true,
+        "gap": true,
+        "unknown": true,
+        "uncompared": true
+      }
+    },
+    {
+      "index": 8,
+      "checkpoint": "CP1",
+      "name": "Hero never overclaims full Must-Have completion when gaps/unknown/uncompared exist",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 9,
+      "checkpoint": "CP1",
+      "name": "All 3 linked Quick Wins render navigation buttons",
+      "status": "PASS",
+      "actual": 3,
+      "expected": 3
+    },
+    {
+      "index": 10,
+      "checkpoint": "CP2",
+      "name": "Switch to Evidence Map tab (feature1)",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 11,
+      "checkpoint": "CP2",
+      "name": "Initial Evidence Map state is filter=\"all\" and expandedGroups=[\"tech\"]",
+      "status": "PASS",
+      "actual": {
+        "filter": "all",
+        "expandedGroups": [
+          "tech"
+        ]
+      },
+      "expected": {
+        "filter": "all",
+        "expandedGroups": [
+          "tech"
+        ]
+      }
+    },
+    {
+      "index": 12,
+      "checkpoint": "CP2",
+      "name": "Custom state applied before tab switch (filter=\"must_have\", expanded=[\"tools\",\"experience\"])",
+      "status": "PASS",
+      "actual": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      },
+      "expected": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      }
+    },
+    {
+      "index": 13,
+      "checkpoint": "CP2",
+      "name": "EvidenceMapTab unmounts when switching to Recruiter View tab",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 14,
+      "checkpoint": "CP2",
+      "name": "Filter state preserved after switching across tabs and returning",
+      "status": "PASS",
+      "actual": "must_have",
+      "expected": "must_have"
+    },
+    {
+      "index": 15,
+      "checkpoint": "CP2",
+      "name": "Expanded competency groups preserved after switching across tabs and returning",
+      "status": "PASS",
+      "actual": [
+        "tools",
+        "experience"
+      ],
+      "expected": [
+        "tools",
+        "experience"
+      ]
+    },
+    {
+      "index": 16,
+      "checkpoint": "CP2",
+      "name": "Click language switcher (VI -> EN)",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 17,
+      "checkpoint": "CP2",
+      "name": "UI switched to English (\"Competency Evidence Map\")",
+      "status": "PASS",
+      "actual": "Competency Evidence Map",
+      "expected": "Competency Evidence Map"
+    },
+    {
+      "index": 18,
+      "checkpoint": "CP2",
+      "name": "Filter and expanded groups preserved after switching VI -> EN",
+      "status": "PASS",
+      "actual": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      },
+      "expected": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      }
+    },
+    {
+      "index": 19,
+      "checkpoint": "CP2",
+      "name": "Filter and expanded groups preserved after switching EN -> VI",
+      "status": "PASS",
+      "actual": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      },
+      "expected": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tools",
+          "experience"
+        ]
+      }
+    },
+    {
+      "index": 20,
+      "checkpoint": "CP3-CaseA",
+      "name": "Click Quick Win targeting Must-Have item \"TypeScript\"",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 21,
+      "checkpoint": "CP3-CaseA",
+      "name": "Navigated to Evidence Map tab (feature1)",
+      "status": "PASS",
+      "actual": "feature1",
+      "expected": "feature1"
+    },
+    {
+      "index": 22,
+      "checkpoint": "CP3-CaseA",
+      "name": "Filter \"must_have\" is KEPT (not reset to \"all\") because TypeScript is Must-Have",
+      "status": "PASS",
+      "actual": "must_have",
+      "expected": "must_have"
+    },
+    {
+      "index": 23,
+      "checkpoint": "CP3-CaseA",
+      "name": "Target competency group \"tech\" automatically expanded",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 24,
+      "checkpoint": "CP3-CaseA",
+      "name": "Target criterion ID \"item-typescript-1\" is highlighted and focused",
+      "status": "PASS",
+      "actual": {
+        "highlightedIds": [
+          "item-typescript-1"
+        ],
+        "activeElementId": "criterion-desktop-item-typescript-1"
+      },
+      "expected": {
+        "highlightedIds": [
+          "item-typescript-1"
+        ],
+        "activeElementId": "criterion-desktop-item-typescript-1"
+      }
+    },
+    {
+      "index": 25,
+      "checkpoint": "CP3-CaseB1",
+      "name": "Before click: filter is \"gap\", group \"tools\" is collapsed, and Kubernetes row is hidden",
+      "status": "PASS",
+      "actual": {
+        "filter": "gap",
+        "toolsExpanded": false,
+        "k8sVisible": false
+      },
+      "expected": {
+        "filter": "gap",
+        "toolsExpanded": false,
+        "k8sVisible": false
+      }
+    },
+    {
+      "index": 26,
+      "checkpoint": "CP3-CaseB1",
+      "name": "Click Quick Win targeting partial item \"Kubernetes\" hidden by \"gap\" filter",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 27,
+      "checkpoint": "CP3-CaseB1",
+      "name": "Filter automatically unhidden from \"gap\" to \"all\" for partial target Kubernetes",
+      "status": "PASS",
+      "actual": "all",
+      "expected": "all"
+    },
+    {
+      "index": 28,
+      "checkpoint": "CP3-CaseB1",
+      "name": "Target group \"tools\" expanded",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 29,
+      "checkpoint": "CP3-CaseB1",
+      "name": "Target ID \"criterion-desktop-item-kubernetes-2\" is visible, highlighted, and focused",
+      "status": "PASS",
+      "actual": {
+        "visible": true,
+        "highlighted": [
+          "item-kubernetes-2"
+        ],
+        "activeElementId": "criterion-desktop-item-kubernetes-2"
+      },
+      "expected": {
+        "visible": true,
+        "highlighted": [
+          "item-kubernetes-2"
+        ],
+        "activeElementId": "criterion-desktop-item-kubernetes-2"
+      }
+    },
+    {
+      "index": 30,
+      "checkpoint": "CP3-CaseB2",
+      "name": "Click Quick Win targeting Nice-to-Have item \"GraphQL\" hidden by \"must_have\" filter",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 31,
+      "checkpoint": "CP3-CaseB2",
+      "name": "Filter automatically unhidden from \"must_have\" to \"all\" for Nice-to-Have target GraphQL",
+      "status": "PASS",
+      "actual": "all",
+      "expected": "all"
+    },
+    {
+      "index": 32,
+      "checkpoint": "CP3-CaseB2",
+      "name": "Target group \"tech\" expanded and \"criterion-desktop-item-graphql-3\" focused",
+      "status": "PASS",
+      "actual": {
+        "techExpanded": true,
+        "activeElementId": "criterion-desktop-item-graphql-3"
+      },
+      "expected": {
+        "techExpanded": true,
+        "activeElementId": "criterion-desktop-item-graphql-3"
+      }
+    },
+    {
+      "index": 33,
+      "checkpoint": "CP4",
+      "name": "Distinct Header and Sticky Tabs Bar elements identified",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 34,
+      "checkpoint": "CP4",
+      "name": "document.activeElement is strictly the target criterion row (#criterion-desktop-item-typescript-1)",
+      "status": "PASS",
+      "actual": "criterion-desktop-item-typescript-1",
+      "expected": "criterion-desktop-item-typescript-1"
+    },
+    {
+      "index": 35,
+      "checkpoint": "CP4",
+      "name": "Target row top edge is strictly below Header and Sticky Tabs Bar bottom edge (no occlusion)",
+      "status": "PASS",
+      "actual": {
+        "targetTop": 162.96875,
+        "maxStickyBottom": 159,
+        "clearancePx": 3.97
+      },
+      "expected": "targetTop >= maxStickyBottom"
+    },
+    {
+      "index": 36,
+      "checkpoint": "CP4",
+      "name": "Target row is fully visible within the desktop viewport",
+      "status": "PASS",
+      "actual": {
+        "targetTop": 162.96875,
+        "targetBottom": 227.296875,
+        "viewportHeight": 850
+      },
+      "expected": "targetBottom <= viewportHeight"
+    },
+    {
+      "index": 37,
+      "checkpoint": "CP5",
+      "name": "Pre-switch state has active highlight on item-typescript-1, filter=\"must_have\", and 3 expanded groups",
+      "status": "PASS",
+      "actual": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tech",
+          "tools",
+          "experience",
+          "outcomes",
+          "culture"
+        ],
+        "highlightedIds": [
+          "item-typescript-1"
+        ]
+      },
+      "expected": {
+        "filter": "must_have",
+        "expandedGroups": [
+          "tech",
+          "tools",
+          "experience"
+        ],
+        "highlightedIds": [
+          "item-typescript-1"
+        ]
+      }
+    },
+    {
+      "index": 38,
+      "checkpoint": "CP5",
+      "name": "Select second analysis result (Backend Python Engineer)",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    },
+    {
+      "index": 39,
+      "checkpoint": "CP5",
+      "name": "Verification measured strictly BEFORE 2500ms highlight timer expired",
+      "status": "PASS",
+      "actual": "795ms < 2000ms",
+      "expected": "< 2000ms"
+    },
+    {
+      "index": 40,
+      "checkpoint": "CP5",
+      "name": "Previous highlight was immediately cleared by analysis switch (not by timer expiration)",
+      "status": "PASS",
+      "actual": [],
+      "expected": []
+    },
+    {
+      "index": 41,
+      "checkpoint": "CP5",
+      "name": "Filter reset from \"must_have\" back to default \"all\" for new result",
+      "status": "PASS",
+      "actual": "all",
+      "expected": "all"
+    },
+    {
+      "index": 42,
+      "checkpoint": "CP5",
+      "name": "Expanded groups re-initialized to new result initialOpenGroupId ([\"experience\"])",
+      "status": "PASS",
+      "actual": [
+        "experience"
+      ],
+      "expected": [
+        "experience"
+      ]
+    },
+    {
+      "index": 43,
+      "checkpoint": "CP5",
+      "name": "New result criteria (\"Distributed Systems\") rendered inside expanded \"experience\" group",
+      "status": "PASS",
+      "actual": true,
+      "expected": true
+    }
+  ]
+}
