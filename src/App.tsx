@@ -265,18 +265,22 @@ export default function App() {
 
   useEffect(() => {
     initGlobalErrorLogging();
-    const updateLogsCount = async () => {
-      try {
-        const logs = await fetchAllLogs();
-        setLogsCount(logs?.length || 0);
-      } catch {
-        // ignore
-      }
-    };
-    updateLogsCount();
-    const interval = setInterval(updateLogsCount, 6000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!isLogsModalOpen || currentUser?.role !== 'admin') return;
+    let cancelled = false;
+    fetchAllLogs()
+      .then((logs) => {
+        if (!cancelled) setLogsCount(logs?.length || 0);
+      })
+      .catch(() => {
+        // ignore
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLogsModalOpen, currentUser?.role]);
 
   useEffect(() => {
     try {

@@ -1652,27 +1652,126 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Rate limiting middleware to protect against API flooding / abuse
+// Tiered rate limiting middleware to protect against API flooding, brute-force, and scanner abuse
+export type RateLimitTier = 'auth' | 'ai' | 'file' | 'general';
+
+export const RATE_LIMIT_TIERS: Record<RateLimitTier, { maxRequests: number; windowMs: number }> = {
+  auth: { maxRequests: 10, windowMs: 60 * 1000 },     // Brute-force protection (5-10 req/min)
+  ai: { maxRequests: 15, windowMs: 60 * 1000 },       // AI/LLM quota & cost protection (10-15 req/min)
+  file: { maxRequests: 20, windowMs: 60 * 1000 },     // File upload/parsing DoS protection (20 req/min)
+  general: { maxRequests: 100, windowMs: 60 * 1000 }, // General/Logs/Read endpoints (100 req/min)
+};
+
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
-function createRateLimiter(maxRequests = 50, windowMs = 60 * 1000) {
+export function resolveRateLimitTier(subPath: string): RateLimitTier | 'exempt' {
+  const normalized = (subPath || '/').split('?')[0].toLowerCase().replace(/\/+$/, '') || '/';
+
+  if (normalized === '/health' || normalized === '/api/health') {
+    return 'exempt';
+  }
+
+  if (
+    normalized === '/auth/login' ||
+    normalized === '/api/auth/login' ||
+    normalized === '/auth/register' ||
+    normalized === '/api/auth/register'
+  ) {
+    return 'auth';
+  }
+
+  if (
+    normalized === '/analyze-cv' ||
+    normalized === '/api/analyze-cv' ||
+    normalized === '/batch-analyze' ||
+    normalized === '/api/batch-analyze' ||
+    normalized === '/format-cv-text' ||
+    normalized === '/api/format-cv-text' ||
+    normalized === '/generate-updated-cv' ||
+    normalized === '/api/generate-updated-cv' ||
+    normalized === '/extract-jd-from-url' ||
+    normalized === '/api/extract-jd-from-url' ||
+    normalized === '/clean-pasted-jd' ||
+    normalized === '/api/clean-pasted-jd' ||
+    normalized === '/admin/ping-ai' ||
+    normalized === '/api/admin/ping-ai' ||
+    normalized === '/test-openrouter' ||
+    normalized === '/api/test-openrouter' ||
+    normalized === '/test-openai' ||
+    normalized === '/api/test-openai'
+  ) {
+    return 'ai';
+  }
+
+  if (normalized === '/extract-text' || normalized === '/api/extract-text') {
+    return 'file';
+  }
+
+  return 'general';
+}
+
+function checkAndIncrementRateLimit(key: string, maxRequests: number, windowMs: number) {
+  const now = Date.now();
+  if (rateLimitStore.size > 5000) {
+    for (const [k, v] of rateLimitStore.entries()) {
+      if (now > v.resetTime) rateLimitStore.delete(k);
+    }
+  }
+  const record = rateLimitStore.get(key);
+  if (!record || now > record.resetTime) {
+    const resetTime = now + windowMs;
+    rateLimitStore.set(key, { count: 1, resetTime });
+    return { allowed: true, remaining: Math.max(0, maxRequests - 1), retryAfterSec: Math.ceil(windowMs / 1000) };
+  }
+  if (record.count >= maxRequests) {
+    return {
+      allowed: false,
+      remaining: 0,
+      retryAfterSec: Math.max(1, Math.ceil((record.resetTime - now) / 1000)),
+    };
+  }
+  record.count++;
+  return {
+    allowed: true,
+    remaining: Math.max(0, maxRequests - record.count),
+    retryAfterSec: Math.max(1, Math.ceil((record.resetTime - now) / 1000)),
+  };
+}
+
+function createRateLimiter(maxRequests = 100, windowMs = 60 * 1000, bucketPrefix = 'custom') {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || '127.0.0.1';
-    const now = Date.now();
-    const record = rateLimitStore.get(ip);
-
-    if (!record || now > record.resetTime) {
-      rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs });
-      return next();
-    }
-
-    if (record.count >= maxRequests) {
+    const result = checkAndIncrementRateLimit(`${bucketPrefix}:${ip}`, maxRequests, windowMs);
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(result.remaining));
+    if (!result.allowed) {
+      res.setHeader('Retry-After', String(result.retryAfterSec));
       return res.status(429).json({
         error: 'Hệ thống nhận thấy quá nhiều yêu cầu từ bạn trong thời gian ngắn. Vui lòng chờ 1 phút rồi thử lại.',
       });
     }
+    return next();
+  };
+}
 
-    record.count++;
+function createTieredRateLimiter() {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const tier = resolveRateLimitTier(req.path || req.originalUrl || '/');
+    if (tier === 'exempt') {
+      return next();
+    }
+    const { maxRequests, windowMs } = RATE_LIMIT_TIERS[tier];
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || '127.0.0.1';
+    const result = checkAndIncrementRateLimit(`${tier}:${ip}`, maxRequests, windowMs);
+    res.setHeader('X-RateLimit-Tier', tier);
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(result.remaining));
+    if (!result.allowed) {
+      res.setHeader('Retry-After', String(result.retryAfterSec));
+      return res.status(429).json({
+        error: 'Hệ thống nhận thấy quá nhiều yêu cầu từ bạn trong thời gian ngắn. Vui lòng chờ 1 phút rồi thử lại.',
+      });
+    }
     return next();
   };
 }
@@ -1688,7 +1787,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api', createRateLimiter(50, 60 * 1000));
+app.use('/api', createTieredRateLimiter());
 
 app.use(express.json({ limit: '10mb' }));
 
