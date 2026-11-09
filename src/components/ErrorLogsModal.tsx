@@ -56,8 +56,8 @@ export const ErrorLogsModal: React.FC<ErrorLogsModalProps> = ({ isOpen, onClose,
   useEffect(() => {
     if (isOpen) {
       loadLogs();
-      // Auto-poll every 5 seconds while open
-      const interval = setInterval(loadLogs, 5000);
+      // Auto-poll every 15 seconds while open
+      const interval = setInterval(loadLogs, 15000);
       return () => clearInterval(interval);
     }
   }, [isOpen]);

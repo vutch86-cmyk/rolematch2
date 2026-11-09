@@ -1,0 +1,54 @@
+[
+  {
+    "id": "doc_seed_01",
+    "filename": "CV_NguyenVanA_SeniorFrontend.pdf",
+    "fileType": "CV",
+    "mimeType": "application/pdf",
+    "fileSizeKB": 245,
+    "characterCount": 3820,
+    "uploadedBy": "nguyenvana@gmail.com",
+    "uploadedAt": "2026-11-03T04:49:32.977Z",
+    "extractedTextPreview": "NGUYỄN VĂN A - SENIOR FRONTEND ENGINEER\nKinh nghiệm 5+ năm phát triển ứng dụng React, TypeScript, Tailwind CSS, Next.js...",
+    "fullText": "NGUYỄN VĂN A - SENIOR FRONTEND ENGINEER\nKinh nghiệm 5+ năm phát triển ứng dụng React, TypeScript, Tailwind CSS, Next.js. Đã từng tối ưu hiệu năng Web Vitals giảm 40% FCP cho hệ thống e-commerce với 500k MAU.",
+    "format": "PDF"
+  },
+  {
+    "id": "doc_seed_02",
+    "filename": "JD_Senior_React_Frontend_Lead.docx",
+    "fileType": "JD",
+    "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "fileSizeKB": 112,
+    "characterCount": 2950,
+    "uploadedBy": "recruiter_hr@techcorp.com",
+    "uploadedAt": "2026-11-03T05:13:32.977Z",
+    "extractedTextPreview": "MÔ TẢ CÔNG VIỆC: SENIOR REACT FRONTEND LEAD\nYêu cầu: 4+ năm kinh nghiệm React, TypeScript, Redux Toolkit, Micro-frontends, REST API, GraphQL...",
+    "fullText": "MÔ TẢ CÔNG VIỆC: SENIOR REACT FRONTEND LEAD\nYêu cầu: 4+ năm kinh nghiệm React, TypeScript, Redux Toolkit, Micro-frontends, REST API, GraphQL. Có kinh nghiệm dẫn dắt team 5-8 lập trình viên, viết Unit Test (Jest/RTL).",
+    "format": "DOCX"
+  },
+  {
+    "id": "doc_seed_03",
+    "filename": "CV_TranThiB_ProductManager.pdf",
+    "fileType": "CV",
+    "mimeType": "application/pdf",
+    "fileSizeKB": 310,
+    "characterCount": 4210,
+    "uploadedBy": "tranthib@gmail.com",
+    "uploadedAt": "2026-11-03T06:31:32.977Z",
+    "extractedTextPreview": "TRẦN THỊ B - SENIOR PRODUCT MANAGER\nKinh nghiệm 6 năm quản lý sản phẩm B2B SaaS & FinTech. Kỹ năng: Roadmap Planning, Agile Scrum, Data Analytics...",
+    "fullText": "TRẦN THỊ B - SENIOR PRODUCT MANAGER\nKinh nghiệm 6 năm quản lý sản phẩm B2B SaaS & FinTech. Kỹ năng: Roadmap Planning, Agile Scrum, Data Analytics (Mixpanel/Amplitude), User Research, A/B Testing.",
+    "format": "PDF"
+  },
+  {
+    "id": "doc_seed_04",
+    "filename": "JD_AI_Prompt_Engineer_Lead.txt",
+    "fileType": "JD",
+    "mimeType": "text/plain",
+    "fileSizeKB": 45,
+    "characterCount": 1850,
+    "uploadedBy": "admin@cvoptimizer.com",
+    "uploadedAt": "2026-11-03T07:31:32.977Z",
+    "extractedTextPreview": "JOB DESCRIPTION: AI PROMPT ENGINEER & LLM ARCHITECT\nRequirements: Deep knowledge in LLM Fine-Tuning, RAG Architecture, LangChain, Python, VectorDB...",
+    "fullText": "JOB DESCRIPTION: AI PROMPT ENGINEER & LLM ARCHITECT\nRequirements: Deep knowledge in LLM Fine-Tuning, RAG Architecture, LangChain, Python, VectorDB (Qdrant/Pinecone), System Evaluation & Benchmarking.",
+    "format": "TXT"
+  }
+]

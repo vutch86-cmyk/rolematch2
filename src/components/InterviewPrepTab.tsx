@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   InterviewPrepData,
   InterviewQuestionItem,
@@ -13,8 +13,6 @@ import {
   formatQuestionToMarkdown,
 } from '../utils/interviewPrepHelpers';
 import {
-  HelpCircle,
-  ShieldAlert,
   Sparkles,
   CheckCircle2,
   Circle,
@@ -22,16 +20,20 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Search,
   Filter,
   AlertTriangle,
   Lightbulb,
-  Compass,
   Target,
   Trophy,
   Zap,
   BookOpen,
   Layers,
+  Eye,
+  EyeOff,
+  Edit3,
 } from 'lucide-react';
 
 interface InterviewPrepTabProps {
@@ -57,6 +59,18 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
   const normalized = useMemo(() => {
     return normalizeFeature4Data(data, cvText, jdText, lang, comparisonGaps, risks);
   }, [data, cvText, jdText, lang, comparisonGaps, risks]);
+
+  // Phase 3: Dual View Mode ('list' Quick Scan vs 'focus' Focus Practice Card)
+  const [viewMode, setViewMode] = useState<'list' | 'focus'>('list');
+  const [focusIndex, setFocusIndex] = useState<number>(0);
+
+  // Progressive Reveal states in Focus Mode
+  const [revealIntent, setRevealIntent] = useState<boolean>(true);
+  const [revealStar, setRevealStar] = useState<boolean>(true);
+  const [revealPitfall, setRevealPitfall] = useState<boolean>(true);
+
+  // Candidate personal practice notes per question ID
+  const [practiceNotes, setPracticeNotes] = useState<Record<string, string>>({});
 
   // Expanded questions state (by default top 2 are expanded)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
@@ -117,6 +131,13 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
       return true;
     });
   }, [normalized.questions, selectedCategory, selectedDifficulty, searchQuery]);
+
+  // Keep focusIndex within bounds when filteredQuestions changes
+  useEffect(() => {
+    if (focusIndex >= filteredQuestions.length) {
+      setFocusIndex(0);
+    }
+  }, [filteredQuestions.length, focusIndex]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -180,8 +201,21 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
   const totalCount = normalized.questions.length;
   const progressPercent = totalCount > 0 ? Math.round((rehearsedCount / totalCount) * 100) : 0;
 
+  const activeFocusItem = filteredQuestions[focusIndex] || null;
+  const activeFocusId = activeFocusItem
+    ? activeFocusItem.id || `iq_${focusIndex + 1}`
+    : '';
+  const allHintsVisible = revealIntent && revealStar && revealPitfall;
+
+  const handleToggleAllHints = () => {
+    const next = !allHintsVisible;
+    setRevealIntent(next);
+    setRevealStar(next);
+    setRevealPitfall(next);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="interview-prep-tab">
       {/* 1. Header Banner & Progress Strategy Card */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl border border-indigo-500/20 shadow-xl p-5 sm:p-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
@@ -192,7 +226,7 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
               <Sparkles className="w-3.5 h-3.5" />
               <span>{t.badge}</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5 flex-wrap">
               <span>{t.title}</span>
               <span className="text-xs sm:text-sm font-semibold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 px-2.5 py-0.5 rounded-full">
                 {totalCount} {isEn ? 'Questions' : 'Câu hỏi'}
@@ -210,7 +244,7 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
                 <Trophy className="w-4 h-4 text-amber-400" />
                 <span>{t.rehearsedProgress}</span>
               </span>
-              <span className="text-white font-bold">
+              <span data-testid="interview-rehearsed-counter" className="text-white font-bold">
                 {rehearsedCount}/{totalCount} ({progressPercent}%)
               </span>
             </div>
@@ -235,9 +269,39 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
         </div>
       </div>
 
-      {/* 2. Filter & Actions Toolbar */}
+      {/* 2. Filter, View Mode Switcher & Actions Toolbar */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 sm:p-4 space-y-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Phase 3 Dual Mode Switcher: Quick Scan List vs Focus Practice Mode */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              data-testid="interview-mode-list"
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Quick Scan List' : 'Chế độ Danh Sách (Đọc lướt)'}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="interview-mode-focus"
+              onClick={() => setViewMode('focus')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'focus'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Target className="w-3.5 h-3.5" />
+              <span>{isEn ? 'Focus Practice Mode' : 'Chế độ Luyện Tập Từng Câu'}</span>
+            </button>
+          </div>
+
           {/* Search Input */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -251,20 +315,27 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {viewMode === 'list' && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleExpandAll}
+                  className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  {t.expandAll}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCollapseAll}
+                  className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  {t.collapseAll}
+                </button>
+              </>
+            )}
             <button
-              onClick={handleExpandAll}
-              className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-            >
-              {t.expandAll}
-            </button>
-            <button
-              onClick={handleCollapseAll}
-              className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-            >
-              {t.collapseAll}
-            </button>
-            <button
+              type="button"
               onClick={handleCopyAll}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer"
             >
@@ -291,6 +362,7 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
           </span>
 
           <button
+            type="button"
             onClick={() => setSelectedCategory('all')}
             className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
               selectedCategory === 'all'
@@ -303,6 +375,7 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
 
           {categories.map((cat) => (
             <button
+              type="button"
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
@@ -319,6 +392,7 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
 
           {/* Difficulty filter */}
           <button
+            type="button"
             onClick={() => setSelectedDifficulty('all')}
             className={`px-2 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
               selectedDifficulty === 'all'
@@ -331,6 +405,7 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
 
           {difficulties.map((diff) => (
             <button
+              type="button"
               key={diff}
               onClick={() => setSelectedDifficulty(diff)}
               className={`px-2 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
@@ -345,12 +420,13 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
         </div>
       </div>
 
-      {/* 3. Questions List */}
+      {/* 3. Empty Filter State */}
       {filteredQuestions.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center space-y-3">
           <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
           <p className="text-sm font-semibold text-slate-700">{t.emptySearch}</p>
           <button
+            type="button"
             onClick={() => {
               setSelectedCategory('all');
               setSelectedDifficulty('all');
@@ -361,8 +437,352 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
             {t.resetFilters}
           </button>
         </div>
+      ) : viewMode === 'focus' && activeFocusItem ? (
+        /* ========================================================================= */
+        /* PHASE 3: FOCUS PRACTICE MODE (SINGLE QUESTION INTERACTIVE FLASHCARD)     */
+        /* ========================================================================= */
+        <div
+          data-testid="interview-focus-card"
+          className="bg-white rounded-2xl border border-indigo-200 shadow-sm p-5 sm:p-7 space-y-6 animate-fade-in"
+        >
+          {/* Top Navigation Bar: Question Stepper + Prev/Next */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {filteredQuestions.map((q, idx) => {
+                const qId = q.id || `iq_${idx + 1}`;
+                const isDone = rehearsedIds.has(qId);
+                const isCurrent = idx === focusIndex;
+                return (
+                  <button
+                    key={qId}
+                    type="button"
+                    data-testid={`focus-step-btn-${idx + 1}`}
+                    onClick={() => setFocusIndex(idx)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center border ${
+                      isCurrent
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-500/20'
+                        : isDone
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                    title={`${isEn ? 'Question' : 'Câu'} #${idx + 1}`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                data-testid="focus-prev-btn"
+                disabled={focusIndex === 0}
+                onClick={() => setFocusIndex((prev) => Math.max(0, prev - 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>{isEn ? 'Previous' : 'Câu trước'}</span>
+              </button>
+              <span
+                data-testid="focus-position-indicator"
+                className="text-xs font-extrabold text-slate-800 px-2"
+              >
+                {focusIndex + 1} / {filteredQuestions.length}
+              </span>
+              <button
+                type="button"
+                data-testid="focus-next-btn"
+                disabled={focusIndex >= filteredQuestions.length - 1}
+                onClick={() =>
+                  setFocusIndex((prev) => Math.min(filteredQuestions.length - 1, prev + 1))
+                }
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white transition-colors cursor-pointer"
+              >
+                <span>{isEn ? 'Next' : 'Câu tiếp theo'}</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Focus Question Hero Prompt */}
+          {(() => {
+            const catStyle = getCategoryBadgeColor(activeFocusItem.category);
+            const diffStyle = getDifficultyBadgeColor(activeFocusItem.difficulty);
+            const isRehearsed = rehearsedIds.has(activeFocusId);
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-1 rounded-md bg-slate-900 text-white text-xs font-black">
+                      {isEn ? `Question #${focusIndex + 1}` : `Câu hỏi #${focusIndex + 1}`}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${catStyle.indicator}`} />
+                      <span>{activeFocusItem.category}</span>
+                    </span>
+                    <span
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold border ${diffStyle.bg} ${diffStyle.text} ${diffStyle.border}`}
+                    >
+                      {activeFocusItem.difficulty}
+                    </span>
+                  </div>
+
+                  {/* Progressive Hint Toggle Controls */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      data-testid="toggle-all-hints-btn"
+                      onClick={handleToggleAllHints}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                    >
+                      {allHintsVisible ? (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5 text-slate-600" />
+                          <span>{isEn ? 'Hide Hints (Self-Test)' : 'Ẩn gợi ý (Tự nhẩm trả lời)'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>{isEn ? 'Show All Hints' : 'Hiện toàn bộ gợi ý'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-5 sm:p-6">
+                  <h3
+                    data-testid="focus-question-title"
+                    className="text-base sm:text-lg md:text-xl font-black text-slate-900 leading-relaxed"
+                  >
+                    "{activeFocusItem.question}"
+                  </h3>
+                </div>
+
+                {/* Progressive Reveal Buttons Bar */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    data-testid="reveal-intent-btn"
+                    onClick={() => setRevealIntent((v) => !v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                      revealIntent
+                        ? 'bg-amber-50 text-amber-900 border-amber-300'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
+                    <span>
+                      {isEn ? '1. Recruiter Intent & CV Gap' : '1. Ý đồ HR & Điểm yếu nguồn'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="reveal-star-btn"
+                    onClick={() => setRevealStar((v) => !v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                      revealStar
+                        ? 'bg-indigo-50 text-indigo-900 border-indigo-300'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>
+                      {isEn ? '2. STAR Answer Blueprint' : '2. Khung trả lời mẫu STAR'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    data-testid="reveal-pitfall-btn"
+                    onClick={() => setRevealPitfall((v) => !v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                      revealPitfall
+                        ? 'bg-rose-50 text-rose-900 border-rose-300'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>{isEn ? '3. Pitfall to Avoid' : '3. Bẫy mất điểm cần tránh'}</span>
+                  </button>
+                </div>
+
+                {/* Layer 1: Recruiter Intent & Source Gap */}
+                {revealIntent && (
+                  <div
+                    data-testid="focus-intent-section"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in"
+                  >
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                        <Target className="w-4 h-4 text-indigo-600 shrink-0" />
+                        <span>{t.sourceGapLabel}</span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                        {activeFocusItem.sourceGapOrDoubt}
+                      </p>
+                    </div>
+
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-4 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                        <Lightbulb className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>{t.interviewerIntentLabel}</span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-amber-950 leading-relaxed font-medium">
+                        {activeFocusItem.interviewerIntent}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Layer 2: STAR Blueprint */}
+                {revealStar && (
+                  <div data-testid="focus-star-section" className="space-y-2 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>{t.starBlueprintTitle}</span>
+                      </span>
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        STAR (Situation/Task • Action • Result)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="bg-sky-50/60 border border-sky-200/80 rounded-xl p-4 space-y-2">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px] font-black uppercase">
+                          {t.starSituationTask}
+                        </span>
+                        <p className="text-xs sm:text-sm text-sky-950 leading-relaxed font-medium">
+                          {activeFocusItem.starAnswerGuide.situationTask}
+                        </p>
+                      </div>
+
+                      <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-xl p-4 space-y-2">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] font-black uppercase">
+                          {t.starAction}
+                        </span>
+                        <p className="text-xs sm:text-sm text-indigo-950 leading-relaxed font-medium">
+                          {activeFocusItem.starAnswerGuide.action}
+                        </p>
+                      </div>
+
+                      <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 space-y-2">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                          {t.starResult}
+                        </span>
+                        <p className="text-xs sm:text-sm text-emerald-950 leading-relaxed font-medium">
+                          {activeFocusItem.starAnswerGuide.result}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Layer 3: Pitfall to Avoid */}
+                {revealPitfall && (
+                  <div
+                    data-testid="focus-pitfall-section"
+                    className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3 animate-fade-in"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-xs sm:text-sm">
+                      <span className="font-bold text-rose-900 block">{t.pitfallLabel}</span>
+                      <p className="text-rose-800/90 leading-relaxed font-medium">
+                        {activeFocusItem.pitfallToAvoid}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Candidate Personal Practice Notes Box */}
+                <div className="bg-slate-50/90 border border-slate-200 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>
+                        {isEn
+                          ? 'Your Personal Talking Points (Draft your own STAR keywords):'
+                          : 'Ghi chú dàn ý trả lời của riêng bạn (Tự nháp ý chính theo STAR):'}
+                      </span>
+                    </label>
+                  </div>
+                  <textarea
+                    data-testid="focus-practice-notes"
+                    value={practiceNotes[activeFocusId] || ''}
+                    onChange={(e) =>
+                      setPracticeNotes((prev) => ({
+                        ...prev,
+                        [activeFocusId]: e.target.value,
+                      }))
+                    }
+                    rows={2}
+                    placeholder={
+                      isEn
+                        ? 'Jot down your project example, key actions, and real metrics for this question...'
+                        : 'Ghi nhanh tên dự án thực tế, giải pháp bạn đã làm và con số kết quả để nhớ khi phỏng vấn...'
+                    }
+                    className="w-full text-xs sm:text-sm p-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800"
+                  />
+                </div>
+
+                {/* Bottom Action Footer */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                  <button
+                    type="button"
+                    data-testid="focus-rehearsed-btn"
+                    onClick={() => toggleRehearsed(activeFocusId)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      isRehearsed
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
+                    }`}
+                  >
+                    {isRehearsed ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                        <span>{t.markedAsRehearsed}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Circle className="w-4 h-4 text-slate-300" />
+                        <span>{t.markAsRehearsed}</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleCopyQuestion(activeFocusItem, focusIndex, e)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors cursor-pointer"
+                  >
+                    {copiedId === activeFocusId ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>{t.copiedThisAnswer}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>{t.copyThisAnswer}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       ) : (
-        <div className="space-y-4">
+        /* ========================================================================= */
+        /* QUICK SCAN LIST VIEW (ACCORDION LIST)                                     */
+        /* ========================================================================= */
+        <div className="space-y-4" data-testid="interview-list-view">
           {filteredQuestions.map((item, idx) => {
             const qId = item.id || `iq_${idx + 1}`;
             const isExpanded = expandedIds.has(qId);
@@ -442,6 +862,20 @@ export const InterviewPrepTab: React.FC<InterviewPrepTabProps> = ({
 
                   {/* Actions right */}
                   <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFocusIndex(idx);
+                        setViewMode('focus');
+                      }}
+                      title={isEn ? 'Practice this question in Focus Mode' : 'Luyện tập câu này ở Chế độ Tập trung'}
+                      className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors cursor-pointer"
+                    >
+                      <Target className="w-3 h-3" />
+                      <span>{isEn ? 'Practice' : 'Luyện câu này'}</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={(e) => handleCopyQuestion(item, idx, e)}

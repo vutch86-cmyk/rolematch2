@@ -1,7 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Header } from './components/Header';
 import { InputSection } from './components/InputSection';
+import { CompactContextBar } from './components/CompactContextBar';
 import { KeywordMatchTab } from './components/KeywordMatchTab';
+import { ExecutiveHeroCard } from './components/ExecutiveHeroCard';
+import { EvidenceMapTab, CompetencyFilterType } from './components/EvidenceMapTab';
+import {
+  buildEvidenceMapViewModel,
+  QuickWinAction,
+  computeAnalysisFingerprint,
+  shouldUnhideFilterForTarget,
+} from './utils/evidenceMapAdapter';
 import { BulletPointRewriteTab } from './components/BulletPointRewriteTab';
 import { RecruiterScanTab } from './components/RecruiterScanTab';
 import { InterviewPrepTab } from './components/InterviewPrepTab';
@@ -34,6 +43,7 @@ const AdminDashboardModal = React.lazy(() => import('./components/AdminDashboard
 const StandaloneLoginPage = React.lazy(() => import('./components/StandaloneLoginPage').then(m => ({ default: m.StandaloneLoginPage })));
 const CandidateGuideDrawer = React.lazy(() => import('./components/CandidateGuideDrawer').then(m => ({ default: m.CandidateGuideDrawer })));
 const BatchProcessingTab = React.lazy(() => import('./components/BatchProcessingTab').then(m => ({ default: m.BatchProcessingTab })));
+const PrototypeGoogleUxSandbox = React.lazy(() => import('./components/PrototypeGoogleUxSandbox').then(m => ({ default: m.PrototypeGoogleUxSandbox })));
 
 import {
   extractJobMetaFromJdText,
@@ -51,6 +61,7 @@ import {
   Copy,
   Check,
   AlertCircle,
+  AlertTriangle,
   RefreshCw,
   Printer,
   FileCheck,
@@ -144,6 +155,13 @@ export default function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
   const [isCandidateGuideOpen, setIsCandidateGuideOpen] = useState<boolean>(false);
+  const [isSandboxMode, setIsSandboxMode] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && window.location.search.includes('sandbox=google-ux');
+    } catch {
+      return false;
+    }
+  });
 
   const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -247,18 +265,22 @@ export default function App() {
 
   useEffect(() => {
     initGlobalErrorLogging();
-    const updateLogsCount = async () => {
-      try {
-        const logs = await fetchAllLogs();
-        setLogsCount(logs?.length || 0);
-      } catch {
-        // ignore
-      }
-    };
-    updateLogsCount();
-    const interval = setInterval(updateLogsCount, 6000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!isLogsModalOpen || currentUser?.role !== 'admin') return;
+    let cancelled = false;
+    fetchAllLogs()
+      .then((logs) => {
+        if (!cancelled) setLogsCount(logs?.length || 0);
+      })
+      .catch(() => {
+        // ignore
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLogsModalOpen, currentUser?.role]);
 
   useEffect(() => {
     try {
@@ -330,9 +352,176 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<CompleteCVAnalysisResponse | null>(null);
   const [checkedActions, setCheckedActions] = useState<boolean[]>([false, false, false, false, false]);
+
+  // Phase 2: Evidence Map & Executive Hero State (Lifted to preserve across tab switches & lang changes)
+  const [expandedCompetencyGroups, setExpandedCompetencyGroups] = useState<Set<string>>(new Set(['tech']));
+  const [competencyFilter, setCompetencyFilter] = useState<CompetencyFilterType>('all');
+  const [highlightedEvidenceItemId, setHighlightedEvidenceItemId] = useState<string | undefined>(undefined);
+  const [analysisSnapshotKey, setAnalysisSnapshotKey] = useState<string | null>(null);
+
+  const evidenceMapViewModel = useMemo(() => {
+    return buildEvidenceMapViewModel(analysis, lang as 'vi' | 'en');
+  }, [analysis, lang]);
+
+  const activeNavCancelRef = useRef<(() => void) | null>(null);
+
+  // Khi phan tich moi nap vao: dung fingerprint noi dung tin cay de khoi tao lai
+  useEffect(() => {
+    if (activeNavCancelRef.current) {
+      activeNavCancelRef.current();
+      activeNavCancelRef.current = null;
+    }
+
+    if (analysis && analysis.feature1) {
+      const currentKey = computeAnalysisFingerprint(analysis);
+      if (currentKey !== analysisSnapshotKey) {
+        setAnalysisSnapshotKey(currentKey);
+        setExpandedCompetencyGroups(new Set([evidenceMapViewModel.initialOpenGroupId]));
+        setCompetencyFilter('all');
+        setHighlightedEvidenceItemId(undefined);
+      }
+    } else if (!analysis) {
+      setAnalysisSnapshotKey(null);
+    }
+  }, [analysis, evidenceMapViewModel.initialOpenGroupId, analysisSnapshotKey]);
+
+  // Huy dieu huong khi component unmount
+  useEffect(() => {
+    return () => {
+      if (activeNavCancelRef.current) {
+        activeNavCancelRef.current();
+      }
+    };
+  }, []);
+
+  const handleToggleCompetencyGroup = (groupId: string) => {
+    setExpandedCompetencyGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  const handleQuickWinClick = (qw: QuickWinAction) => {
+    if (!qw.targetItemId) return;
+
+    if (activeNavCancelRef.current) {
+      activeNavCancelRef.current();
+      activeNavCancelRef.current = null;
+    }
+
+    setActiveTab('feature1');
+
+    // Chi go bo loc neu bo loc hien tai thuc su che giau target item
+    const targetItem = evidenceMapViewModel.groups
+      .flatMap((g) => g.items)
+      .find((it) => it.id === qw.targetItemId);
+
+    if (shouldUnhideFilterForTarget(competencyFilter, targetItem)) {
+      setCompetencyFilter('all');
+    }
+
+    if (qw.targetGroupId) {
+      setExpandedCompetencyGroups((prev) => {
+        const next = new Set(prev);
+        next.add(qw.targetGroupId!);
+        return next;
+      });
+    }
+
+    setHighlightedEvidenceItemId(qw.targetItemId);
+
+    let isCancelled = false;
+    let frameId: number | null = null;
+    let pollCount = 0;
+    const maxPolls = 25;
+
+    const findVisibleElement = (itemId: string): HTMLElement | null => {
+      const candidates = document.querySelectorAll(`[data-criterion-id="${itemId}"]`);
+      for (let i = 0; i < candidates.length; i++) {
+        const el = candidates[i] as HTMLElement;
+        if (el.offsetParent !== null || el.getClientRects().length > 0) {
+          return el;
+        }
+      }
+      return document.getElementById(itemId);
+    };
+
+    const pollAndNavigate = () => {
+      if (isCancelled) return;
+
+      const el = findVisibleElement(qw.targetItemId!);
+      if (el) {
+        const topHeaderH = headerHeight || 64;
+        const stickyTabH = tabsHeaderRef.current?.offsetHeight || 56;
+        const totalStickyOffset = topHeaderH + stickyTabH + 20;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - totalStickyOffset;
+
+        const prefersReducedMotion =
+          typeof window !== 'undefined' &&
+          window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+        window.scrollTo({
+          top: Math.max(0, offsetPosition),
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        });
+
+        el.focus({ preventScroll: true });
+        return;
+      }
+
+      pollCount++;
+      if (pollCount < maxPolls) {
+        frameId = requestAnimationFrame(pollAndNavigate);
+      }
+    };
+
+    frameId = requestAnimationFrame(pollAndNavigate);
+
+    const timerId = setTimeout(() => {
+      if (!isCancelled) {
+        setHighlightedEvidenceItemId((curr) => (curr === qw.targetItemId ? undefined : curr));
+      }
+    }, 2500);
+
+    activeNavCancelRef.current = () => {
+      isCancelled = true;
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      clearTimeout(timerId);
+    };
+  };
   const [copiedReport, setCopiedReport] = useState<boolean>(false);
   const [currentRoleTitle, setCurrentRoleTitle] = useState<string>('');
   const [jdSourceLabel, setJdSourceLabel] = useState<string | null>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState<number>(64);
+
+  useEffect(() => {
+    if (!headerRef.current) return;
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        setHeaderHeight(headerRef.current.offsetHeight);
+      }
+    };
+    updateHeaderHeight();
+    const observer = new ResizeObserver(updateHeaderHeight);
+    observer.observe(headerRef.current);
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
+  const [cvFileName, setCvFileName] = useState<string | null>(null);
+  const [isInputCollapsed, setIsInputCollapsed] = useState<boolean>(false);
+  const [analyzedCvText, setAnalyzedCvText] = useState<string>('');
+  const [analyzedJdText, setAnalyzedJdText] = useState<string>('');
+  const isInputDirty = Boolean(analysis && (cvText !== analyzedCvText || jdText !== analyzedJdText));
 
   // Gemini Updated CV state
   const [isUpdatedCvModalOpen, setIsUpdatedCvModalOpen] = useState<boolean>(false);
@@ -387,6 +576,8 @@ export default function App() {
 
   const handleAnalyze = async (clarifyingAnswers?: string) => {
     if (!cvText.trim() || !jdText.trim()) return;
+    const sentCvText = cvText;
+    const sentJdText = jdText;
 
     if (clarifyingAnswers) {
       setIsRefining(true);
@@ -417,6 +608,9 @@ export default function App() {
       const data = await parseApiResponseSafely<CompleteCVAnalysisResponse>(res, lang as 'vi' | 'en', requestId);
 
       setAnalysis(data as any);
+      setAnalyzedCvText(sentCvText);
+      setAnalyzedJdText(sentJdText);
+      setIsInputCollapsed(true);
       setCheckedActions([false, false, false, false, false]);
 
       if (!clarifyingAnswers) {
@@ -479,6 +673,7 @@ export default function App() {
       }).catch((err) => console.warn('Failed to push history item to cloud:', err));
     } catch (err: any) {
       console.error('Error analyzing CV:', err);
+      setIsInputCollapsed(false);
       if (err?.code === 'AUTH_REQUIRED') {
         setIsLoginModalOpen(true);
       }
@@ -496,6 +691,10 @@ export default function App() {
     setJdText(migrated.jdText);
     setAnalysis(migrated.analysis);
     setCurrentRoleTitle(migrated.title);
+    setAnalyzedCvText(migrated.cvText);
+    setAnalyzedJdText(migrated.jdText);
+    setIsInputCollapsed(true);
+    setError(null);
     setCurrentActiveHistoryId(migrated.id);
     setCheckedActions([false, false, false, false, false]);
     setActiveTab('feature3');
@@ -645,6 +844,11 @@ export default function App() {
     setAnalysis(null);
     setError(null);
     setCurrentRoleTitle('');
+    setCvFileName(null);
+    setJdSourceLabel(null);
+    setAnalyzedCvText('');
+    setAnalyzedJdText('');
+    setIsInputCollapsed(false);
     setCurrentActiveHistoryId(undefined);
     setCheckedActions([false, false, false, false, false]);
   };
@@ -714,9 +918,43 @@ export default function App() {
     setCvText(newCvText);
   };
 
+  if (isSandboxMode) {
+    return (
+      <React.Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 font-medium">Đang tải Sandbox...</div>}>
+        <PrototypeGoogleUxSandbox
+          onExit={() => {
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('sandbox');
+              window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+            } catch {}
+            setIsSandboxMode(false);
+          }}
+        />
+      </React.Suspense>
+    );
+  }
+
   if (!currentUser) {
     return (
       <React.Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 font-medium">Đang tải...</div>}>
+        {/* Quick sandbox launch on login page */}
+        <div className="fixed bottom-4 left-4 z-40">
+          <button
+            onClick={() => {
+              try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('sandbox', 'google-ux');
+                window.history.pushState({}, '', url.toString());
+              } catch {}
+              setIsSandboxMode(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 bg-slate-900/90 hover:bg-slate-900 text-white rounded-full text-xs font-bold shadow-lg border border-slate-700 backdrop-blur-sm cursor-pointer transition-all hover:scale-105"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Mở Sandbox UI (Đợt 0)</span>
+          </button>
+        </div>
         <StandaloneLoginPage
           onLoginSuccess={handleLoginSuccess}
           lang={lang}
@@ -730,6 +968,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans flex flex-col">
       {/* Header */}
       <Header
+        ref={headerRef}
         onReset={handleReset}
         hasData={!!analysis}
         lang={lang}
@@ -742,43 +981,35 @@ export default function App() {
         onOpenLogin={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
         onOpenAdminPanel={() => setIsAdminModalOpen(true)}
+        appMode={appMode}
+        onAppModeChange={setAppMode}
       />
 
 
       {/* Main Container */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-8 space-y-8">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 space-y-6">
 
-        {/* Mode Switcher Tabs */}
-        <div className="bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between gap-4 max-w-2xl mx-auto">
-          <button
-            onClick={() => setAppMode('single')}
-            className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              appMode === 'single'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>{lang === 'vi' ? 'Ứng viên' : 'Candidate'}</span>
-          </button>
-          <button
-            onClick={() => setAppMode('batch')}
-            className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              appMode === 'batch'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span className="relative">
-              {lang === 'vi' ? 'Nhà tuyển dụng' : 'Recruiter'}
-              <span className="absolute -top-1 -right-2.5 w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
-            </span>
-          </button>
-        </div>
+        {/* Compact Context Bar (Shown when analysis is available) */}
+        {analysis && (
+          <CompactContextBar
+            jdTitle={analysis.jobTitle || currentRoleTitle}
+            jdSourceLabel={jdSourceLabel}
+            cvFileName={cvFileName}
+            cvTextLength={cvText.length}
+            overallScore={analysis.feature1?.scores?.overallRoleScore}
+            isInputCollapsed={isInputCollapsed}
+            onToggleCollapse={() => setIsInputCollapsed((prev) => !prev)}
+            isInputDirty={isInputDirty}
+            onReAnalyze={() => handleAnalyze()}
+            isLoading={isLoading}
+            lang={lang}
+            topOffset={headerHeight}
+          />
+        )}
 
-        <div className={appMode === 'single' ? 'space-y-8 animate-fade-in' : 'hidden'}>
+<div className={appMode === 'single' ? 'space-y-8 animate-fade-in' : 'hidden'}>
             {/* Top welcome banner / intro */}
+            {!analysis && (
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-indigo-900 pointer-events-none hidden md:block">
                 <Users className="w-56 h-56" />
@@ -817,25 +1048,56 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
 
-        {/* Input Form Section */}
-        <InputSection
-          cvText={cvText}
-          setCvText={setCvText}
-          jdText={jdText}
-          setJdText={(val) => {
+        {/* Input Form Section (Preserved in DOM to prevent state/file loss) */}
+          <div className={isInputCollapsed ? 'hidden' : 'space-y-4 animate-in fade-in'}>
+            <InputSection
+              cvText={cvText}
+              setCvText={setCvText}
+              jdText={jdText}
+              setJdText={(val) => {
             if (val !== jdText) {
               setCurrentRoleTitle('');
             }
-            setJdText(val);
-          }}
-          onAnalyze={() => handleAnalyze()}
-          isLoading={isLoading}
-          onSelectPreset={handleSelectPreset}
-          lang={lang}
-          currentUser={currentUser}
-          onJdSourceChange={setJdSourceLabel}
-        />
+                setJdText(val);
+              }}
+              onAnalyze={() => handleAnalyze()}
+              isLoading={isLoading}
+              onSelectPreset={handleSelectPreset}
+              lang={lang}
+              currentUser={currentUser}
+              onJdSourceChange={setJdSourceLabel}
+              onCvSourceChange={setCvFileName}
+            />
+          </div>
+
+          {/* Stale Input Warning Banner */}
+          {isInputDirty && analysis && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <div>
+                  <strong className="font-bold text-sm sm:text-base text-amber-900">
+                    {lang === 'vi' ? 'Kết quả bên dưới thuộc về nội dung trước khi chỉnh sửa' : 'Analysis reflects input prior to latest edits'}
+                  </strong>
+                  <p className="text-xs text-amber-800 mt-0.5 font-medium">
+                    {lang === 'vi'
+                      ? 'Bạn đã sửa đổi CV hoặc JD. Bấm "Chấm điểm lại" để AI tính toán lại độ khớp và các đề xuất mới nhất.'
+                      : 'You updated CV or JD. Click "Re-analyze" to compute updated match scores and recommendations.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleAnalyze()}
+                disabled={isLoading}
+                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer flex items-center gap-2 shrink-0"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>{lang === 'vi' ? 'Chấm điểm lại' : 'Re-analyze'}</span>
+              </button>
+            </div>
+          )}
 
         {/* Error message card if any */}
         {error && (
@@ -939,6 +1201,14 @@ export default function App() {
               </div>
             )}
 
+            {/* Executive Hero Card (Phase 2) */}
+            <ExecutiveHeroCard
+              hero={evidenceMapViewModel.hero}
+              lang={lang as 'vi' | 'en'}
+              isStale={Boolean(isInputDirty)}
+              onQuickWinClick={handleQuickWinClick}
+            />
+
             {/* Action Bar & Tabs Header */}
             <div ref={tabsHeaderRef} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 sm:p-2.5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 sticky top-20 z-20 max-w-full overflow-hidden">
               {/* Feature Tabs */}
@@ -965,8 +1235,8 @@ export default function App() {
                   }`}
                 >
                   <Layers className={`w-3.5 h-3.5 ${activeTab === 'feature1' ? 'text-white' : 'text-indigo-600'}`} />
-                  <span className="hidden xl:inline">{t.tabs.tab2}</span>
-                  <span className="inline xl:hidden">{lang === 'vi' ? '2. Khớp & Từ Khóa' : '2. Keywords & JD'}</span>
+                  <span className="hidden xl:inline">{lang === 'vi' ? '2. Bản Đồ Bằng Chứng' : '2. Evidence Map'}</span>
+                  <span className="inline xl:hidden">{lang === 'vi' ? '2. Bằng Chứng' : '2. Evidence'}</span>
                 </button>
 
                 <button
@@ -1065,13 +1335,19 @@ export default function App() {
             {/* Tab Views */}
             <div key={activeTab} className="pt-2 animate-fade-in">
               {activeTab === 'feature1' && analysis.feature1 && (
-                <KeywordMatchTab
-                  jdKeywords={analysis.feature1?.jdKeywords || []}
-                  comparisonTable={analysis.feature1?.comparisonTable || []}
-                  scores={analysis.feature1?.scores || { keywordMatchScore: 0, skillMatchScore: 0, experienceOutcomeScore: 0, overallRoleScore: 0 }}
-                  summary={analysis.feature1?.summary || { biggestStrength: '', missingKeywordsSkills: [], weakOrVagueSections: [], immediateActions: [] }}
-                  checkedActions={checkedActions}
-                  onToggleAction={handleToggleAction}
+                <EvidenceMapTab
+                  viewModel={evidenceMapViewModel}
+                  expandedGroups={expandedCompetencyGroups}
+                  onToggleGroup={handleToggleCompetencyGroup}
+                  competencyFilter={competencyFilter}
+                  onFilterChange={setCompetencyFilter}
+                  highlightedItemId={highlightedEvidenceItemId}
+
+
+
+
+
+
                   lang={lang}
                 />
               )}
@@ -1089,6 +1365,7 @@ export default function App() {
                   onRefineWithAnswers={(ans) => handleAnalyze(ans)}
                   isRefining={isRefining}
                   onOpenGenerateUpdatedCv={() => handleGenerateUpdatedCv()}
+                  onApplyDraftToMainCv={(newCv) => setCvText(newCv)}
                   lang={lang}
                 />
               )}
